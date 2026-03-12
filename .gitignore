@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+beau-terminal/build/
+beau-terminal/.svelte-kit/
+dist/
+out/
+
+# Database files
+beau-terminal/data/*.db
+beau-terminal/data/*.db-shm
+beau-terminal/data/*.db-wal
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Package manager locks (keep package-lock.json but not npm cache)
+.npm/
+
+# Vite / SvelteKit
+.vite/
+vite.config.ts.timestamp-*
+
+# TypeScript
+*.tsbuildinfo

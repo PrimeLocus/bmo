@@ -1,0 +1,17 @@
+{
+  "name": "bmo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "BMO workspace bootstrap CLI.",
+  "bin": {
+    "bmo": "./bin/bmo.js"
+  },
+  "scripts": {
+    "start": "node ./bin/bmo.js",
+    "test": "node ./test/init.test.js"
+  },
+  "engines": {
+    "node": ">=20.10"
+  }
+}

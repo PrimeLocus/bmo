@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%sveltekit.assets%/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      (function () {
+        try {
+          var s = JSON.parse(localStorage.getItem('bmo-settings') || '{}');
+          var el = document.documentElement;
+          if (s.fontSize) el.style.fontSize = s.fontSize + 'px';
+          if (s.contrast === 'high') el.setAttribute('data-contrast', 'high');
+          if (s.fontWeight) el.style.setProperty('--bmo-font-weight', s.fontWeight);
+          if (s.lineHeight) el.style.setProperty('--bmo-line-height', s.lineHeight);
+        } catch (e) {}
+      })();
+    </script>
+    %sveltekit.head%
+  </head>
+  <body data-sveltekit-preload-data="hover" class="min-h-screen" style="background:#0a0f0d">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>

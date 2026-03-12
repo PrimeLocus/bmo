@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+:root {
+  --bmo-green: #00e5a0;
+  --bmo-bg: #0a0f0d;
+  --bmo-surface: #0c1710;
+  --bmo-border: #1a3a2a;
+  --bmo-text: #c8ffd4;
+  --bmo-muted: #3a6a4a;
+
+  /* User-adjustable display settings */
+  --bmo-font-weight: 400;
+  --bmo-line-height: 1.6;
+}
+
+html {
+  font-size: 20px; /* bumped default — user can adjust in settings */
+}
+
+body {
+  background: var(--bmo-bg);
+  color: var(--bmo-text);
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: var(--bmo-font-weight);
+  line-height: var(--bmo-line-height);
+}
+
+/* High contrast mode */
+html[data-contrast="high"] {
+  --bmo-muted:  #7abf8a;
+  --bmo-border: #2d6040;
+  --bmo-text:   #eefff5;
+}

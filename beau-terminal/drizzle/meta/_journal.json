@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1773256701684,
+      "tag": "0000_outgoing_elektra",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1773256960854,
+      "tag": "0001_high_wiccan",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "mcp__hydra__hydra_status",
+      "mcp__hydra__hydra_hub_list",
+      "mcp__hydra__hydra_tasks_list",
+      "mcp__hydra__hydra_hub_register",
+      "Bash(python3:*)",
+      "Bash(head:*)",
+      "mcp__hydra__hydra_ask",
+      "mcp__hydra__hydra_council_request",
+      "mcp__hydra__hydra_handoffs_pending",
+      "Bash(echo NOT A GIT REPO:*)",
+      "Bash(cat /e/Dev/BMO/docs/plan.md 2>/dev/null || cat /e/Dev/BMO/docs/*.md 2>/dev/null | head -100 || ls /e/Dev/BMO/docs/ 2>/dev/null)",
+      "Bash(ls /e/Dev/BMO/docs/superpowers/plans/ && cat /e/Dev/BMO/docs/superpowers/plans/*.md 2>/dev/null)",
+      "mcp__hydra__hydra_tasks_claim",
+      "Bash(tail:*)",
+      "Bash(true:*)"
+    ]
+  }
+}

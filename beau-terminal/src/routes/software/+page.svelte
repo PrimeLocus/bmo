@@ -1,0 +1,108 @@
+<script lang="ts">
+  import { enhance } from '$app/forms';
+  import type { PageData } from './$types.js';
+
+  const { data }: { data: PageData } = $props();
+
+  const KIND_COLOR: Record<string, string> = {
+    github: 'var(--bmo-green)',
+    docs: '#9cdcfe',
+    video: '#f0a500',
+    guide: 'var(--bmo-muted)',
+  };
+  const KIND_PREFIX: Record<string, string> = {
+    github: 'GH',
+    docs: 'DOC',
+    video: 'VID',
+    guide: '→',
+  };
+
+  const allSteps = $derived(data.phases.flatMap(p => p.steps));
+  const totalDone = $derived(allSteps.filter(s => s.done).length);
+  const totalPct = $derived(allSteps.length > 0 ? Math.round((totalDone / allSteps.length) * 100) : 0);
+
+  let collapsed = $state<Set<number>>(new Set());
+  function togglePhase(id: number) {
+    const next = new Set(collapsed);
+    next.has(id) ? next.delete(id) : next.add(id);
+    collapsed = next;
+  }
+</script>
+
+<div class="max-w-3xl">
+  <div class="mb-6">
+    <h1 class="text-xl tracking-widest font-bold" style="color: var(--bmo-green)">SOFTWARE BUILD</h1>
+    <p class="text-xs mt-1" style="color: var(--bmo-muted)">{totalDone} / {allSteps.length} steps · {totalPct}%</p>
+  </div>
+
+  <!-- Overall progress -->
+  <div class="mb-6">
+    <div class="h-1" style="background: var(--bmo-border); border-radius: 1px">
+      <div class="h-1 transition-all" style="width: {totalPct}%; background: var(--bmo-green); border-radius: 1px"></div>
+    </div>
+  </div>
+
+  <!-- Phases -->
+  <div class="space-y-3">
+    {#each data.phases as phase (phase.id)}
+      {@const done = phase.steps.filter(s => s.done).length}
+      {@const pct = phase.steps.length > 0 ? Math.round((done / phase.steps.length) * 100) : 0}
+      {@const isOpen = !collapsed.has(phase.id)}
+
+      <div class="border" style="border-color: var(--bmo-border)">
+        <!-- Phase header -->
+        <button
+          type="button"
+          onclick={() => togglePhase(phase.id)}
+          class="w-full flex items-center justify-between px-4 py-3 text-left hover:opacity-80 transition-opacity"
+          style="background: var(--bmo-surface)"
+        >
+          <div class="flex items-center gap-3">
+            <span class="text-xs" style="color: {pct === 100 ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">{isOpen ? '▾' : '▸'}</span>
+            <span class="text-xs tracking-widest font-bold" style="color: {pct === 100 ? 'var(--bmo-green)' : 'var(--bmo-text)'}">{phase.phase}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs" style="color: var(--bmo-muted)">{done}/{phase.steps.length}</span>
+            <div class="w-24 h-1" style="background: var(--bmo-border); border-radius: 1px">
+              <div class="h-1 transition-all" style="width: {pct}%; background: {pct === 100 ? 'var(--bmo-green)' : 'var(--bmo-muted)'}; border-radius: 1px"></div>
+            </div>
+          </div>
+        </button>
+
+        <!-- Steps -->
+        {#if isOpen}
+          <div class="border-t" style="border-color: var(--bmo-border)">
+            {#each phase.steps as step (step.id)}
+              <div class="flex items-start gap-3 px-4 py-2 border-b" style="border-color: var(--bmo-border)">
+                <form method="POST" action="?/toggle" use:enhance class="flex items-start gap-3 flex-1">
+                  <input type="hidden" name="id" value={step.id} />
+                  <input type="hidden" name="done" value={String(step.done)} />
+                  <button type="submit" class="mt-0.5 shrink-0 w-4 h-4 border flex items-center justify-center text-xs hover:opacity-70 transition-opacity"
+                          style="border-color: {step.done ? 'var(--bmo-green)' : 'var(--bmo-border)'}; background: {step.done ? 'var(--bmo-green)' : 'transparent'}; color: var(--bmo-bg)">
+                    {#if step.done}✓{/if}
+                  </button>
+                  <div class="flex-1 min-w-0">
+                    <span class="text-xs leading-relaxed" style="color: {step.done ? 'var(--bmo-muted)' : 'var(--bmo-text)'}; text-decoration: {step.done ? 'line-through' : 'none'}">
+                      {step.text}
+                    </span>
+                    {#if step.links.length > 0}
+                      <div class="flex flex-wrap gap-2 mt-1.5">
+                        {#each step.links as link}
+                          <a href={link.url} target="_blank" rel="noopener noreferrer"
+                             class="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 border hover:opacity-80 transition-opacity"
+                             style="border-color: {KIND_COLOR[link.kind] ?? 'var(--bmo-border)'}; color: {KIND_COLOR[link.kind] ?? 'var(--bmo-muted)'}; font-size: 0.65rem; letter-spacing: 0.04em">
+                            <span style="opacity: 0.6">{KIND_PREFIX[link.kind] ?? '↗'}</span>{link.label}
+                          </a>
+                        {/each}
+                      </div>
+                    {/if}
+                  </div>
+                </form>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/each}
+  </div>
+</div>
