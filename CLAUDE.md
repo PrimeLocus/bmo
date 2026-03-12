@@ -1,24 +1,137 @@
 # BMO
 
-Physical BMO robot build — Lafayette, LA. Raspberry Pi 5 + Hailo NPU + custom AI personality (Beau).
+Physical BMO robot build — Raspberry Pi 5 + Hailo NPU + custom AI personality (Beau).
 
 ## Project Overview
 
-- **Personality**: Beau — wonder-first, reflection underneath, mischief at edges
-- **Wake words**: "Hey BMO" (public/performative) vs "Hey Beau" (private/warmer)
-- **Voice**: Korean-Cajun blend, custom Piper TTS
-- **Brain routing**: Hailo NPU (reflex) → Pi CPU Ollama (philosophy) → ThinkStation (heavy)
-- **RAG**: ChromaDB from journals, VJ logs, project docs
-- **Integrations**: Home Assistant, TouchDesigner VJ witness mode, Tailscale
+- **Personality**: Beau — wonder-first, reflection underneath, mischief at edges. Full spec in `bmo-personality-bible.docx`.
+- **Wake words**: "Hey BMO" (public/performative) vs "Hey Beau" (private/warmer) — different system prompt tone injection per wake word.
+- **Voice**: Korean-Cajun blend, custom Piper TTS trained via TextyMcSpeechy on Legion RTX 4090.
+- **Brain routing**: Hailo NPU (reflex/vision) → Pi CPU Ollama (philosophy/poetry) → ThinkStation via Tailscale (heavy reasoning). See `docs/reference.md` for full routing details.
+- **RAG**: ChromaDB + nomic-embed-text from journals, VJ logs, project docs.
+- **Integrations**: Home Assistant, TouchDesigner VJ witness mode, Tailscale, MQTT (Mosquitto on Proxmox).
 
-## Stack (decided)
+## Architecture Decisions (resolved)
 
-- Command center: TBD (council debate D002 in progress)
-- MQTT broker: Mosquitto on Proxmox
-- Persistence: SQLite
-- Self-hosted on Proxmox (Docker)
+- **Command center**: Beau's Terminal — SvelteKit app in `beau-terminal/`.
+- **MQTT broker**: Mosquitto on Proxmox.
+- **Persistence**: SQLite via Drizzle ORM (`beau-terminal/data/beau.db`, WAL mode).
+- **Deployment**: Self-hosted on Proxmox (Docker). adapter-node builds to `beau-terminal/build/`.
+- **BMO CLI**: Root-level workspace bootstrapper (`bmo init`) — scaffolds workspace directories, config, and prompt template.
+
+## Repo Structure
+
+```
+bmo/
+├── CLAUDE.md
+├── package.json              # Workspace root — `bmo` CLI + dev shortcut
+├── bin/bmo.js                # CLI entrypoint
+├── src/                      # CLI source
+│   ├── cli.js                # Command router
+│   └── commands/init.js      # `bmo init` — workspace scaffolding
+├── test/
+│   └── init.test.js          # CLI tests
+├── docs/
+│   └── reference.md          # Deep technical reference (MQTT, schema, brain routing)
+├── bmo-personality-bible.docx
+├── bmo-system-prompt.md      # Canonical system prompt ({{PLACEHOLDER}} syntax)
+├── bmo-command-center.jsx    # LEGACY — superseded by beau-terminal
+│
+└── beau-terminal/            # Beau's Terminal — the command center
+    ├── package.json
+    ├── svelte.config.js      # adapter-node → build/
+    ├── vite.config.ts        # Port 4242, Tailwind vite plugin
+    ├── drizzle.config.ts     # SQLite, schema path, DB_PATH env override
+    ├── data/beau.db          # SQLite database (WAL mode, auto-seeds)
+    ├── drizzle/              # Migration files
+    ├── static/               # Static assets (robots.txt, favicon)
+    ├── src/
+    │   ├── app.css           # Design tokens (CSS custom properties)
+    │   ├── app.html          # Shell — loads settings from localStorage
+    │   ├── hooks.server.ts   # Startup: DB seed + MQTT connect + WebSocket upgrade
+    │   ├── lib/
+    │   │   ├── components/
+    │   │   │   ├── Nav.svelte        # Sidebar nav + text size controls
+    │   │   │   └── StatusBar.svelte  # Top bar — online/offline, mode, emotion, last haiku
+    │   │   ├── stores/
+    │   │   │   ├── beau.svelte.ts    # WebSocket client → live BeauState ($state)
+    │   │   │   └── settings.svelte.ts # Display settings ($state + localStorage)
+    │   │   └── server/
+    │   │       ├── db/
+    │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
+    │   │       │   ├── schema.ts     # 7 tables — source of truth for DB schema
+    │   │       │   └── seed.ts       # 16 parts, 10 phases, 44 steps, 11 ideas
+    │   │       └── mqtt/
+    │   │           └── bridge.ts     # MQTT → BeauState → WebSocket broadcast
+    │   └── routes/
+    │       ├── +layout.svelte        # Shell: Nav + StatusBar + slot
+    │       ├── +page.svelte          # Dashboard — live state, build stats
+    │       ├── parts/                # Parts Tracker — sortable table, inline edit
+    │       ├── software/             # Software Build — phased checklist, progress bars
+    │       ├── ideas/                # Ideas Board — 3-column kanban
+    │       ├── todo/                 # Todo — sectioned task list
+    │       ├── memory/               # Memory — dispatcher log + haiku archive
+    │       ├── prompt/               # Prompt Console — MQTT publisher + history
+    │       ├── haikus/               # Haiku Archive — filterable grid
+    │       ├── settings/             # Display Settings — font, contrast, weight
+    │       └── ws/                   # WebSocket stub (upgrade in hooks.server.ts)
+    └── build/                        # Production output (adapter-node)
+```
+
+## Tech Stack (beau-terminal)
+
+- **Framework**: SvelteKit 2.50+ / Svelte 5 (runes: `$state`, `$derived`, `$props`, `$effect`)
+- **Styling**: Tailwind CSS 4 via `@tailwindcss/vite` + CSS custom properties
+- **Database**: better-sqlite3 + Drizzle ORM (WAL mode, auto-migration on startup)
+- **Real-time**: MQTT.js → server-side BeauState → ws (WebSocket) → `$state` on client
+- **Build**: Vite 7, adapter-node, port 4242
+
+## Design System
+
+Dark terminal aesthetic. Monospace Courier New on near-black.
+
+```
+--bmo-green:   #00e5a0    (primary accent)
+--bmo-bg:      #0a0f0d    (background)
+--bmo-surface: #0c1710    (cards, nav, surfaces)
+--bmo-border:  #1a3a2a    (borders, dividers)
+--bmo-text:    #c8ffd4    (primary text)
+--bmo-muted:   #3a6a4a    (secondary text, labels)
+```
+
+High contrast mode: `html[data-contrast="high"]`. User-adjustable: font size (14–32px), font weight (400/600), line height (1.5/1.7/1.9).
+
+## Conventions
+
+- **Svelte 5 runes only** — no `$:` reactive statements, no `writable()`/`readable()` stores.
+- **Form actions** for mutations — SvelteKit `use:enhance`. No client-side fetch for CRUD.
+- **CSS custom properties** for all colors — never hardcode hex (except status colors like `#d63031`).
+- **Tracking-widest uppercase** for labels and headers — terminal aesthetic.
+- **Responsive** — desktop table + mobile card views. Nav collapses to icons on narrow screens.
+- **No external UI framework** — hand-built with Tailwind utilities + inline styles for CSS vars.
+
+## Development
+
+```bash
+npm start                    # Routes to beau-terminal dev server
+# — or —
+cd beau-terminal && npm run dev   # http://localhost:4242
+```
+
+MQTT broker defaults to `mqtt://localhost:1883` (set `MQTT_URL` env to override). Terminal works offline — MQTT bridge reconnects silently.
+
+Database auto-seeds on first run. Seed is idempotent (skips if parts table has data).
 
 ## Key Files
 
-- `bmo-personality-bible.docx` — full personality specification
-- `bmo-command-center.jsx` — existing build tracker (to be evolved into Beau's Terminal)
+When working on Beau's Terminal, read these first:
+
+- `src/lib/server/db/schema.ts` — all table definitions
+- `src/lib/server/mqtt/bridge.ts` — MQTT state + WebSocket broadcast
+- `src/lib/stores/beau.svelte.ts` — client-side live state (BeauState type)
+- `src/app.css` — design tokens
+- `src/hooks.server.ts` — startup orchestration
+
+## Deep Reference
+
+For MQTT topics, database schema details, brain routing architecture, and system prompt template variables, see [`docs/reference.md`](docs/reference.md).
