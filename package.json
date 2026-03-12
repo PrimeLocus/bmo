@@ -8,7 +8,8 @@
     "bmo": "./bin/bmo.js"
   },
   "scripts": {
-    "start": "node ./bin/bmo.js",
+    "start": "npm run dev",
+    "dev": "npm run dev --prefix beau-terminal",
     "test": "node ./test/init.test.js"
   },
   "engines": {
