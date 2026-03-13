@@ -50,15 +50,29 @@ bmo/
     │   ├── hooks.server.ts   # Startup: DB seed + MQTT connect + WebSocket upgrade
     │   ├── lib/
     │   │   ├── components/
-    │   │   │   ├── Nav.svelte        # Sidebar nav + text size controls
-    │   │   │   └── StatusBar.svelte  # Top bar — online/offline, mode, emotion, last haiku
+    │   │   │   ├── EditBar.svelte      # Edit mode toolbar (Ctrl+E) — font, panel controls
+    │   │   │   ├── Nav.svelte          # Data-driven sidebar nav (groups, CRUD in edit mode)
+    │   │   │   ├── Panel.svelte        # Grid panel — drag/resize handles, edit mode controls
+    │   │   │   ├── PanelCanvas.svelte  # 12-column CSS grid container, layout persistence
+    │   │   │   └── StatusBar.svelte    # Top bar — online/offline, mode, emotion, last haiku
     │   │   ├── stores/
-    │   │   │   ├── beau.svelte.ts    # WebSocket client → live BeauState ($state)
-    │   │   │   └── settings.svelte.ts # Display settings ($state + localStorage)
+    │   │   │   ├── beau.svelte.ts      # WebSocket client → live BeauState ($state)
+    │   │   │   ├── editMode.svelte.ts  # Edit mode toggle (Ctrl+E) — global $state
+    │   │   │   ├── gridEngine.ts       # Grid collision/compaction engine (push/compact)
+    │   │   │   ├── layout.svelte.ts    # Per-page panel layouts — dual persist (localStorage + SQLite)
+    │   │   │   ├── navConfig.svelte.ts # Nav items/groups — dual persist, CRUD ops
+    │   │   │   └── settings.svelte.ts  # Display settings ($state + localStorage)
+    │   │   ├── widgets/
+    │   │   │   ├── registry.ts           # Widget registry — 33 widgets, metadata, data kinds
+    │   │   │   ├── WidgetRenderer.svelte # Dynamic widget loader (renders by widgetId)
+    │   │   │   ├── WidgetDrawer.svelte   # Side drawer — browse/add widgets in edit mode
+    │   │   │   ├── WidgetConfigModal.svelte # Per-widget config editor
+    │   │   │   ├── terminal/             # 26 terminal widgets (data-bound to Beau systems)
+    │   │   │   └── content/              # 7 content widgets (clock, markdown, image, etc.)
     │   │   └── server/
     │   │       ├── db/
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
-    │   │       │   ├── schema.ts     # 20 tables — source of truth for DB schema
+    │   │       │   ├── schema.ts     # 21 tables — source of truth for DB schema
     │   │       │   └── seed.ts       # 16 parts, 10 phases, 44 steps, 11 ideas
     │   │       ├── mqtt/
     │   │       │   ├── bridge.ts     # MQTT → BeauState → WebSocket broadcast
@@ -102,9 +116,12 @@ bmo/
     │       ├── photography/          # Photo gallery + session photo browser
     │       ├── photos/               # Catch-all — serves photo files from disk
     │       ├── journal/              # Journal — private entries with consent gate
+    │       ├── custom/[slug]/        # Custom pages — user-built dashboards with widgets
     │       ├── api/
-    │       │   └── journal/
-    │       │       └── entries/      # POST new entry, GET metadata list
+    │       │   ├── journal/entries/  # POST new entry, GET metadata list
+    │       │   ├── layouts/          # GET/PUT per-page panel grid layouts
+    │       │   ├── custom-pages/     # CRUD for custom page definitions
+    │       │   └── widgets/[widgetId]/data/  # GET widget data (for custom page rendering)
     │       └── ws/                   # WebSocket stub (upgrade in hooks.server.ts)
     └── build/                        # Production output (adapter-node)
 ```
@@ -132,6 +149,33 @@ Dark terminal aesthetic. Monospace Courier New on near-black.
 
 High contrast mode: `html[data-contrast="high"]`. User-adjustable: font size (14–32px), font weight (400/600), line height (1.5/1.7/1.9).
 
+## Edit Mode & Panel System
+
+Ctrl+E toggles edit mode globally. In edit mode:
+- **Panels** can be dragged (title bar) and resized (edge handles) on a 12-column CSS grid
+- **EditBar** shows font size +/− controls, panel visibility toggles, and reset layout button
+- **Nav sidebar** becomes editable — rename groups, reorder/hide/show items, add custom pages
+- **Widget drawer** lets users browse 33 widgets and add them to custom pages
+
+### Widget System
+
+33 widgets in two categories:
+- **Terminal widgets** (26) — data-bound to Beau systems (beauState, DB queries). Examples: SleepWidget, ModeWidget, PartsTrackerWidget, HaikuArchiveWidget
+- **Content widgets** (7) — standalone content blocks (Clock, Markdown, Image, Embed, LinkCard, Countdown, Divider)
+
+Widget data kinds:
+- `websocket` — reads from `beauState` store directly, no server data needed
+- `database` — server-loaded via `loaders.ts` switch, passed as `data` prop
+- `none` — config-only or static content
+
+### Custom Pages
+
+Users can create custom dashboard pages (`/custom/[slug]`) with any combination of widgets. Custom page definitions stored in `custom_pages` table. Widget instances have IDs like `w:{widgetId}:{nanoid(8)}`.
+
+### Persistence
+
+Panel layouts and nav config use **dual-tier persistence**: localStorage (primary, instant) + SQLite via `/api/layouts` (backup, debounced 2s). Layout store key format: `bmo-layout-{pageId}`. Nav config key: `bmo-nav-config`.
+
 ## Conventions
 
 - **Svelte 5 runes only** — no `$:` reactive statements, no `writable()`/`readable()` stores.
@@ -157,16 +201,20 @@ Database auto-seeds on first run. Seed is idempotent (skips if parts table has d
 
 When working on Beau's Terminal, read these first:
 
-- `src/lib/server/db/schema.ts` — all table definitions
+- `src/lib/server/db/schema.ts` — all 21 table definitions
 - `src/lib/server/mqtt/bridge.ts` — MQTT state + WebSocket broadcast
 - `src/lib/stores/beau.svelte.ts` — client-side live state (BeauState type)
+- `src/lib/stores/layout.svelte.ts` — per-page panel grid layouts + dual persistence
+- `src/lib/stores/editMode.svelte.ts` — edit mode global state (Ctrl+E toggle)
+- `src/lib/stores/navConfig.svelte.ts` — nav items/groups config + CRUD
+- `src/lib/stores/gridEngine.ts` — grid collision detection + push/compact algorithm
+- `src/lib/widgets/registry.ts` — widget registry (33 widgets, metadata, categories)
+- `src/lib/components/Panel.svelte` — panel component (drag, resize, edit controls)
+- `src/lib/components/PanelCanvas.svelte` — 12-column grid container + layout engine
 - `src/app.css` — design tokens
 - `src/hooks.server.ts` — startup orchestration
 - `src/lib/server/mqtt/topics.ts` — MQTT topic constants and mode types
 - `src/lib/server/prompt/assembler.ts` — prompt section parser + mode injection
-- `src/lib/server/environment/sleep.ts` — sleep/wake state machine
-- `src/lib/server/environment/presence.ts` — room presence state machine
-- `src/lib/server/creative/resolume.ts` — Resolume session lifecycle + OSC bridge
 
 ## Deep Reference
 
