@@ -8,6 +8,12 @@
   --bmo-text: #c8ffd4;
   --bmo-muted: #3a6a4a;
 
+  /* Grid layout */
+  --grid-row-height: 80px;
+  --grid-gap: 8px;
+  --ghost-bg: rgba(0, 229, 160, 0.05);
+  --ghost-border: rgba(0, 229, 160, 0.6);
+
   /* User-adjustable display settings */
   --bmo-font-weight: 400;
   --bmo-line-height: 1.5;

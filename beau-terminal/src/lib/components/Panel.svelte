@@ -1,141 +1,116 @@
 <!-- src/lib/components/Panel.svelte -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { getContext } from 'svelte';
+  import { getContext, onMount } from 'svelte';
   import { editModeState } from '$lib/stores/editMode.svelte.js';
   import {
     getPageLayout,
     updatePanelPosition,
-    snapToGrid,
-    clampSize,
+    type GridPosition,
+    GRID_COLS,
+    MIN_COL_SPAN,
+    MIN_ROW_SPAN,
   } from '$lib/stores/layout.svelte.js';
 
   type Props = {
     id: string;
+    defaultPosition: GridPosition;
     children: Snippet;
   };
 
-  const { id, children }: Props = $props();
+  const { id, defaultPosition, children }: Props = $props();
 
   const ctx = getContext<{
     pageId: string;
     canvasEl: HTMLDivElement | undefined;
-    ensureFreeform: () => void;
+    columns: number;
+    rowHeight: number;
+    draggingId: string | null;
+    registerDefault: (id: string, pos: GridPosition) => void;
+    onDragStart: (id: string, e: PointerEvent) => void;
+    onResizeCommit: (id: string, proposed: GridPosition) => void;
+    onResizePreview: (id: string, partial: Partial<GridPosition>) => void;
   }>('panel-canvas');
 
-  // Reactive reads from stores
+  // Register default on mount
+  onMount(() => {
+    ctx.registerDefault(id, defaultPosition);
+  });
+
   const editing = $derived(editModeState.active);
   const layout = $derived(getPageLayout(ctx.pageId));
-  const position = $derived(layout?.panels[id]);
-  const isFreeform = $derived(layout?.mode === 'freeform');
-  const fontSize = $derived(position?.fontSize);
-
-  let panelEl: HTMLDivElement | undefined = $state();
-  let dragging = $state(false);
-  let resizing = $state(false);
+  const position = $derived(layout?.panels[id] ?? defaultPosition);
+  const fontSize = $derived(position.fontSize);
+  const isDragging = $derived(ctx.draggingId === id);
 
   // ── Per-panel font size ──
   function adjustFontSize(delta: number) {
     const current = fontSize ?? 20;
     const next = Math.min(40, Math.max(10, current + delta));
-    // Ensure freeform mode so positions exist
-    ctx.ensureFreeform();
     updatePanelPosition(ctx.pageId, id, { fontSize: next });
   }
 
-  // ── Drag ──
-  let dragStartX = 0;
-  let dragStartY = 0;
-  let dragOrigX = 0;
-  let dragOrigY = 0;
-
+  // ── Drag — delegate to PanelCanvas ──
   function handleDragStart(e: PointerEvent) {
-    if (!editing || !panelEl) return;
+    if (!editing) return;
     e.preventDefault();
-    // Ensure freeform mode on first drag
-    ctx.ensureFreeform();
-    // Re-read position after possible capture
-    const pos = getPageLayout(ctx.pageId)?.panels[id];
-    if (!pos) return;
-    dragging = true;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    dragOrigX = pos.x;
-    dragOrigY = pos.y;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    ctx.onDragStart(id, e);
   }
 
-  function handleDragMove(e: PointerEvent) {
-    if (!dragging || !panelEl) return;
-    const dx = e.clientX - dragStartX;
-    const dy = e.clientY - dragStartY;
-    // Live preview — direct DOM manipulation for smooth feel
-    panelEl.style.left = `${dragOrigX + dx}px`;
-    panelEl.style.top = `${dragOrigY + dy}px`;
-  }
-
-  function handleDragEnd(e: PointerEvent) {
-    if (!dragging) return;
-    dragging = false;
-    const dx = e.clientX - dragStartX;
-    const dy = e.clientY - dragStartY;
-    const newX = snapToGrid(Math.max(0, dragOrigX + dx));
-    const newY = snapToGrid(Math.max(0, dragOrigY + dy));
-    updatePanelPosition(ctx.pageId, id, { x: newX, y: newY });
-  }
-
-  // ── Resize ──
+  // ── Resize — local to Panel ──
+  let resizing = $state(false);
   let resizeStartX = 0;
   let resizeStartY = 0;
-  let resizeOrigW = 0;
-  let resizeOrigH = 0;
+  let resizeOrigColSpan = 0;
+  let resizeOrigRowSpan = 0;
 
   function handleResizeStart(e: PointerEvent) {
-    if (!editing || !panelEl) return;
+    if (!editing) return;
     e.preventDefault();
     e.stopPropagation();
-    ctx.ensureFreeform();
-    const pos = getPageLayout(ctx.pageId)?.panels[id];
-    if (!pos) return;
     resizing = true;
     resizeStartX = e.clientX;
     resizeStartY = e.clientY;
-    resizeOrigW = pos.w;
-    resizeOrigH = pos.h;
+    resizeOrigColSpan = position.colSpan;
+    resizeOrigRowSpan = position.rowSpan;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
   function handleResizeMove(e: PointerEvent) {
-    if (!resizing || !panelEl) return;
+    if (!resizing || !ctx.canvasEl) return;
+    const rect = ctx.canvasEl.getBoundingClientRect();
+    const gap = 8;
+    const cellWidth = (rect.width - gap * (ctx.columns - 1)) / ctx.columns;
     const dx = e.clientX - resizeStartX;
     const dy = e.clientY - resizeStartY;
-    panelEl.style.width = `${Math.max(120, resizeOrigW + dx)}px`;
-    panelEl.style.height = `${Math.max(80, resizeOrigH + dy)}px`;
+    const deltaCol = Math.round(dx / (cellWidth + gap));
+    const deltaRow = Math.round(dy / (ctx.rowHeight + gap));
+    const newColSpan = Math.max(MIN_COL_SPAN, Math.min(GRID_COLS - position.col, resizeOrigColSpan + deltaCol));
+    const newRowSpan = Math.max(MIN_ROW_SPAN, resizeOrigRowSpan + deltaRow);
+    ctx.onResizePreview(id, { colSpan: newColSpan, rowSpan: newRowSpan });
   }
 
   function handleResizeEnd(e: PointerEvent) {
     if (!resizing) return;
     resizing = false;
-    const dx = e.clientX - resizeStartX;
-    const dy = e.clientY - resizeStartY;
-    const { w, h } = clampSize(resizeOrigW + dx, resizeOrigH + dy);
-    updatePanelPosition(ctx.pageId, id, { w, h });
+    // Commit the current preview position through the grid engine
+    ctx.onResizeCommit(id, position);
   }
 </script>
 
 <div
-  bind:this={panelEl}
   data-panel-id={id}
   class="panel-wrapper"
   style="
+    grid-column: {position.col + 1} / span {position.colSpan};
+    grid-row: {position.row + 1} / span {position.rowSpan};
     border: {editing ? '2px dashed var(--bmo-green)' : '1px solid var(--bmo-border)'};
     background: var(--bmo-surface);
     {editing ? 'box-shadow: 0 0 12px rgba(0, 229, 160, 0.15);' : ''}
     {fontSize ? `font-size: ${fontSize}px;` : ''}
-    {isFreeform && position
-      ? `position: absolute; left: ${position.x}px; top: ${position.y}px; width: ${position.w}px; height: ${position.h}px;`
-      : ''}
-    {dragging || resizing ? 'z-index: 50; opacity: 0.9;' : ''}
+    {isDragging ? 'opacity: 0.4; z-index: 10;' : ''}
+    {!isDragging && !resizing ? 'transition: grid-column 0.2s, grid-row 0.2s, opacity 0.15s;' : ''}
+    {resizing ? 'z-index: 50; opacity: 0.9;' : ''}
   "
 >
   {#if editing}
@@ -145,9 +120,6 @@
       class="flex items-center justify-between px-2 shrink-0 select-none"
       style="height: 32px; cursor: grab; background: rgba(0, 229, 160, 0.05); border-bottom: 1px solid var(--bmo-border)"
       onpointerdown={handleDragStart}
-      onpointermove={handleDragMove}
-      onpointerup={handleDragEnd}
-      onpointercancel={handleDragEnd}
     >
       <div class="flex items-center gap-2">
         <span style="background: var(--bmo-green); color: var(--bmo-bg); font-size: 8px; padding: 1px 6px; letter-spacing: 1px; text-transform: uppercase">DRAG</span>
@@ -169,7 +141,7 @@
   {/if}
 
   <!-- Panel content -->
-  <div class="p-3">
+  <div class="p-3 overflow-auto" style="min-height: 0">
     {@render children()}
   </div>
 
@@ -190,5 +162,7 @@
   .panel-wrapper {
     position: relative;
     overflow: visible;
+    display: flex;
+    flex-direction: column;
   }
 </style>

@@ -25,9 +25,9 @@
     </div>
   </div>
 
-  <PanelCanvas pageId="/" columns={2}>
+  <PanelCanvas pageId="/">
     <!-- Identity: Soul Code -->
-    <Panel id="dashboard:soul-code">
+    <Panel id="dashboard:soul-code" defaultPosition={{ col: 0, row: 0, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">SOUL CODE</div>
       <div class="text-sm tracking-wider font-bold"
            style="color: {data.soulCodeStatus === 'exists' ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
@@ -36,7 +36,7 @@
     </Panel>
 
     <!-- Identity: Voice -->
-    <Panel id="dashboard:voice">
+    <Panel id="dashboard:voice" defaultPosition={{ col: 6, row: 0, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">VOICE</div>
       <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
         {data.voiceModelVersion.toUpperCase()}
@@ -44,7 +44,7 @@
     </Panel>
 
     <!-- Environment: Sleep -->
-    <Panel id="dashboard:sleep">
+    <Panel id="dashboard:sleep" defaultPosition={{ col: 0, row: 1, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">SLEEP</div>
       <div class="text-sm tracking-wider font-bold"
            style="color: {beauState.sleepState === 'asleep' ? '#636e72' : 'var(--bmo-green)'}">
@@ -53,7 +53,7 @@
     </Panel>
 
     <!-- Environment: Room -->
-    <Panel id="dashboard:room">
+    <Panel id="dashboard:room" defaultPosition={{ col: 6, row: 1, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">ROOM</div>
       <div class="text-sm tracking-wider font-bold"
            style="color: {beauState.presenceState === 'occupied' ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
@@ -62,7 +62,7 @@
     </Panel>
 
     <!-- Environment: Weather -->
-    <Panel id="dashboard:weather">
+    <Panel id="dashboard:weather" defaultPosition={{ col: 0, row: 2, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">WEATHER</div>
       <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-text)">
         {beauState.weatherSummary || '—'}
@@ -70,7 +70,7 @@
     </Panel>
 
     <!-- Environment: Resolume -->
-    <Panel id="dashboard:resolume">
+    <Panel id="dashboard:resolume" defaultPosition={{ col: 6, row: 2, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">RESOLUME</div>
       <div class="text-sm tracking-wider font-bold"
            style="color: {beauState.resolumeActive ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
@@ -84,7 +84,7 @@
     </Panel>
 
     <!-- Live State: Mode -->
-    <Panel id="dashboard:mode">
+    <Panel id="dashboard:mode" defaultPosition={{ col: 0, row: 3, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs mb-2 tracking-widest" style="color: var(--bmo-muted)">MODE</div>
       <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
         {(MODE_LABELS[beauState.mode] ?? beauState.mode).toUpperCase()}
@@ -92,7 +92,7 @@
     </Panel>
 
     <!-- Live State: Emotion -->
-    <Panel id="dashboard:emotion">
+    <Panel id="dashboard:emotion" defaultPosition={{ col: 6, row: 3, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs mb-2 tracking-widest" style="color: var(--bmo-muted)">STATE</div>
       <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
         {(EMOTION_LABELS[beauState.emotionalState] ?? beauState.emotionalState).toUpperCase()}
@@ -100,7 +100,7 @@
     </Panel>
 
     <!-- Live State: Environment -->
-    <Panel id="dashboard:env">
+    <Panel id="dashboard:env" defaultPosition={{ col: 0, row: 4, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs mb-2 tracking-widest" style="color: var(--bmo-muted)">ENVIRONMENT</div>
       <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
         {(beauState.environment || '—').toUpperCase()}
@@ -108,29 +108,27 @@
     </Panel>
 
     <!-- Live State: Camera -->
-    <Panel id="dashboard:camera">
+    <Panel id="dashboard:camera" defaultPosition={{ col: 6, row: 4, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs mb-2 tracking-widest" style="color: var(--bmo-muted)">CAMERA</div>
       <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
         {beauState.cameraActive ? 'ACTIVE' : 'OFF'}
       </div>
     </Panel>
 
-    <!-- Last Haiku (spans 2 columns in grid mode) -->
+    <!-- Last Haiku (full width) -->
     {#if beauState.lastHaiku}
-      <div style="grid-column: span 2">
-        <Panel id="dashboard:haiku">
-          <div class="text-xs tracking-widest mb-3" style="color: var(--bmo-muted)">LAST HAIKU</div>
-          <div class="text-sm leading-relaxed italic" style="color: var(--bmo-text)">
-            {#each beauState.lastHaiku.split('\n') as line}
-              <div>{line}</div>
-            {/each}
-          </div>
-        </Panel>
-      </div>
+      <Panel id="dashboard:haiku" defaultPosition={{ col: 0, row: 5, colSpan: 12, rowSpan: 2 }}>
+        <div class="text-xs tracking-widest mb-3" style="color: var(--bmo-muted)">LAST HAIKU</div>
+        <div class="text-sm leading-relaxed italic" style="color: var(--bmo-text)">
+          {#each beauState.lastHaiku.split('\n') as line}
+            <div>{line}</div>
+          {/each}
+        </div>
+      </Panel>
     {/if}
 
     <!-- Build Stats -->
-    <Panel id="dashboard:build-stats">
+    <Panel id="dashboard:build-stats" defaultPosition={{ col: 0, row: 7, colSpan: 6, rowSpan: 2 }}>
       <div class="text-xs tracking-widest mb-4" style="color: var(--bmo-muted)">BUILD STATS</div>
       <div class="space-y-3">
         <div class="flex justify-between text-xs">
@@ -155,7 +153,7 @@
     </Panel>
 
     <!-- Dispatcher Log -->
-    <Panel id="dashboard:dispatcher">
+    <Panel id="dashboard:dispatcher" defaultPosition={{ col: 6, row: 7, colSpan: 6, rowSpan: 2 }}>
       <div class="text-xs tracking-widest mb-4" style="color: var(--bmo-muted)">DISPATCHER LOG</div>
       {#if beauState.dispatcherLog.length === 0}
         <div class="text-xs" style="color: var(--bmo-muted)">no events yet</div>

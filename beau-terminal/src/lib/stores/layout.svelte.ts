@@ -1,34 +1,16 @@
-export type PanelPosition = {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  fontSize?: number;
+// src/lib/stores/layout.svelte.ts
+// Reactive layout store for the 12-column CSS grid system.
+
+import { type GridPosition, GRID_COLS, DEFAULT_ROW_HEIGHT, MIN_COL_SPAN, MIN_ROW_SPAN } from './gridEngine.js';
+
+export type GridLayout = {
+  panels: Record<string, GridPosition>;
 };
 
-export type PageLayout = {
-  mode: 'grid' | 'freeform';
-  panels: Record<string, PanelPosition>;
-};
-
-export const GRID_SNAP = 20;
-export const MIN_W = 120;
-export const MIN_H = 80;
-const CANVAS_PADDING = 40;
-
-export function snapToGrid(value: number): number {
-  return Math.round(value / GRID_SNAP) * GRID_SNAP;
-}
-
-export function clampSize(w: number, h: number): { w: number; h: number } {
-  return {
-    w: Math.max(MIN_W, snapToGrid(w)),
-    h: Math.max(MIN_H, snapToGrid(h)),
-  };
-}
+export { type GridPosition, GRID_COLS, DEFAULT_ROW_HEIGHT, MIN_COL_SPAN, MIN_ROW_SPAN };
 
 // In-memory reactive cache of all page layouts
-const _layouts = $state<Record<string, PageLayout | undefined>>({});
+const _layouts = $state<Record<string, GridLayout | undefined>>({});
 
 // Debounce timers for SQLite sync
 const syncTimers: Record<string, ReturnType<typeof setTimeout>> = {};
@@ -37,22 +19,39 @@ function lsKey(pageId: string): string {
   return `bmo-layout:${pageId}`;
 }
 
-function readLS(pageId: string): PageLayout | null {
+/** Validate that a parsed object matches the new GridPosition shape */
+function isValidGridLayout(data: unknown): data is GridLayout {
+  if (!data || typeof data !== 'object') return false;
+  const d = data as Record<string, unknown>;
+  // Reject old pixel layouts that had a 'mode' field
+  if ('mode' in d) return false;
+  if (!d.panels || typeof d.panels !== 'object') return false;
+  for (const panel of Object.values(d.panels as Record<string, unknown>)) {
+    if (!panel || typeof panel !== 'object') return false;
+    const p = panel as Record<string, unknown>;
+    if (typeof p.col !== 'number' || typeof p.row !== 'number') return false;
+    if (typeof p.colSpan !== 'number' || typeof p.rowSpan !== 'number') return false;
+    if (p.fontSize !== undefined && typeof p.fontSize !== 'number') return false;
+  }
+  return true;
+}
+
+function readLS(pageId: string): GridLayout | null {
   if (typeof localStorage === 'undefined') return null;
   try {
     const raw = localStorage.getItem(lsKey(pageId));
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (parsed && (parsed.mode === 'grid' || parsed.mode === 'freeform') && parsed.panels) {
-      return parsed as PageLayout;
-    }
+    if (isValidGridLayout(parsed)) return parsed;
+    // Old pixel-based layout — clear it
+    localStorage.removeItem(lsKey(pageId));
     return null;
   } catch {
     return null;
   }
 }
 
-function writeLS(pageId: string, layout: PageLayout) {
+function writeLS(pageId: string, layout: GridLayout) {
   if (typeof localStorage === 'undefined') return;
   localStorage.setItem(lsKey(pageId), JSON.stringify(layout));
 }
@@ -62,7 +61,7 @@ function deleteLS(pageId: string) {
   localStorage.removeItem(lsKey(pageId));
 }
 
-function scheduleSQLiteSync(pageId: string, layout: PageLayout) {
+function scheduleSQLiteSync(pageId: string, layout: GridLayout) {
   if (typeof fetch === 'undefined') return;
   clearTimeout(syncTimers[pageId]);
   syncTimers[pageId] = setTimeout(() => {
@@ -79,13 +78,13 @@ function scheduleSQLiteSync(pageId: string, layout: PageLayout) {
  * IMPORTANT: Does NOT write to _layouts. Safe to call inside $derived.
  * Cache population happens only in loadPageLayout (called from onMount).
  */
-export function getPageLayout(pageId: string): PageLayout | undefined {
+export function getPageLayout(pageId: string): GridLayout | undefined {
   if (_layouts[pageId]) return _layouts[pageId];
   return readLS(pageId) ?? undefined;
 }
 
 /** Async read — tries memory, localStorage, then SQLite fallback. */
-export async function loadPageLayout(pageId: string): Promise<PageLayout | undefined> {
+export async function loadPageLayout(pageId: string): Promise<GridLayout | undefined> {
   const sync = getPageLayout(pageId);
   if (sync) return sync;
   // SQLite fallback
@@ -93,7 +92,8 @@ export async function loadPageLayout(pageId: string): Promise<PageLayout | undef
   try {
     const res = await fetch(`/api/layouts?page=${encodeURIComponent(pageId)}`);
     if (!res.ok) return undefined;
-    const data = await res.json() as PageLayout;
+    const data = await res.json();
+    if (!isValidGridLayout(data)) return undefined;
     _layouts[pageId] = data;
     writeLS(pageId, data);
     return data;
@@ -102,8 +102,8 @@ export async function loadPageLayout(pageId: string): Promise<PageLayout | undef
   }
 }
 
-export function savePageLayout(pageId: string, layout: PageLayout) {
-  _layouts[pageId] = { ...layout, panels: { ...layout.panels } };
+export function savePageLayout(pageId: string, layout: GridLayout) {
+  _layouts[pageId] = { panels: { ...layout.panels } };
   writeLS(pageId, layout);
   scheduleSQLiteSync(pageId, layout);
 }
@@ -121,12 +121,11 @@ export function resetPageLayout(pageId: string) {
 export function updatePanelPosition(
   pageId: string,
   panelId: string,
-  pos: Partial<PanelPosition>
+  pos: Partial<GridPosition>
 ) {
   const layout = _layouts[pageId];
   if (!layout) return;
-  const updated: PageLayout = {
-    ...layout,
+  const updated: GridLayout = {
     panels: {
       ...layout.panels,
       [panelId]: { ...layout.panels[panelId], ...pos },
@@ -135,34 +134,21 @@ export function updatePanelPosition(
   savePageLayout(pageId, updated);
 }
 
-export function computeCanvasHeight(layout: PageLayout): number {
-  let maxBottom = 0;
-  for (const p of Object.values(layout.panels)) {
-    maxBottom = Math.max(maxBottom, p.y + p.h);
-  }
-  return maxBottom + CANVAS_PADDING;
-}
-
 /**
- * Capture current DOM positions of all panels inside a canvas element.
- * Uses getBoundingClientRect() offset by the canvas position + scroll,
- * since the canvas is inside a scrollable <main> container.
+ * Memory-only update for live resize/drag preview — no localStorage/SQLite write.
+ * This avoids thrashing persistence during pointer moves.
  */
-export function capturePositions(
-  canvasEl: HTMLElement,
-  existingLayout?: PageLayout
-): PageLayout {
-  const canvasRect = canvasEl.getBoundingClientRect();
-  const panels: Record<string, PanelPosition> = {};
-  const panelEls = canvasEl.querySelectorAll<HTMLElement>('[data-panel-id]');
-  for (const el of panelEls) {
-    const id = el.dataset.panelId!;
-    const rect = el.getBoundingClientRect();
-    const x = snapToGrid(rect.left - canvasRect.left);
-    const y = snapToGrid(rect.top - canvasRect.top);
-    const { w, h } = clampSize(rect.width, rect.height);
-    const existingFontSize = existingLayout?.panels[id]?.fontSize;
-    panels[id] = { x, y, w, h, ...(existingFontSize ? { fontSize: existingFontSize } : {}) };
-  }
-  return { mode: 'freeform', panels };
+export function updatePanelPreview(
+  pageId: string,
+  panelId: string,
+  partial: Partial<GridPosition>
+) {
+  const layout = _layouts[pageId];
+  if (!layout) return;
+  _layouts[pageId] = {
+    panels: {
+      ...layout.panels,
+      [panelId]: { ...layout.panels[panelId], ...partial },
+    },
+  };
 }

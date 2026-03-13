@@ -13,13 +13,16 @@ function getPageParam(url: URL): string {
 function validateLayout(data: unknown): boolean {
   if (!data || typeof data !== 'object') return false;
   const d = data as Record<string, unknown>;
-  if (d.mode !== 'grid' && d.mode !== 'freeform') return false;
+  // Reject old pixel layouts that had 'mode'
+  if ('mode' in d) return false;
   if (!d.panels || typeof d.panels !== 'object') return false;
   for (const panel of Object.values(d.panels as Record<string, unknown>)) {
     if (!panel || typeof panel !== 'object') return false;
     const p = panel as Record<string, unknown>;
-    if (typeof p.x !== 'number' || typeof p.y !== 'number') return false;
-    if (typeof p.w !== 'number' || typeof p.h !== 'number') return false;
+    if (typeof p.col !== 'number' || !Number.isInteger(p.col)) return false;
+    if (typeof p.row !== 'number' || !Number.isInteger(p.row)) return false;
+    if (typeof p.colSpan !== 'number' || !Number.isInteger(p.colSpan)) return false;
+    if (typeof p.rowSpan !== 'number' || !Number.isInteger(p.rowSpan)) return false;
     if (p.fontSize !== undefined && typeof p.fontSize !== 'number') return false;
   }
   return true;
@@ -30,9 +33,12 @@ export const GET: RequestHandler = async ({ url }) => {
   const row = db.select().from(layouts).where(eq(layouts.id, page)).get();
   if (!row) throw error(404, 'No saved layout');
   try {
-    return json(JSON.parse(row.data));
+    const data = JSON.parse(row.data);
+    // If stored data is old pixel format, treat as missing (self-heal)
+    if (!validateLayout(data)) throw error(404, 'No saved layout');
+    return json(data);
   } catch {
-    throw error(500, 'Corrupt layout data');
+    throw error(404, 'No saved layout');
   }
 };
 
