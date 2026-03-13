@@ -9,6 +9,14 @@ const defaultState: BeauState = {
   dispatcherLog: [],
   cameraActive: false,
   online: false,
+  // Phase 2
+  sleepState: 'awake',
+  presenceState: 'uncertain',
+  lux: null,
+  luxLabel: '',
+  weather: null,
+  weatherSummary: '',
+  seasonalContext: '',
 };
 
 export const beauState = $state<BeauState>({ ...defaultState });
@@ -75,4 +83,17 @@ export const EMOTION_LABELS: Record<string, string> = {
   contemplative: 'Contemplative',
   playful: 'Playful',
   sleepy: 'Sleepy',
+};
+
+export const SLEEP_LABELS: Record<string, string> = {
+  awake: 'Awake',
+  settling: 'Settling',
+  asleep: 'Asleep',
+  waking: 'Waking',
+};
+
+export const PRESENCE_LABELS: Record<string, string> = {
+  occupied: 'Occupied',
+  empty: 'Empty',
+  uncertain: 'Uncertain',
 };
