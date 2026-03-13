@@ -155,6 +155,13 @@
   // Panel visibility drawer state
   let showPanelDrawer = $state(false);
 
+  // Derive drawer items reactively — tracks _layouts changes for hiddenPanels
+  const drawerItems = $derived(
+    [...panelRegistry.entries()].map(([id, label]) => ({
+      id, label, hidden: isPanelHidden(pageId, id),
+    }))
+  );
+
   // Provide context for child Panel components
   setContext('panel-canvas', {
     get pageId() { return pageId; },
@@ -233,20 +240,19 @@
     <div class="mt-3 p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
       <div class="text-xs tracking-widest mb-2" style="color: var(--bmo-muted)">PANEL VISIBILITY</div>
       <div class="flex flex-wrap gap-2">
-        {#each [...panelRegistry.entries()] as [panelId, label]}
-          {@const isHidden = isPanelHidden(pageId, panelId)}
+        {#each drawerItems as item (item.id)}
           <button
-            onclick={() => handleTogglePanel(panelId)}
+            onclick={() => handleTogglePanel(item.id)}
             class="text-xs px-3 py-1.5 border transition-all hover:opacity-80"
             style="
-              border-color: {isHidden ? 'var(--bmo-border)' : 'var(--bmo-green)'};
-              color: {isHidden ? 'var(--bmo-muted)' : 'var(--bmo-green)'};
-              opacity: {isHidden ? '0.5' : '1'};
-              text-decoration: {isHidden ? 'line-through' : 'none'};
+              border-color: {item.hidden ? 'var(--bmo-border)' : 'var(--bmo-green)'};
+              color: {item.hidden ? 'var(--bmo-muted)' : 'var(--bmo-green)'};
+              opacity: {item.hidden ? '0.5' : '1'};
+              text-decoration: {item.hidden ? 'line-through' : 'none'};
               cursor: pointer;
             "
           >
-            {isHidden ? '○' : '●'} {label}
+            {item.hidden ? '○' : '●'} {item.label}
           </button>
         {/each}
       </div>

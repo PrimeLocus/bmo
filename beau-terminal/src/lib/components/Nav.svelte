@@ -153,7 +153,7 @@
                   <button onclick={() => reorderNavItem(item.id, 'down')}
                           style="color: var(--bmo-muted); font-size: 9px; background: none; border: none; cursor: pointer"
                           title="Move down">▼</button>
-                  <button onclick={() => removeNavItem(item.id)}
+                  <button onclick={() => { if (confirm(`Remove "${item.label}" from nav?`)) removeNavItem(item.id); }}
                           style="color: var(--bmo-muted); font-size: 9px; background: none; border: none; cursor: pointer"
                           title="Remove">✕</button>
                 </div>
