@@ -17,6 +17,11 @@ const defaultState: BeauState = {
   weather: null,
   weatherSummary: '',
   seasonalContext: '',
+  // Phase 3
+  resolumeActive: false,
+  currentSessionId: null,
+  currentClip: null,
+  currentBpm: null,
 };
 
 export const beauState = $state<BeauState>({ ...defaultState });
