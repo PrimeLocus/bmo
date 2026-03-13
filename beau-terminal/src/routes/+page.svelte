@@ -41,7 +41,7 @@
   </div>
 
   <!-- Environment status (Phase 2) -->
-  <div class="grid grid-cols-3 gap-3 mb-4">
+  <div class="grid grid-cols-4 gap-3 mb-4">
     <div class="p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
       <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">SLEEP</div>
       <div class="text-sm tracking-wider font-bold"
@@ -61,6 +61,18 @@
       <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-text)">
         {beauState.weatherSummary || '—'}
       </div>
+    </div>
+    <div class="p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+      <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">RESOLUME</div>
+      <div class="text-sm tracking-wider font-bold"
+           style="color: {beauState.resolumeActive ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
+        {beauState.resolumeActive ? 'LIVE' : 'INACTIVE'}
+      </div>
+      {#if beauState.resolumeActive && beauState.currentClip}
+        <div class="text-xs mt-1 truncate" style="color: var(--bmo-text)">
+          {beauState.currentClip} · {beauState.currentBpm ?? '—'} BPM
+        </div>
+      {/if}
     </div>
   </div>
 
