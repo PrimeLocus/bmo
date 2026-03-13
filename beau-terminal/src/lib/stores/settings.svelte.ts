@@ -9,7 +9,7 @@ export const DEFAULTS: Settings = {
   fontSize:   20,
   contrast:   'standard',
   fontWeight: '400',
-  lineHeight: '1.6',
+  lineHeight: '1.5',
 };
 
 export const SIZE_PRESETS = [
@@ -23,7 +23,10 @@ export const SIZE_PRESETS = [
 function load(): Settings {
   if (typeof localStorage === 'undefined') return { ...DEFAULTS };
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('bmo-settings') || '{}') };
+    const saved = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('bmo-settings') || '{}') };
+    // Migration: '1.6' was invalid, map to nearest valid value
+    if ((saved.lineHeight as string) === '1.6') saved.lineHeight = '1.5';
+    return saved;
   } catch {
     return { ...DEFAULTS };
   }
