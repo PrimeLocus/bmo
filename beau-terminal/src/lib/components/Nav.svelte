@@ -18,7 +18,7 @@
     {
       heading: 'CREATIVE',
       links: [
-        { href: '/sessions',    label: 'SESSIONS',    icon: '▶', disabled: true },
+        { href: '/sessions',    label: 'SESSIONS',    icon: '▶' },
         { href: '/photography', label: 'PHOTOGRAPHY', icon: '◻', disabled: true },
         { href: '/haikus',      label: 'HAIKUS',      icon: '✿' },
       ],
