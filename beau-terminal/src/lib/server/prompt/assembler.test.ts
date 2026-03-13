@@ -104,3 +104,20 @@ describe('buildReflexPrompt', () => {
     expect(result).not.toContain('Resolume');
   });
 });
+
+describe('environment placeholders', () => {
+  it('substitutes weather and lux placeholders', () => {
+    const text = 'Weather: {{WEATHER_SUMMARY}}. Light: {{LUX_CONTEXT}}.';
+    const result = substitutePlaceholders(text, {
+      WEATHER_SUMMARY: 'overcast, 65°F',
+      LUX_CONTEXT: 'dim, lamp only',
+    });
+    expect(result).toBe('Weather: overcast, 65°F. Light: dim, lamp only.');
+  });
+
+  it('uses fallbacks for missing environment placeholders', () => {
+    const text = 'Sleep: {{SLEEP_STATE}}. Presence: {{PRESENCE_STATE}}.';
+    const result = substitutePlaceholders(text, {});
+    expect(result).toBe('Sleep: awake. Presence: unknown.');
+  });
+});
