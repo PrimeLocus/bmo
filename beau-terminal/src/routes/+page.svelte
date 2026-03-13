@@ -23,6 +23,23 @@
     </div>
   </div>
 
+  <!-- Identity status -->
+  <div class="grid grid-cols-2 gap-3 mb-4">
+    <div class="p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+      <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">SOUL CODE</div>
+      <div class="text-sm tracking-wider font-bold"
+           style="color: {data.soulCodeStatus === 'exists' ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
+        {data.soulCodeStatus === 'exists' ? 'WRITTEN' : 'AWAITING'}
+      </div>
+    </div>
+    <div class="p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+      <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">VOICE</div>
+      <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
+        {data.voiceModelVersion.toUpperCase()}
+      </div>
+    </div>
+  </div>
+
   <!-- Live state grid -->
   <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
     {#each [

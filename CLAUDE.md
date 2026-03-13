@@ -35,7 +35,6 @@ bmo/
 │   └── reference.md          # Deep technical reference (MQTT, schema, brain routing)
 ├── bmo-personality-bible.docx
 ├── bmo-system-prompt.md      # Canonical system prompt ({{PLACEHOLDER}} syntax)
-├── bmo-command-center.jsx    # LEGACY — superseded by beau-terminal
 │
 └── beau-terminal/            # Beau's Terminal — the command center
     ├── package.json
@@ -59,13 +58,23 @@ bmo/
     │   │   └── server/
     │   │       ├── db/
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
-    │   │       │   ├── schema.ts     # 7 tables — source of truth for DB schema
+    │   │       │   ├── schema.ts     # 12 tables — source of truth for DB schema
     │   │       │   └── seed.ts       # 16 parts, 10 phases, 44 steps, 11 ideas
-    │   │       └── mqtt/
-    │   │           └── bridge.ts     # MQTT → BeauState → WebSocket broadcast
+    │   │       ├── mqtt/
+    │   │       │   ├── bridge.ts     # MQTT → BeauState → WebSocket broadcast
+    │   │       │   └── topics.ts     # MQTT topic constants + mode types
+    │   │       ├── identity/
+    │   │       │   ├── emergence.ts   # Soul code query + empty state
+    │   │       │   ├── natal.ts       # Active natal profile query
+    │   │       │   └── voice.ts       # Voice model queries
+    │   │       └── prompt/
+    │   │           ├── sections.ts    # Section name definitions
+    │   │           ├── policies.ts    # Mode injection matrix + fallbacks
+    │   │           └── assembler.ts   # Section parser, placeholder substitution
     │   └── routes/
     │       ├── +layout.svelte        # Shell: Nav + StatusBar + slot
     │       ├── +page.svelte          # Dashboard — live state, build stats
+    │       ├── identity/             # Identity — emergence, natal, voice lineage
     │       ├── parts/                # Parts Tracker — sortable table, inline edit
     │       ├── software/             # Software Build — phased checklist, progress bars
     │       ├── ideas/                # Ideas Board — 3-column kanban
@@ -131,6 +140,8 @@ When working on Beau's Terminal, read these first:
 - `src/lib/stores/beau.svelte.ts` — client-side live state (BeauState type)
 - `src/app.css` — design tokens
 - `src/hooks.server.ts` — startup orchestration
+- `src/lib/server/mqtt/topics.ts` — MQTT topic constants and mode types
+- `src/lib/server/prompt/assembler.ts` — prompt section parser + mode injection
 
 ## Deep Reference
 

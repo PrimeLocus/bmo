@@ -15,7 +15,7 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 | `beau/intent/wake` | BMO → Terminal | Last wake word detected |
 | `beau/sensors/environment` | BMO → Terminal | Environment string from HA + process monitor |
 | `beau/output/haiku` | BMO → Terminal | Haiku text (auto-persisted to SQLite) |
-| `beau/dispatcher/log` | BMO → Terminal | Dispatcher log entries (kept in memory, last 100) |
+| `beau/dispatcher/log` | BMO → Terminal | Dispatcher log entries (persisted to dispatches table + in-memory) |
 | `beau/sensors/camera` | BMO → Terminal | Camera status ("active" / other) |
 | `beau/command/*` | Terminal → BMO | Commands sent via Prompt Console |
 
@@ -38,7 +38,7 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 
 ## Database Schema
 
-7 tables in `beau-terminal/data/beau.db` (defined in `src/lib/server/db/schema.ts`):
+12 tables in `beau-terminal/data/beau.db` (defined in `src/lib/server/db/schema.ts`):
 
 | Table | Purpose | Key Columns |
 |---|---|---|
@@ -46,9 +46,14 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 | **softwarePhases** | Build phases | id (auto), phase, order |
 | **softwareSteps** | Checklist items within phases | id (text), phaseId (FK), text, done, order, links (JSON) |
 | **ideas** | Ideas board items | id (text), priority, text, done, links (JSON) |
-| **haikus** | Haiku archive | id (auto), text, trigger, mode, createdAt |
+| **haikus** | Haiku archive | id (auto), text, trigger, mode, createdAt, haikuType, wakeWord, isImmutable, sourceContext |
 | **todos** | Task list | id (auto), text, section, done, priority, sortOrder, createdAt |
 | **promptHistory** | MQTT commands sent via Prompt Console | id (auto), content, label, createdAt |
+| **emergenceArtifacts** | Beau's emergence moment (singleton) | id, singleton (unique), emergenceTimestamp, haikuText, modelUsed, checksum, bootId |
+| **natalProfiles** | Birth chart data | id, birthTimestamp, timezone, locationName, lat/lon, westernChartJson, summaryText, isActive, version |
+| **voiceModels** | Voice model versions | id, versionName (unique), engine, modelPath, trainingNotes, status, activatedAt, retiredAt |
+| **voiceTrainingPhrases** | Training phrases per voice model | id, voiceModelId (FK), text, source, includedInTraining, sortOrder |
+| **dispatches** | Brain routing dispatch log | id, tier, model, querySummary, routingReason, contextMode, durationMs |
 
 Seed data: 16 parts, 10 phases, 44 steps, 11 ideas + 116 link mappings. Idempotent — skips if parts table already has data.
 
@@ -80,6 +85,28 @@ Canonical system prompt for the philosopher brain lives in `bmo-system-prompt.md
 | `{{TIME_OF_DAY}}` | System clock |
 | `{{RAG_FRAGMENTS}}` | ChromaDB query results (3–5 chunks) |
 | `{{EMOTIONAL_STATE}}` | Probabilistic state model output |
+| `{{SLEEP_STATE}}` | BMO sleep state manager |
+| `{{PRESENCE_STATE}}` | Home Assistant presence sensor |
+| `{{SEASONAL_CONTEXT}}` | System clock + location |
+| `{{SOUL_CODE_HAIKU}}` | DB — emergence_artifacts table |
+| `{{VOICE_MODEL_VERSION}}` | DB — voice_models table |
+| `{{WEATHER_SUMMARY}}` | Home Assistant weather integration |
+| `{{LUX_CONTEXT}}` | Home Assistant lux sensor |
+| `{{NATAL_SUMMARY}}` | DB — natal_profiles table |
+
+---
+
+## Prompt Assembler
+
+The prompt assembler (`src/lib/server/prompt/assembler.ts`) reads `bmo-system-prompt.md` and processes it at runtime:
+
+1. **Parses sections** — `<!-- SECTION: NAME -->` markers split the prompt into 15 named sections
+2. **Applies injection policy** — each section has a per-mode injection level (full/omit) defined in `policies.ts`
+3. **Substitutes placeholders** — `{{PLACEHOLDER}}` tokens replaced with runtime values or fallbacks from `policies.ts`
+4. **Reflex tier variant** — `buildReflexPrompt()` produces a stripped version (CORE_IDENTITY paragraph 1 + VOICE_RULES + CONTEXT + current MODE_PROTOCOL line)
+
+Section definitions: `src/lib/server/prompt/sections.ts` (15 sections)
+Injection policies: `src/lib/server/prompt/policies.ts` (15 × 5 mode matrix)
 
 ---
 
