@@ -180,17 +180,21 @@ export function connectMQTT() {
 
   const resolumeManager = new ResolumeSessionManager({
     onSessionStart: () => {
+      // Always update state — DB persistence is best-effort
+      state = { ...state, resolumeActive: true };
+      eventSequence = 0;
       try {
         const result = db.insert(resolumeSessions).values({
           startedAt: new Date().toISOString(),
           beauPresent: state.presenceState === 'occupied',
         }).run();
         dbSessionId = Number(result.lastInsertRowid);
-        eventSequence = 0;
-        state = { ...state, resolumeActive: true, currentSessionId: dbSessionId };
-        witnessController.onSessionStart(state.presenceState, state.mode);
-        broadcast();
-      } catch { /* non-fatal */ }
+        state = { ...state, currentSessionId: dbSessionId };
+      } catch (e) {
+        console.warn('[bridge] resolume session DB insert failed:', e);
+      }
+      witnessController.onSessionStart(state.presenceState, state.mode);
+      broadcast();
     },
     onSessionEnd: () => {
       if (dbSessionId) {

@@ -215,6 +215,7 @@ try {
 try { sqlite.prepare("ALTER TABLE haikus ADD COLUMN session_id INTEGER").run(); } catch { /* already exists */ }
 
 // Phase 3 — indexes
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_resolume_sessions_started ON resolume_sessions(started_at DESC)").run(); } catch { /* already exists */ }
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_resolume_events_session ON resolume_events(session_id)").run(); } catch { /* already exists */ }
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_resolume_events_ts ON resolume_events(timestamp)").run(); } catch { /* already exists */ }
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_photos_session ON photos(session_id)").run(); } catch { /* already exists */ }

@@ -64,7 +64,7 @@
                 {formatDuration(session.startedAt, session.endedAt)}
               </td>
               <td class="p-3 hidden md:table-cell" style="color: var(--bmo-text)">
-                {#if session.bpmMin && session.bpmMax}
+                {#if session.bpmMin != null && session.bpmMax != null}
                   {Math.round(session.bpmMin)}–{Math.round(session.bpmMax)}
                 {:else}
                   —

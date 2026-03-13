@@ -72,7 +72,7 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 | **softwarePhases** | Build phases | id (auto), phase, order |
 | **softwareSteps** | Checklist items within phases | id (text), phaseId (FK), text, done, order, links (JSON) |
 | **ideas** | Ideas board items | id (text), priority, text, done, links (JSON) |
-| **haikus** | Haiku archive | id (auto), text, trigger, mode, createdAt, haikuType, wakeWord, isImmutable, sourceContext |
+| **haikus** | Haiku archive | id (auto), text, trigger, mode, createdAt, haikuType, wakeWord, isImmutable, sourceContext, sessionId (FK→resolume_sessions, nullable) |
 | **todos** | Task list | id (auto), text, section, done, priority, sortOrder, createdAt |
 | **promptHistory** | MQTT commands sent via Prompt Console | id (auto), content, label, createdAt |
 | **emergenceArtifacts** | Beau's emergence moment (singleton) | id, singleton (unique), emergenceTimestamp, haikuText, modelUsed, checksum, bootId |
@@ -82,9 +82,9 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 | **dispatches** | Brain routing dispatch log | id, tier, model, querySummary, routingReason, contextMode, durationMs, environmentId |
 | **environmentSnapshots** | Environment state snapshots (60s min interval) | id, timestamp, presenceState, lux, sleepState, weatherJson, seasonalSummary, contextMode |
 | **environmentEvents** | Environment state change events | id, timestamp, eventType, payloadJson, source |
-| **resolume_sessions** | Resolume VJ session records | id, startedAt, endedAt, durationMs, clipCount, bpmAvg, bpmMin, bpmMax, layerCount, peakLayerCount, debriefAt, debriefText, debriefGeneratedAt, debriefModelUsed, sessionNotes, witnessHaikuId, photoCount, isComplete |
-| **resolume_events** | Per-event clip/BPM data within a session | id, sessionId (FK→resolume_sessions), timestamp, eventType, payloadJson |
-| **photos** | Photo metadata for session-linked photography | id, sessionId (FK→resolume_sessions, nullable), filename, filepath, takenAt, width, height, sizeBytes, mimeType, caption, captionGeneratedAt, captionModelUsed |
+| **resolume_sessions** | Resolume VJ session records | id (auto), createdAt, startedAt, endedAt, status, sessionName, venue, bpmMin, bpmMax, bpmAvg, clipsUsedJson, columnsTriggeredJson, colorObservations, oscLogPath, debriefText, moodTagsJson, visualPrompt, beauPresent, embeddingStatus |
+| **resolume_events** | Per-event clip/BPM data within a session | id (auto), sessionId (FK→resolume_sessions), timestamp, sequence, eventType, source, payloadJson |
+| **photos** | Photo metadata for session-linked photography | id (auto), createdAt, capturedAt, sessionId (FK→resolume_sessions, nullable), imagePath, thumbnailPath, caption, notes, tagsJson, sourceType, isPrivate, embeddingStatus |
 
 Note: `haikus.session_id` is a nullable FK to `resolume_sessions.id` — haikus generated during a VJ session are automatically linked.
 

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import type { PageData } from './$types.js';
+  import type { PageData, ActionData } from './$types.js';
 
-  const { data }: { data: PageData } = $props();
+  const { data, form }: { data: PageData; form: ActionData } = $props();
   let showUpload = $state(false);
 </script>
 
@@ -21,12 +21,15 @@
 
   {#if showUpload}
     <form method="POST" action="?/upload" enctype="multipart/form-data" use:enhance={() => {
-      return async ({ update }) => {
+      return async ({ result, update }) => {
         await update();
-        showUpload = false;
+        if (result.type === 'success') showUpload = false;
       };
     }}
           class="p-4 mb-6 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+      {#if form?.error}
+        <div class="text-xs mb-3 p-2 border" style="color: #d63031; border-color: #d63031">{form.error}</div>
+      {/if}
       <div class="space-y-3">
         <div>
           <label class="text-xs tracking-widest block mb-1" style="color: var(--bmo-muted)">FILE</label>

@@ -8,7 +8,6 @@ export type WitnessConfig = {
 export class WitnessController {
   private _isWitnessing = false;
   private _previousMode: string | null = null;
-  private _sessionActive = false;
   private _onModeChange: (mode: string) => void;
 
   constructor(config: WitnessConfig) {
@@ -20,7 +19,6 @@ export class WitnessController {
   }
 
   onSessionStart(presenceState: string, currentMode: string): void {
-    this._sessionActive = true;
     if (presenceState === 'occupied') {
       this._previousMode = currentMode;
       this._isWitnessing = true;
@@ -29,7 +27,6 @@ export class WitnessController {
   }
 
   onSessionEnd(): void {
-    this._sessionActive = false;
     if (this._isWitnessing && this._previousMode !== null) {
       this._isWitnessing = false;
       this._onModeChange(this._previousMode);

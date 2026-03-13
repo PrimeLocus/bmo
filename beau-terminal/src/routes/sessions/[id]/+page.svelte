@@ -41,7 +41,7 @@
     <div class="p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
       <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">BPM RANGE</div>
       <div class="text-sm font-bold" style="color: var(--bmo-green)">
-        {#if session.bpmMin && session.bpmMax}
+        {#if session.bpmMin != null && session.bpmMax != null}
           {Math.round(session.bpmMin)} — {Math.round(session.bpmMax)}
         {:else}—{/if}
       </div>

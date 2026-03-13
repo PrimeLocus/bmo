@@ -6,7 +6,7 @@ import type { PageServerLoad } from './$types.js';
 
 export const load: PageServerLoad = async ({ params }) => {
   const id = Number(params.id);
-  if (isNaN(id)) error(404, 'Invalid session ID');
+  if (!Number.isInteger(id) || id <= 0) error(404, 'Invalid session ID');
 
   const session = db.select().from(resolumeSessions).where(eq(resolumeSessions.id, id)).get();
   if (!session) error(404, 'Session not found');
