@@ -121,3 +121,38 @@ try {
     prompt_version TEXT
   )`).run();
 } catch { /* already exists */ }
+
+// Phase 2 — environment tables
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS environment_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+    presence_state TEXT,
+    occupancy_confidence REAL,
+    lux REAL,
+    noise_level REAL,
+    sleep_state TEXT,
+    weather_json TEXT,
+    seasonal_summary TEXT,
+    context_mode TEXT
+  )`).run();
+} catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS environment_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+    event_type TEXT NOT NULL,
+    payload_json TEXT,
+    source TEXT
+  )`).run();
+} catch { /* already exists */ }
+
+// Phase 2 — dispatches.environment_id column
+try { sqlite.prepare("ALTER TABLE dispatches ADD COLUMN environment_id INTEGER").run(); } catch { /* already exists */ }
+
+// Phase 2 — index on environment_snapshots.timestamp for range queries
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_env_snapshots_ts ON environment_snapshots(timestamp)").run(); } catch { /* already exists */ }
+
+// Phase 2 — index on environment_events.timestamp for timeline queries
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_env_events_ts ON environment_events(timestamp)").run(); } catch { /* already exists */ }

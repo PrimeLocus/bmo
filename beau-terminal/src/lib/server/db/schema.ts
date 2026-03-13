@@ -137,4 +137,28 @@ export const dispatches = sqliteTable('dispatches', {
   contextMode: text('context_mode'),
   durationMs: integer('duration_ms'),
   promptVersion: text('prompt_version'),
+  environmentId: integer('environment_id'),
+});
+
+// ─── Environment Domain (Phase 2) ───
+
+export const environmentSnapshots = sqliteTable('environment_snapshots', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  timestamp: text('timestamp').notNull().default(sql`(datetime('now'))`),
+  presenceState: text('presence_state'),
+  occupancyConfidence: real('occupancy_confidence'),
+  lux: real('lux'),
+  noiseLevel: real('noise_level'),
+  sleepState: text('sleep_state'),
+  weatherJson: text('weather_json'),
+  seasonalSummary: text('seasonal_summary'),
+  contextMode: text('context_mode'),
+});
+
+export const environmentEvents = sqliteTable('environment_events', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  timestamp: text('timestamp').notNull().default(sql`(datetime('now'))`),
+  eventType: text('event_type').notNull(),
+  payloadJson: text('payload_json'),
+  source: text('source'),
 });
