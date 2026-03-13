@@ -1,4 +1,6 @@
 <script lang="ts">
+  import PanelCanvas from '$lib/components/PanelCanvas.svelte';
+  import Panel from '$lib/components/Panel.svelte';
   import type { PageData } from './$types.js';
 
   const { data }: { data: PageData } = $props();
@@ -10,9 +12,8 @@
     <p class="text-xs mt-1" style="color: var(--bmo-muted)">what beau is — immutable or slowly-evolving</p>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <!-- Emergence / Soul Code -->
-    <div class="p-5 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+  <PanelCanvas pageId="/identity">
+    <Panel id="identity:emergence" label="Emergence" defaultPosition={{ col: 0, row: 0, colSpan: 4, rowSpan: 3 }}>
       <div class="text-xs tracking-widest mb-4" style="color: var(--bmo-muted)">EMERGENCE</div>
       {#if data.emergence}
         <div class="text-center py-4">
@@ -31,10 +32,9 @@
           <div class="text-sm italic" style="color: var(--bmo-muted)">awaiting first true boot</div>
         </div>
       {/if}
-    </div>
+    </Panel>
 
-    <!-- Natal Chart -->
-    <div class="p-5 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+    <Panel id="identity:natal" label="Natal Chart" defaultPosition={{ col: 4, row: 0, colSpan: 4, rowSpan: 3 }}>
       <div class="text-xs tracking-widest mb-4" style="color: var(--bmo-muted)">NATAL CHART</div>
       {#if data.natal}
         <div class="text-sm" style="color: var(--bmo-text)">
@@ -51,10 +51,9 @@
           <div class="text-sm italic" style="color: var(--bmo-muted)">calculated at emergence</div>
         </div>
       {/if}
-    </div>
+    </Panel>
 
-    <!-- Voice Lineage -->
-    <div class="p-5 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+    <Panel id="identity:voice" label="Voice Lineage" defaultPosition={{ col: 8, row: 0, colSpan: 4, rowSpan: 3 }}>
       <div class="text-xs tracking-widest mb-4" style="color: var(--bmo-muted)">VOICE LINEAGE</div>
       {#if data.activeVoice}
         <div class="flex items-center gap-2 mb-3">
@@ -82,6 +81,6 @@
           {/each}
         </div>
       {/if}
-    </div>
-  </div>
+    </Panel>
+  </PanelCanvas>
 </div>

@@ -1,5 +1,7 @@
 <script lang="ts">
   import { beauState } from '$lib/stores/beau.svelte.js';
+  import PanelCanvas from '$lib/components/PanelCanvas.svelte';
+  import Panel from '$lib/components/Panel.svelte';
   import type { PageData } from './$types.js';
 
   const { data }: { data: PageData } = $props();
@@ -46,6 +48,9 @@
     {/each}
   </div>
 
+  <PanelCanvas pageId="/haikus">
+  <Panel id="haikus:archive" label="Haiku Archive" defaultPosition={{ col: 0, row: 0, colSpan: 12, rowSpan: 5 }}>
+
   <!-- Live haiku if present and not in archive yet -->
   {#if beauState.lastHaiku && data.haikus.length === 0}
     <div class="mb-6 p-5 border" style="border-color: var(--bmo-green); background: var(--bmo-surface)">
@@ -83,4 +88,7 @@
       {/each}
     </div>
   {/if}
+
+  </Panel>
+  </PanelCanvas>
 </div>

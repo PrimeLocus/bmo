@@ -1,6 +1,8 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { onMount } from 'svelte';
+  import PanelCanvas from '$lib/components/PanelCanvas.svelte';
+  import Panel from '$lib/components/Panel.svelte';
   import type { PageData } from './$types.js';
 
   const { data }: { data: PageData } = $props();
@@ -127,6 +129,9 @@
       </button>
     </div>
   </div>
+
+  <PanelCanvas pageId="/parts">
+  <Panel id="parts:tracker" label="Parts Tracker" defaultPosition={{ col: 0, row: 0, colSpan: 12, rowSpan: 8 }}>
 
   <!-- Column width settings -->
   {#if showColSettings}
@@ -525,4 +530,7 @@
       </div>
     {/each}
   </div>
+
+  </Panel>
+  </PanelCanvas>
 </div>

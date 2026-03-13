@@ -9,6 +9,8 @@
     savePageLayout,
     resetPageLayout,
     updatePanelPreview,
+    togglePanelVisibility,
+    isPanelHidden,
     type GridLayout,
     type GridPosition,
     GRID_COLS,
@@ -39,8 +41,15 @@
   // Panel defaults collected from children
   const defaults: Record<string, GridPosition> = {};
 
+  // Panel registry — panelId → display label
+  let panelRegistry = $state<Map<string, string>>(new Map());
+
   function registerDefault(id: string, pos: GridPosition) {
     defaults[id] = pos;
+  }
+
+  function registerPanel(id: string, label: string) {
+    panelRegistry = new Map(panelRegistry).set(id, label);
   }
 
   /** Build a fresh layout from collected defaults, then compact */
@@ -108,7 +117,7 @@
       return;
     }
     const newPanels = applyMove(layout.panels, draggingId, ghostPos);
-    savePageLayout(pageId, { panels: newPanels });
+    savePageLayout(pageId, { ...layout, panels: newPanels });
     draggingId = null;
     ghostPos = null;
   }
@@ -123,7 +132,7 @@
   function onResizeCommit(panelId: string, proposed: GridPosition) {
     if (!layout) return;
     const newPanels = applyMove(layout.panels, panelId, proposed);
-    savePageLayout(pageId, { panels: newPanels });
+    savePageLayout(pageId, { ...layout, panels: newPanels });
   }
 
   function onResizePreview(panelId: string, partial: Partial<GridPosition>) {
@@ -139,6 +148,13 @@
     });
   }
 
+  function handleTogglePanel(panelId: string) {
+    togglePanelVisibility(pageId, panelId);
+  }
+
+  // Panel visibility drawer state
+  let showPanelDrawer = $state(false);
+
   // Provide context for child Panel components
   setContext('panel-canvas', {
     get pageId() { return pageId; },
@@ -147,6 +163,7 @@
     get rowHeight() { return rowHeight; },
     get draggingId() { return draggingId; },
     registerDefault,
+    registerPanel,
     onDragStart,
     onResizeCommit,
     onResizePreview,
@@ -193,7 +210,16 @@
 </div>
 
 {#if editModeState.active}
-  <div class="flex justify-center mt-4">
+  <div class="flex items-center justify-center gap-3 mt-4">
+    {#if panelRegistry.size > 1}
+      <button
+        onclick={() => showPanelDrawer = !showPanelDrawer}
+        class="text-xs tracking-widest px-4 py-2 border transition-all hover:opacity-80"
+        style="border-color: {showPanelDrawer ? 'var(--bmo-green)' : 'var(--bmo-border)'}; color: {showPanelDrawer ? 'var(--bmo-green)' : 'var(--bmo-muted)'}; cursor: pointer"
+      >
+        PANELS
+      </button>
+    {/if}
     <button
       onclick={handleReset}
       class="text-xs tracking-widest px-4 py-2 border transition-all hover:opacity-80"
@@ -202,4 +228,28 @@
       RESET LAYOUT
     </button>
   </div>
+
+  {#if showPanelDrawer && panelRegistry.size > 1}
+    <div class="mt-3 p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+      <div class="text-xs tracking-widest mb-2" style="color: var(--bmo-muted)">PANEL VISIBILITY</div>
+      <div class="flex flex-wrap gap-2">
+        {#each [...panelRegistry.entries()] as [panelId, label]}
+          {@const isHidden = isPanelHidden(pageId, panelId)}
+          <button
+            onclick={() => handleTogglePanel(panelId)}
+            class="text-xs px-3 py-1.5 border transition-all hover:opacity-80"
+            style="
+              border-color: {isHidden ? 'var(--bmo-border)' : 'var(--bmo-green)'};
+              color: {isHidden ? 'var(--bmo-muted)' : 'var(--bmo-green)'};
+              opacity: {isHidden ? '0.5' : '1'};
+              text-decoration: {isHidden ? 'line-through' : 'none'};
+              cursor: pointer;
+            "
+          >
+            {isHidden ? '○' : '●'} {label}
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
 {/if}

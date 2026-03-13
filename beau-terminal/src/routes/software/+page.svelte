@@ -1,5 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import PanelCanvas from '$lib/components/PanelCanvas.svelte';
+  import Panel from '$lib/components/Panel.svelte';
   import type { PageData } from './$types.js';
 
   const { data }: { data: PageData } = $props();
@@ -41,6 +43,9 @@
       <div class="h-1 transition-all" style="width: {totalPct}%; background: var(--bmo-green); border-radius: 1px"></div>
     </div>
   </div>
+
+  <PanelCanvas pageId="/software">
+  <Panel id="software:build" label="Software Build" defaultPosition={{ col: 0, row: 0, colSpan: 12, rowSpan: 6 }}>
 
   <!-- Phases -->
   <div class="space-y-3">
@@ -105,4 +110,7 @@
       </div>
     {/each}
   </div>
+
+  </Panel>
+  </PanelCanvas>
 </div>

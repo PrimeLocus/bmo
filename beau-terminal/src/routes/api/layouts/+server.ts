@@ -15,6 +15,8 @@ function validateLayout(data: unknown): boolean {
   const d = data as Record<string, unknown>;
   // Reject old pixel layouts that had 'mode'
   if ('mode' in d) return false;
+  // Allow nav config (stored under __nav__)
+  if (!d.panels && Array.isArray(d.groups) && Array.isArray(d.items)) return true;
   if (!d.panels || typeof d.panels !== 'object') return false;
   for (const panel of Object.values(d.panels as Record<string, unknown>)) {
     if (!panel || typeof panel !== 'object') return false;
@@ -24,6 +26,11 @@ function validateLayout(data: unknown): boolean {
     if (typeof p.colSpan !== 'number' || !Number.isInteger(p.colSpan)) return false;
     if (typeof p.rowSpan !== 'number' || !Number.isInteger(p.rowSpan)) return false;
     if (p.fontSize !== undefined && typeof p.fontSize !== 'number') return false;
+  }
+  // Optional hiddenPanels: array of strings
+  if (d.hiddenPanels !== undefined) {
+    if (!Array.isArray(d.hiddenPanels)) return false;
+    if (d.hiddenPanels.some((v: unknown) => typeof v !== 'string')) return false;
   }
   return true;
 }

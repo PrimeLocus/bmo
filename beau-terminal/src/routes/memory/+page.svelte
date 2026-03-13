@@ -1,4 +1,6 @@
 <script lang="ts">
+  import PanelCanvas from '$lib/components/PanelCanvas.svelte';
+  import Panel from '$lib/components/Panel.svelte';
   import { beauState } from '$lib/stores/beau.svelte.js';
   import type { PageData } from './$types.js';
 
@@ -16,11 +18,10 @@
     <p class="text-xs mt-1" style="color: var(--bmo-muted)">live dispatcher · {data.haikus.length} haikus stored</p>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <!-- Dispatcher log (live) -->
-    <div class="border" style="border-color: var(--bmo-border)">
+  <PanelCanvas pageId="/memory">
+    <Panel id="memory:dispatcher" label="Dispatcher Log" defaultPosition={{ col: 0, row: 0, colSpan: 6, rowSpan: 4 }}>
       <div class="px-4 py-3 border-b text-xs tracking-widest"
-           style="border-color: var(--bmo-border); background: var(--bmo-surface); color: var(--bmo-muted)">
+           style="border-color: var(--bmo-border); color: var(--bmo-muted)">
         DISPATCHER LOG
         <span class="ml-2 inline-block w-1.5 h-1.5 rounded-full" style="background: {beauState.online ? 'var(--bmo-green)' : '#636e72'}"></span>
         LIVE
@@ -38,12 +39,11 @@
           </div>
         {/if}
       </div>
-    </div>
+    </Panel>
 
-    <!-- Haiku history -->
-    <div class="border" style="border-color: var(--bmo-border)">
+    <Panel id="memory:haiku-archive" label="Haiku Archive" defaultPosition={{ col: 6, row: 0, colSpan: 6, rowSpan: 4 }}>
       <div class="px-4 py-3 border-b text-xs tracking-widest"
-           style="border-color: var(--bmo-border); background: var(--bmo-surface); color: var(--bmo-muted)">
+           style="border-color: var(--bmo-border); color: var(--bmo-muted)">
         HAIKU ARCHIVE
       </div>
       <div class="divide-y max-h-96 overflow-y-auto" style="border-color: var(--bmo-border)">
@@ -66,6 +66,6 @@
           {/each}
         {/if}
       </div>
-    </div>
-  </div>
+    </Panel>
+  </PanelCanvas>
 </div>

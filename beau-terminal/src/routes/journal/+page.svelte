@@ -1,5 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import PanelCanvas from '$lib/components/PanelCanvas.svelte';
+  import Panel from '$lib/components/Panel.svelte';
   import type { PageData } from './$types.js';
 
   const { data }: { data: PageData } = $props();
@@ -24,6 +26,9 @@
       </form>
     {/if}
   </div>
+
+  <PanelCanvas pageId="/journal">
+  <Panel id="journal:entries" label="Journal" defaultPosition={{ col: 0, row: 0, colSpan: 12, rowSpan: 5 }}>
 
   {#if !data.isUnlocked}
     <!-- Locked state -->
@@ -142,4 +147,7 @@
       </div>
     {/if}
   {/if}
+
+  </Panel>
+  </PanelCanvas>
 </div>

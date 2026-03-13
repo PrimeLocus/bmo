@@ -1,5 +1,7 @@
 <script lang="ts">
   import { beauState } from '$lib/stores/beau.svelte.js';
+  import PanelCanvas from '$lib/components/PanelCanvas.svelte';
+  import Panel from '$lib/components/Panel.svelte';
   import type { PageData } from './$types.js';
 
   const { data }: { data: PageData } = $props();
@@ -18,6 +20,9 @@
     <h1 class="text-2xl tracking-widest font-bold" style="color: var(--bmo-green)">SESSIONS</h1>
     <p class="text-xs mt-1" style="color: var(--bmo-muted)">resolume vj session archive</p>
   </div>
+
+  <PanelCanvas pageId="/sessions">
+  <Panel id="sessions:log" label="Sessions" defaultPosition={{ col: 0, row: 0, colSpan: 12, rowSpan: 5 }}>
 
   {#if beauState.resolumeActive}
     <div class="p-4 mb-6 border" style="border-color: var(--bmo-green); background: var(--bmo-surface)">
@@ -101,4 +106,7 @@
       </div>
     {/if}
   {/if}
+
+  </Panel>
+  </PanelCanvas>
 </div>

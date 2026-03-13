@@ -1,5 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import PanelCanvas from '$lib/components/PanelCanvas.svelte';
+  import Panel from '$lib/components/Panel.svelte';
   import type { PageData, ActionData } from './$types.js';
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
@@ -18,6 +20,9 @@
       {showUpload ? 'CANCEL' : '+ UPLOAD'}
     </button>
   </div>
+
+  <PanelCanvas pageId="/photography">
+  <Panel id="photography:gallery" label="Gallery" defaultPosition={{ col: 0, row: 0, colSpan: 12, rowSpan: 5 }}>
 
   {#if showUpload}
     <form method="POST" action="?/upload" enctype="multipart/form-data" use:enhance={() => {
@@ -110,4 +115,7 @@
       </div>
     {/if}
   {/if}
+
+  </Panel>
+  </PanelCanvas>
 </div>

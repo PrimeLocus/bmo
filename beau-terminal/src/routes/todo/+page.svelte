@@ -1,5 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import PanelCanvas from '$lib/components/PanelCanvas.svelte';
+  import Panel from '$lib/components/Panel.svelte';
   import type { PageData } from './$types.js';
 
   const { data }: { data: PageData } = $props();
@@ -81,6 +83,9 @@
       </div>
     {/if}
   </div>
+
+  <PanelCanvas pageId="/todo">
+  <Panel id="todo:tasks" label="Tasks" defaultPosition={{ col: 0, row: 0, colSpan: 12, rowSpan: 6 }}>
 
   <!-- Add form -->
   <form method="POST" action="?/add" use:enhance={() => {
@@ -225,4 +230,7 @@
   {#if totalCount === 0}
     <p class="text-sm" style="color: var(--bmo-muted)">no tasks yet — add one above</p>
   {/if}
+
+  </Panel>
+  </PanelCanvas>
 </div>

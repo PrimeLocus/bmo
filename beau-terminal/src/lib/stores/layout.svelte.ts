@@ -5,6 +5,7 @@ import { type GridPosition, GRID_COLS, DEFAULT_ROW_HEIGHT, MIN_COL_SPAN, MIN_ROW
 
 export type GridLayout = {
   panels: Record<string, GridPosition>;
+  hiddenPanels?: string[];  // panel IDs that should not render
 };
 
 export { type GridPosition, GRID_COLS, DEFAULT_ROW_HEIGHT, MIN_COL_SPAN, MIN_ROW_SPAN };
@@ -32,6 +33,11 @@ function isValidGridLayout(data: unknown): data is GridLayout {
     if (typeof p.col !== 'number' || typeof p.row !== 'number') return false;
     if (typeof p.colSpan !== 'number' || typeof p.rowSpan !== 'number') return false;
     if (p.fontSize !== undefined && typeof p.fontSize !== 'number') return false;
+  }
+  // Optional hiddenPanels must be an array of strings
+  if (d.hiddenPanels !== undefined) {
+    if (!Array.isArray(d.hiddenPanels)) return false;
+    if (d.hiddenPanels.some((v: unknown) => typeof v !== 'string')) return false;
   }
   return true;
 }
@@ -103,9 +109,11 @@ export async function loadPageLayout(pageId: string): Promise<GridLayout | undef
 }
 
 export function savePageLayout(pageId: string, layout: GridLayout) {
-  _layouts[pageId] = { panels: { ...layout.panels } };
-  writeLS(pageId, layout);
-  scheduleSQLiteSync(pageId, layout);
+  const saved: GridLayout = { panels: { ...layout.panels } };
+  if (layout.hiddenPanels?.length) saved.hiddenPanels = [...layout.hiddenPanels];
+  _layouts[pageId] = saved;
+  writeLS(pageId, saved);
+  scheduleSQLiteSync(pageId, saved);
 }
 
 export function resetPageLayout(pageId: string) {
@@ -146,9 +154,29 @@ export function updatePanelPreview(
   const layout = _layouts[pageId];
   if (!layout) return;
   _layouts[pageId] = {
+    ...layout,
     panels: {
       ...layout.panels,
       [panelId]: { ...layout.panels[panelId], ...partial },
     },
   };
+}
+
+/** Toggle a panel's visibility (hidden/shown). */
+export function togglePanelVisibility(pageId: string, panelId: string) {
+  const layout = _layouts[pageId];
+  if (!layout) return;
+  const hidden = layout.hiddenPanels ?? [];
+  const idx = hidden.indexOf(panelId);
+  const updated: GridLayout = {
+    ...layout,
+    hiddenPanels: idx >= 0 ? hidden.filter(id => id !== panelId) : [...hidden, panelId],
+  };
+  savePageLayout(pageId, updated);
+}
+
+/** Check if a panel is hidden on a given page. */
+export function isPanelHidden(pageId: string, panelId: string): boolean {
+  const layout = getPageLayout(pageId);
+  return layout?.hiddenPanels?.includes(panelId) ?? false;
 }

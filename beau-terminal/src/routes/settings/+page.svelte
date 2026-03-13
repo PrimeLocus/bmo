@@ -3,6 +3,8 @@
     settings, updateSettings, resetSettings,
     SIZE_PRESETS, DEFAULTS,
   } from '$lib/stores/settings.svelte.js';
+  import PanelCanvas from '$lib/components/PanelCanvas.svelte';
+  import Panel from '$lib/components/Panel.svelte';
 </script>
 
 <div class="w-full max-w-2xl">
@@ -15,8 +17,10 @@
     <p style="color: var(--bmo-muted)">Changes apply instantly and persist across sessions.</p>
   </div>
 
+  <PanelCanvas pageId="/settings">
+
   <!-- ── TEXT SCALE ─────────────────────────────────────── -->
-  <section class="mb-10 pb-10 border-b" style="border-color: var(--bmo-border)">
+  <Panel id="settings:text-scale" label="Text Scale" defaultPosition={{ col: 0, row: 0, colSpan: 6, rowSpan: 4 }}>
     <h2 class="tracking-widest font-bold mb-6" style="font-size: 1.1rem; color: var(--bmo-muted)">
       TEXT SCALE
     </h2>
@@ -73,10 +77,10 @@
         Expected delivery based on USPS Priority Mail tracking data.
       </div>
     </div>
-  </section>
+  </Panel>
 
   <!-- ── CONTRAST ───────────────────────────────────────── -->
-  <section class="mb-10 pb-10 border-b" style="border-color: var(--bmo-border)">
+  <Panel id="settings:contrast" label="Contrast" defaultPosition={{ col: 6, row: 0, colSpan: 6, rowSpan: 2 }}>
     <h2 class="tracking-widest font-bold mb-2" style="font-size: 1.1rem; color: var(--bmo-muted)">
       CONTRAST
     </h2>
@@ -108,10 +112,10 @@
         </button>
       {/each}
     </div>
-  </section>
+  </Panel>
 
   <!-- ── FONT WEIGHT ────────────────────────────────────── -->
-  <section class="mb-10 pb-10 border-b" style="border-color: var(--bmo-border)">
+  <Panel id="settings:weight" label="Font Weight" defaultPosition={{ col: 6, row: 2, colSpan: 6, rowSpan: 2 }}>
     <h2 class="tracking-widest font-bold mb-2" style="font-size: 1.1rem; color: var(--bmo-muted)">
       FONT WEIGHT
     </h2>
@@ -144,10 +148,10 @@
         </button>
       {/each}
     </div>
-  </section>
+  </Panel>
 
-  <!-- ── LINE HEIGHT ────────────────────────────────────── -->
-  <section class="mb-10 pb-10 border-b" style="border-color: var(--bmo-border)">
+  <!-- ── LINE SPACING ──────────────────────────────────── -->
+  <Panel id="settings:spacing" label="Line Spacing" defaultPosition={{ col: 0, row: 4, colSpan: 6, rowSpan: 2 }}>
     <h2 class="tracking-widest font-bold mb-2" style="font-size: 1.1rem; color: var(--bmo-muted)">
       LINE SPACING
     </h2>
@@ -181,10 +185,12 @@
         </button>
       {/each}
     </div>
-  </section>
+  </Panel>
+
+  </PanelCanvas>
 
   <!-- ── RESET ──────────────────────────────────────────── -->
-  <div class="flex items-center justify-between flex-wrap gap-4">
+  <div class="flex items-center justify-between flex-wrap gap-4 mt-6">
     <div style="color: var(--bmo-muted); font-size: 0.85em">
       Current: {settings.fontSize}px · {settings.contrast} contrast ·
       {settings.fontWeight === '600' ? 'bold' : 'normal'} weight · {settings.lineHeight} leading

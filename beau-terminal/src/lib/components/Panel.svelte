@@ -6,6 +6,7 @@
   import {
     getPageLayout,
     updatePanelPosition,
+    isPanelHidden,
     type GridPosition,
     GRID_COLS,
     MIN_COL_SPAN,
@@ -15,10 +16,11 @@
   type Props = {
     id: string;
     defaultPosition: GridPosition;
+    label?: string;
     children: Snippet;
   };
 
-  const { id, defaultPosition, children }: Props = $props();
+  const { id, defaultPosition, label, children }: Props = $props();
 
   const ctx = getContext<{
     pageId: string;
@@ -27,15 +29,19 @@
     rowHeight: number;
     draggingId: string | null;
     registerDefault: (id: string, pos: GridPosition) => void;
+    registerPanel: (id: string, label: string) => void;
     onDragStart: (id: string, e: PointerEvent) => void;
     onResizeCommit: (id: string, proposed: GridPosition) => void;
     onResizePreview: (id: string, partial: Partial<GridPosition>) => void;
   }>('panel-canvas');
 
-  // Register default on mount
+  // Register default + panel metadata on mount
   onMount(() => {
     ctx.registerDefault(id, defaultPosition);
+    ctx.registerPanel(id, label ?? id);
   });
+
+  const hidden = $derived(isPanelHidden(ctx.pageId, id));
 
   const editing = $derived(editModeState.active);
   const layout = $derived(getPageLayout(ctx.pageId));
@@ -98,6 +104,7 @@
   }
 </script>
 
+{#if !hidden}
 <div
   data-panel-id={id}
   class="panel-wrapper"
@@ -157,6 +164,7 @@
     ></div>
   {/if}
 </div>
+{/if}
 
 <style>
   .panel-wrapper {
