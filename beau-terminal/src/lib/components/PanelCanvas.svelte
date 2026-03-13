@@ -22,8 +22,6 @@
   const { pageId, columns = 2, children }: Props = $props();
 
   let canvasEl: HTMLDivElement | undefined = $state();
-  let loaded = $state(false);
-
   // Reactive derivation: read layout from the store (re-evaluates when store updates)
   const layout = $derived(getPageLayout(pageId));
   const isFreeform = $derived(layout?.mode === 'freeform');
@@ -32,7 +30,6 @@
   onMount(async () => {
     // Load from SQLite fallback if localStorage was empty
     await loadPageLayout(pageId);
-    loaded = true;
   });
 
   /**

@@ -159,7 +159,7 @@ export function capturePositions(
     const id = el.dataset.panelId!;
     const rect = el.getBoundingClientRect();
     const x = snapToGrid(rect.left - canvasRect.left);
-    const y = snapToGrid(rect.top - canvasRect.top + canvasEl.scrollTop);
+    const y = snapToGrid(rect.top - canvasRect.top);
     const { w, h } = clampSize(rect.width, rect.height);
     const existingFontSize = existingLayout?.panels[id]?.fontSize;
     panels[id] = { x, y, w, h, ...(existingFontSize ? { fontSize: existingFontSize } : {}) };

@@ -147,6 +147,7 @@
       onpointerdown={handleDragStart}
       onpointermove={handleDragMove}
       onpointerup={handleDragEnd}
+      onpointercancel={handleDragEnd}
     >
       <div class="flex items-center gap-2">
         <span style="background: var(--bmo-green); color: var(--bmo-bg); font-size: 8px; padding: 1px 6px; letter-spacing: 1px; text-transform: uppercase">DRAG</span>
@@ -180,6 +181,7 @@
       onpointerdown={handleResizeStart}
       onpointermove={handleResizeMove}
       onpointerup={handleResizeEnd}
+      onpointercancel={handleResizeEnd}
     ></div>
   {/if}
 </div>

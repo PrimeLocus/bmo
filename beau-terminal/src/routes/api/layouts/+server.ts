@@ -38,7 +38,12 @@ export const GET: RequestHandler = async ({ url }) => {
 
 export const PUT: RequestHandler = async ({ url, request }) => {
   const page = getPageParam(url);
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    throw error(400, 'Invalid JSON body');
+  }
   if (!validateLayout(body)) throw error(400, 'Invalid layout shape');
   const dataStr = JSON.stringify(body);
   const now = Date.now();
