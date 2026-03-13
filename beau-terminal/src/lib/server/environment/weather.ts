@@ -63,6 +63,12 @@ export function startWeatherPolling(
   const apiKey = process.env.OPENWEATHER_API_KEY;
   if (!apiKey) return null;
 
+  // Guard against double-invocation: clear any existing timer
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
   // Lafayette, LA coordinates
   const lat = 30.2241;
   const lon = -92.0198;
