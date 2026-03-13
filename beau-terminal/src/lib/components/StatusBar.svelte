@@ -20,6 +20,18 @@
     STATE: <span style="color: var(--bmo-text)">{beauState.emotionalState.toUpperCase()}</span>
   </div>
 
+  <div style="color: var(--bmo-muted)">
+    SLEEP: <span style="color: {beauState.sleepState === 'asleep' ? '#636e72' : 'var(--bmo-text)'}">
+      {beauState.sleepState.toUpperCase()}
+    </span>
+  </div>
+
+  <div style="color: var(--bmo-muted)">
+    ROOM: <span style="color: {beauState.presenceState === 'occupied' ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
+      {beauState.presenceState.toUpperCase()}
+    </span>
+  </div>
+
   {#if beauState.lastHaiku}
     <div class="ml-auto italic truncate max-w-xs" style="color: var(--bmo-muted)">
       "{beauState.lastHaiku.split('\n')[0]}..."
