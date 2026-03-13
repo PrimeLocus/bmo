@@ -1,5 +1,6 @@
 <script lang="ts">
   import { beauState } from '$lib/stores/beau.svelte.js';
+  import { editModeState, toggleEditMode } from '$lib/stores/editMode.svelte.js';
 </script>
 
 <div class="flex items-center gap-6 px-4 py-2 text-xs border-b"
@@ -38,8 +39,22 @@
     </span>
   </div>
 
+  <!-- Edit mode toggle -->
+  <button
+    onclick={toggleEditMode}
+    class="ml-auto text-xs tracking-widest px-3 py-1 border transition-all hover:opacity-80"
+    style="
+      border-color: {editModeState.active ? 'var(--bmo-green)' : 'var(--bmo-border)'};
+      background: {editModeState.active ? 'var(--bmo-green)' : 'transparent'};
+      color: {editModeState.active ? 'var(--bmo-bg)' : 'var(--bmo-muted)'};
+      cursor: pointer;
+    "
+  >
+    {editModeState.active ? 'EDIT MODE' : 'EDIT'}
+  </button>
+
   {#if beauState.lastHaiku}
-    <div class="ml-auto italic truncate max-w-xs" style="color: var(--bmo-muted)">
+    <div class="italic truncate max-w-xs" style="color: var(--bmo-muted)">
       "{beauState.lastHaiku.split('\n')[0]}..."
     </div>
   {/if}
