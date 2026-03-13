@@ -12,7 +12,7 @@
         { href: '/',         label: 'DASHBOARD', icon: '◈' },
         { href: '/identity', label: 'IDENTITY',  icon: '◇' },
         { href: '/presence', label: 'PRESENCE',  icon: '◉' },
-        { href: '/journal',  label: 'JOURNAL',   icon: '◬', disabled: true },
+        { href: '/journal',  label: 'JOURNAL',   icon: '◬' },
       ],
     },
     {
