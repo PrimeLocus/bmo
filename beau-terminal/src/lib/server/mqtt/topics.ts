@@ -1,17 +1,67 @@
-// MQTT topic constants and mode type definitions
+// MQTT topic constants — canonical source for all topic strings and type unions
 
 export const TOPICS = {
-  STATE_MODE: 'beau/state/mode',
-  STATE_EMOTION: 'beau/state/emotion',
-  INTENT_WAKE: 'beau/intent/wake',
-  SENSORS_ENVIRONMENT: 'beau/sensors/environment',
-  OUTPUT_HAIKU: 'beau/output/haiku',
-  DISPATCHER_LOG: 'beau/dispatcher/log',
-  SENSORS_CAMERA: 'beau/sensors/camera',
+  state: {
+    mode: 'beau/state/mode',
+    emotion: 'beau/state/emotion',
+    sleep: 'beau/state/sleep',
+    online: 'beau/state/online',
+  },
+  intent: {
+    wake: 'beau/intent/wake',
+  },
+  sensors: {
+    environment: 'beau/sensors/environment',
+    camera: 'beau/sensors/camera',
+  },
+  environment: {
+    presence: 'beau/environment/presence',
+    lux: 'beau/environment/lux',
+    weather: 'beau/environment/weather',
+    seasonal: 'beau/environment/seasonal',
+  },
+  output: {
+    haiku: 'beau/output/haiku',
+  },
+  dispatcher: {
+    log: 'beau/dispatcher/log',
+  },
+  command: {
+    prompt: 'beau/command/prompt',
+  },
 } as const;
 
-export const SUBSCRIBE_TOPICS = Object.values(TOPICS);
+// Topics the terminal subscribes to (inbound from BMO)
+export const SUBSCRIBE_TOPICS: string[] = [
+  // Phase 1
+  TOPICS.state.mode,
+  TOPICS.state.emotion,
+  TOPICS.intent.wake,
+  TOPICS.sensors.environment,
+  TOPICS.output.haiku,
+  TOPICS.dispatcher.log,
+  TOPICS.sensors.camera,
+  // Phase 2
+  TOPICS.state.sleep,
+  TOPICS.environment.presence,
+  TOPICS.environment.lux,
+  TOPICS.environment.weather,
+  TOPICS.environment.seasonal,
+];
+
+// ─── Type unions ───
 
 export const MODES = ['ambient', 'witness', 'collaborator', 'archivist', 'social'] as const;
-
 export type Mode = (typeof MODES)[number];
+
+export const SLEEP_STATES = ['awake', 'settling', 'asleep', 'waking'] as const;
+export type SleepState = (typeof SLEEP_STATES)[number];
+
+export const PRESENCE_STATES = ['occupied', 'empty', 'uncertain'] as const;
+export type PresenceState = (typeof PRESENCE_STATES)[number];
+
+export const HAIKU_TYPES = ['daily', 'emergence', 'reflective', 'seasonal', 'prompted'] as const;
+export type HaikuType = (typeof HAIKU_TYPES)[number];
+
+export const DISPATCH_TIERS = ['reflex', 'philosopher', 'heavy'] as const;
+export type DispatchTier = (typeof DISPATCH_TIERS)[number];

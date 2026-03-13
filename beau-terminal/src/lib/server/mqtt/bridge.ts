@@ -111,19 +111,19 @@ export function connectMQTT() {
   client.on('message', (topic, payload) => {
     const msg = payload.toString();
     switch (topic) {
-      case TOPICS.STATE_MODE:
+      case TOPICS.state.mode:
         state = { ...state, mode: msg };
         break;
-      case TOPICS.STATE_EMOTION:
+      case TOPICS.state.emotion:
         state = { ...state, emotionalState: msg };
         break;
-      case TOPICS.INTENT_WAKE:
+      case TOPICS.intent.wake:
         state = { ...state, wakeWord: msg };
         break;
-      case TOPICS.SENSORS_ENVIRONMENT:
+      case TOPICS.sensors.environment:
         state = { ...state, environment: msg };
         break;
-      case TOPICS.OUTPUT_HAIKU:
+      case TOPICS.output.haiku:
         state = { ...state, lastHaiku: msg };
         try {
           db.insert(haikus).values({
@@ -136,7 +136,7 @@ export function connectMQTT() {
           }).run();
         } catch { /* non-fatal */ }
         break;
-      case TOPICS.DISPATCHER_LOG:
+      case TOPICS.dispatcher.log:
         state = {
           ...state,
           dispatcherLog: [...state.dispatcherLog.slice(-99), msg],
@@ -160,7 +160,7 @@ export function connectMQTT() {
           // Non-JSON dispatcher messages are just logged in-memory, not persisted
         }
         break;
-      case TOPICS.SENSORS_CAMERA:
+      case TOPICS.sensors.camera:
         state = { ...state, cameraActive: msg === 'active' };
         break;
     }
