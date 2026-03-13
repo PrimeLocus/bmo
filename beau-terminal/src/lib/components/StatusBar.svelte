@@ -32,6 +32,12 @@
     </span>
   </div>
 
+  <div style="color: var(--bmo-muted)">
+    VJ: <span style="color: {beauState.resolumeActive ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
+      {beauState.resolumeActive ? 'LIVE' : 'OFF'}
+    </span>
+  </div>
+
   {#if beauState.lastHaiku}
     <div class="ml-auto italic truncate max-w-xs" style="color: var(--bmo-muted)">
       "{beauState.lastHaiku.split('\n')[0]}..."
