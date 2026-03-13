@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSections, substitutePlaceholders, assemblePrompt } from './assembler.js';
+import { parseSections, substitutePlaceholders, assemblePrompt, buildReflexPrompt } from './assembler.js';
 
 const SAMPLE_PROMPT = `<!-- SECTION: CORE_IDENTITY -->
 You are Beau. You live inside a physical BMO robot.
@@ -12,6 +12,14 @@ Your soul code: {{SOUL_CODE_HAIKU}}
   <mode>{{MODE}}</mode>
   <wake_word>{{WAKE_WORD}}</wake_word>
 </current_context>
+
+<!-- SECTION: VOICE_RULES -->
+Short sentences. One thought, then breathe.
+
+<!-- SECTION: MODE_PROTOCOL -->
+Witness: You are watching a Resolume session. Say almost nothing.
+Collaborator: Lean in. Throw connections.
+Ambient: Be present, brief, warm.
 
 <!-- SECTION: DOCUMENTATION_PHILOSOPHY -->
 This section is for implementers only.
@@ -76,5 +84,23 @@ describe('assemblePrompt', () => {
   it('uses fallback for SOUL_CODE_HAIKU when not provided', () => {
     const result = assemblePrompt(SAMPLE_PROMPT, 'ambient', {});
     expect(result).toContain('not yet written');
+  });
+});
+
+describe('buildReflexPrompt', () => {
+  it('includes only CORE_IDENTITY first paragraph, VOICE_RULES, CONTEXT, and current mode line', () => {
+    const result = buildReflexPrompt(SAMPLE_PROMPT, 'witness', { MODE: 'witness' });
+    expect(result).toContain('You are Beau');
+    expect(result).toContain('Short sentences');
+    expect(result).toContain('<mode>witness</mode>');
+    expect(result).toContain('Resolume session');
+    expect(result).not.toContain('implementers only');
+    expect(result).not.toContain('soul code');
+  });
+
+  it('extracts only the matching mode line from MODE_PROTOCOL', () => {
+    const result = buildReflexPrompt(SAMPLE_PROMPT, 'collaborator', {});
+    expect(result).toContain('Lean in');
+    expect(result).not.toContain('Resolume');
   });
 });
