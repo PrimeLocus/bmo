@@ -64,7 +64,7 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 
 ## Database Schema
 
-17 tables in `beau-terminal/data/beau.db` (defined in `src/lib/server/db/schema.ts`):
+20 tables in `beau-terminal/data/beau.db` (defined in `src/lib/server/db/schema.ts`):
 
 | Table | Purpose | Key Columns |
 |---|---|---|
@@ -85,6 +85,9 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 | **resolume_sessions** | Resolume VJ session records | id (auto), createdAt, startedAt, endedAt, status, sessionName, venue, bpmMin, bpmMax, bpmAvg, clipsUsedJson, columnsTriggeredJson, colorObservations, oscLogPath, debriefText, moodTagsJson, visualPrompt, beauPresent, embeddingStatus |
 | **resolume_events** | Per-event clip/BPM data within a session | id (auto), sessionId (FK→resolume_sessions), timestamp, sequence, eventType, source, payloadJson |
 | **photos** | Photo metadata for session-linked photography | id (auto), createdAt, capturedAt, sessionId (FK→resolume_sessions, nullable), imagePath, thumbnailPath, caption, notes, tagsJson, sourceType, isPrivate, embeddingStatus |
+| **journal_entries** | Beau's journal entries (private by default) | id (auto), createdAt, entryAt, title, body, mood, tagsJson, visibility, surfacedAt, filePath |
+| **noticings** | Pattern observations with lifecycle | id (auto), createdAt, patternText, basisSummary, observationWindow, surfacedAt, status, category |
+| **consent_events** | Audit trail for journal/noticing access | id (auto), timestamp, eventType, targetId, targetType, sessionToken, notes |
 
 Note: `haikus.session_id` is a nullable FK to `resolume_sessions.id` — haikus generated during a VJ session are automatically linked.
 
@@ -153,6 +156,24 @@ Server-side modules under `src/lib/server/creative/` that implement Phase 3 VJ w
 | `witness.ts` | Witness mode controller — puts Beau into quiet observation, triggers single-sentence whispers and haiku generation linked to the active session |
 | `debrief.ts` | Post-session reflection scheduler — waits for the configured cool-down period after session end, then triggers a philosopher-tier debrief prompt and persists the result |
 | `photography.ts` | Photo validation and naming — validates file type and dimensions, generates slug-based filenames, inserts metadata into `photos` table, optionally requests a vision-model caption |
+
+---
+
+## Reflective Domain Modules
+
+Server-side modules under `src/lib/server/reflective/` that implement Phase 4 journal, noticings, and memory retrieval:
+
+| Module | Purpose |
+|---|---|
+| `journal.ts` | Journal entry management — visibility control, consent cookie management, audit event construction |
+| `noticings.ts` | Noticing lifecycle — draft/ready/surfaced/archived states, anti-creep guardrails (no behavioral category), surface-once enforcement, 90-day minimum observation window |
+| `memory.ts` | Retrieval policy engine — given mode + context, returns which memory sources to query (journal, haikus, dispatches, environment, sessions, noticings) and at what depth (shallow/moderate/deep) |
+
+### Phase 4 Privacy & Consent Model
+
+- **Journal:** private by default, session-scoped consent (HTTP-only cookie, expires on browser close), all views audited in `consent_events`, entries deletable (logged)
+- **Noticings:** 90-day minimum observation window, allowed categories only (timing/creative/seasonal — NOT behavioral), surface once then archive
+- **API:** `/api/journal/entries` POST returns metadata only via GET (no body text over API)
 
 ---
 

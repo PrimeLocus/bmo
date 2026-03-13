@@ -58,7 +58,7 @@ bmo/
     │   │   └── server/
     │   │       ├── db/
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
-    │   │       │   ├── schema.ts     # 17 tables — source of truth for DB schema
+    │   │       │   ├── schema.ts     # 20 tables — source of truth for DB schema
     │   │       │   └── seed.ts       # 16 parts, 10 phases, 44 steps, 11 ideas
     │   │       ├── mqtt/
     │   │       │   ├── bridge.ts     # MQTT → BeauState → WebSocket broadcast
@@ -77,6 +77,10 @@ bmo/
     │   │       │   ├── witness.ts      # Witness mode controller
     │   │       │   ├── debrief.ts      # Post-session reflection scheduler
     │   │       │   └── photography.ts  # Photo validation + naming
+    │   │       ├── reflective/
+    │   │       │   ├── journal.ts      # Journal entry management + consent
+    │   │       │   ├── noticings.ts    # Noticing lifecycle + anti-creep guardrails
+    │   │       │   └── memory.ts       # Retrieval policy engine
     │   │       └── prompt/
     │   │           ├── sections.ts    # Section name definitions
     │   │           ├── policies.ts    # Mode injection matrix + fallbacks
@@ -97,6 +101,10 @@ bmo/
     │       ├── sessions/             # Resolume session log + debrief viewer
     │       ├── photography/          # Photo gallery + session photo browser
     │       ├── photos/               # Catch-all — serves photo files from disk
+    │       ├── journal/              # Journal — private entries with consent gate
+    │       ├── api/
+    │       │   └── journal/
+    │       │       └── entries/      # POST new entry, GET metadata list
     │       └── ws/                   # WebSocket stub (upgrade in hooks.server.ts)
     └── build/                        # Production output (adapter-node)
 ```

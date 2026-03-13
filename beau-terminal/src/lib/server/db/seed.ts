@@ -337,7 +337,7 @@ export function seed() {
     { id: 'i4', priority: 'medium', text: 'VJ witness mode — Resolume OSC session detection, witness mode controller, post-session debrief reflection, photo pipeline with vision captions.', done: false },
     { id: 'i5', priority: 'medium', text: 'Physical button mapping — A: cycle emotional state, B: camera look, Select: witness mode, Start: wake/text adventure.', done: false },
     { id: 'i6', priority: 'medium', text: 'Emotional state model — curious/contemplative/playful/sleepy probabilistically influences system prompt tone.', done: false },
-    { id: 'i7', priority: 'medium', text: 'RAG from creative life — ChromaDB + nomic-embed-text indexes journals, VJ logs, project READMEs. Folder watcher auto-indexes.', done: false },
+    { id: 'i7', priority: 'medium', text: 'RAG from creative + reflective life — ChromaDB + nomic-embed-text indexes journals, VJ logs, noticings, project READMEs. Folder watcher auto-indexes.', done: false },
     { id: 'i8', priority: 'low', text: 'ThinkStation backbone — heavy queries via Tailscale to Qwen3-30B. Auto-fallback when offline.', done: false },
     { id: 'i9', priority: 'low', text: 'HAT+ 2 mixed mode — once Hailo fixes segfault bugs, enable simultaneous vision+LLM.', done: false },
     { id: 'i10', priority: 'low', text: 'Anbernic RG353V as creative video source — retro game visuals into BMO camera for VJ set material.', done: false },
