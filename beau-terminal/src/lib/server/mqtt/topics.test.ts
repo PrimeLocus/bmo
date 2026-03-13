@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TOPICS, SUBSCRIBE_TOPICS, MODES, SLEEP_STATES, PRESENCE_STATES } from './topics.js';
+import { TOPICS, SUBSCRIBE_TOPICS, MODES, SLEEP_STATES, PRESENCE_STATES, HAIKU_TYPES, DISPATCH_TIERS } from './topics.js';
 import type { Mode, SleepState, PresenceState, HaikuType, DispatchTier } from './topics.js';
 
 describe('TOPICS', () => {
@@ -42,5 +42,13 @@ describe('type unions', () => {
 
   it('PRESENCE_STATES contains 3 states', () => {
     expect(PRESENCE_STATES).toEqual(['occupied', 'empty', 'uncertain']);
+  });
+
+  it('HAIKU_TYPES contains 5 types', () => {
+    expect(HAIKU_TYPES).toEqual(['daily', 'emergence', 'reflective', 'seasonal', 'prompted']);
+  });
+
+  it('DISPATCH_TIERS contains 3 tiers', () => {
+    expect(DISPATCH_TIERS).toEqual(['reflex', 'philosopher', 'heavy']);
   });
 });

@@ -28,7 +28,7 @@ export function formatWeatherSummary(weather: WeatherData): string {
 
 // Lafayette, LA seasonal context — grounded in Beau's personality bible
 const SEASONAL_MAP: [number[], string][] = [
-  [[1, 2, 3, 4, 5, 6], 'crawfish season'],
+  [[1, 2, 3, 4, 5], 'crawfish season'],
   [[6, 7], 'Festival International afterglow, summer settling in'],
   [[8], 'the specific hell of August heat'],
   [[9], 'September — first hints of relief'],

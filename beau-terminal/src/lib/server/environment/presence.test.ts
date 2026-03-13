@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { PresenceMachine } from './presence.js';
+import { PresenceMachine, parsePresenceMessage } from './presence.js';
 import type { PresenceState } from '../mqtt/topics.js';
 
 describe('PresenceMachine', () => {
@@ -55,5 +55,25 @@ describe('PresenceMachine', () => {
     const snap = machine.getSnapshot();
     expect(snap.state).toBe('occupied');
     expect(snap.confidence).toBeCloseTo(0.85);
+  });
+});
+
+describe('parsePresenceMessage', () => {
+  it('parses valid JSON with detected + confidence', () => {
+    const result = parsePresenceMessage('{"detected": true, "confidence": 0.9}');
+    expect(result).toEqual({ detected: true, confidence: 0.9 });
+  });
+
+  it('defaults confidence to 0.5 when missing', () => {
+    const result = parsePresenceMessage('{"detected": false}');
+    expect(result).toEqual({ detected: false, confidence: 0.5 });
+  });
+
+  it('returns null for invalid JSON', () => {
+    expect(parsePresenceMessage('not json')).toBeNull();
+  });
+
+  it('returns null when detected field is missing', () => {
+    expect(parsePresenceMessage('{"confidence": 0.9}')).toBeNull();
   });
 });
