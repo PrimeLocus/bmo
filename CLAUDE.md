@@ -58,7 +58,7 @@ bmo/
     │   │   └── server/
     │   │       ├── db/
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
-    │   │       │   ├── schema.ts     # 14 tables — source of truth for DB schema
+    │   │       │   ├── schema.ts     # 17 tables — source of truth for DB schema
     │   │       │   └── seed.ts       # 16 parts, 10 phases, 44 steps, 11 ideas
     │   │       ├── mqtt/
     │   │       │   ├── bridge.ts     # MQTT → BeauState → WebSocket broadcast
@@ -72,6 +72,11 @@ bmo/
     │   │       │   ├── sleep.ts        # Earned sleep state machine
     │   │       │   ├── weather.ts      # Weather API + seasonal context
     │   │       │   └── lux.ts          # Light sensor integration
+    │   │       ├── creative/
+    │   │       │   ├── resolume.ts     # Session lifecycle + OSC bridge
+    │   │       │   ├── witness.ts      # Witness mode controller
+    │   │       │   ├── debrief.ts      # Post-session reflection scheduler
+    │   │       │   └── photography.ts  # Photo validation + naming
     │   │       └── prompt/
     │   │           ├── sections.ts    # Section name definitions
     │   │           ├── policies.ts    # Mode injection matrix + fallbacks
@@ -89,6 +94,9 @@ bmo/
     │       ├── prompt/               # Prompt Console — MQTT publisher + history
     │       ├── haikus/               # Haiku Archive — filterable grid
     │       ├── settings/             # Display Settings — font, contrast, weight
+    │       ├── sessions/             # Resolume session log + debrief viewer
+    │       ├── photography/          # Photo gallery + session photo browser
+    │       ├── photos/               # Catch-all — serves photo files from disk
     │       └── ws/                   # WebSocket stub (upgrade in hooks.server.ts)
     └── build/                        # Production output (adapter-node)
 ```
@@ -150,6 +158,7 @@ When working on Beau's Terminal, read these first:
 - `src/lib/server/prompt/assembler.ts` — prompt section parser + mode injection
 - `src/lib/server/environment/sleep.ts` — sleep/wake state machine
 - `src/lib/server/environment/presence.ts` — room presence state machine
+- `src/lib/server/creative/resolume.ts` — Resolume session lifecycle + OSC bridge
 
 ## Deep Reference
 

@@ -24,6 +24,14 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 | `beau/environment/seasonal` | BMO → Terminal | Seasonal context string |
 | `beau/command/*` | Terminal → BMO | Commands sent via Prompt Console |
 
+### Creative
+
+| Topic | Direction | Purpose |
+|---|---|---|
+| `beau/creative/resolume/session` | BMO → Terminal | Session status (started/ended/active JSON payload) |
+| `beau/creative/resolume/live` | BMO → Terminal | Real-time clip and BPM data from Resolume OSC |
+| `beau/creative/resolume/debrief` | BMO → Terminal | Post-session reflection trigger (debriefAt timestamp payload) |
+
 **BeauState** (server-side, broadcast via WebSocket):
 
 ```typescript
@@ -44,6 +52,11 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
   weather: WeatherData | null;
   weatherSummary: string;
   seasonalContext: string;
+  // Phase 3 — Creative
+  resolumeActive: boolean;
+  currentSessionId: number | null;
+  currentClip: string | null;
+  currentBpm: number | null;
 }
 ```
 
@@ -51,7 +64,7 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 
 ## Database Schema
 
-14 tables in `beau-terminal/data/beau.db` (defined in `src/lib/server/db/schema.ts`):
+17 tables in `beau-terminal/data/beau.db` (defined in `src/lib/server/db/schema.ts`):
 
 | Table | Purpose | Key Columns |
 |---|---|---|
@@ -69,6 +82,11 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 | **dispatches** | Brain routing dispatch log | id, tier, model, querySummary, routingReason, contextMode, durationMs, environmentId |
 | **environmentSnapshots** | Environment state snapshots (60s min interval) | id, timestamp, presenceState, lux, sleepState, weatherJson, seasonalSummary, contextMode |
 | **environmentEvents** | Environment state change events | id, timestamp, eventType, payloadJson, source |
+| **resolume_sessions** | Resolume VJ session records | id, startedAt, endedAt, durationMs, clipCount, bpmAvg, bpmMin, bpmMax, layerCount, peakLayerCount, debriefAt, debriefText, debriefGeneratedAt, debriefModelUsed, sessionNotes, witnessHaikuId, photoCount, isComplete |
+| **resolume_events** | Per-event clip/BPM data within a session | id, sessionId (FK→resolume_sessions), timestamp, eventType, payloadJson |
+| **photos** | Photo metadata for session-linked photography | id, sessionId (FK→resolume_sessions, nullable), filename, filepath, takenAt, width, height, sizeBytes, mimeType, caption, captionGeneratedAt, captionModelUsed |
+
+Note: `haikus.session_id` is a nullable FK to `resolume_sessions.id` — haikus generated during a VJ session are automatically linked.
 
 Seed data: 16 parts, 10 phases, 44 steps, 11 ideas + 116 link mappings. Idempotent — skips if parts table already has data.
 
@@ -122,6 +140,19 @@ The prompt assembler (`src/lib/server/prompt/assembler.ts`) reads `bmo-system-pr
 
 Section definitions: `src/lib/server/prompt/sections.ts` (15 sections)
 Injection policies: `src/lib/server/prompt/policies.ts` (15 × 5 mode matrix)
+
+---
+
+## Creative Domain Modules
+
+Server-side modules under `src/lib/server/creative/` that implement Phase 3 VJ witness and photography features:
+
+| Module | Purpose |
+|---|---|
+| `resolume.ts` | Session lifecycle management — detects Resolume start/stop via OSC, opens/closes `resolume_sessions` records, aggregates clip/BPM stats |
+| `witness.ts` | Witness mode controller — puts Beau into quiet observation, triggers single-sentence whispers and haiku generation linked to the active session |
+| `debrief.ts` | Post-session reflection scheduler — waits for the configured cool-down period after session end, then triggers a philosopher-tier debrief prompt and persists the result |
+| `photography.ts` | Photo validation and naming — validates file type and dimensions, generates slug-based filenames, inserts metadata into `photos` table, optionally requests a vision-model caption |
 
 ---
 

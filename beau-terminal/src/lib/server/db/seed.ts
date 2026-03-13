@@ -310,7 +310,7 @@ export function seed() {
       { id: 's36', text: 'Install Home Assistant on ThinkStation or separate Pi', order: 1 },
       { id: 's37', text: 'Connect BMO to HA via Ollama integration', order: 2 },
       { id: 's38', text: 'Configure BMO to greet on arrival, announce sensor states', order: 3 },
-      { id: 's39', text: 'Build VJ witness mode trigger via HA + Resolume OSC detection', order: 4 },
+      { id: 's39', text: 'Resolume VJ integration — OSC session detection, witness mode, debrief scheduler, photography pipeline', order: 4 },
     ]},
     { phase: 'Phase 9 — Enclosure', order: 10, steps: [
       { id: 's40', text: "Download brenpoly's BMO STL files from Printables", order: 1 },
@@ -334,7 +334,7 @@ export function seed() {
     { id: 'i2', priority: 'high', text: 'Proactive haiku dispatch — 1–3 haikus/day unprompted. Triggers: time of day, lux/weather, camera, end of work session, significant project moment.', done: false },
     { id: 'i3', priority: 'high', text: 'Brain routing dispatcher — reflex/vision → HAT Qwen2.5 1.5B, poetry/philosophy → Pi CPU Gemma 3 4B, heavy → ThinkStation via Tailscale.', done: false },
     { id: 'i3b', priority: 'high', text: "Dual wake word — 'Hey BMO' = public/performative. 'Hey Beau' = private/warmer. Different system prompt tone injection.", done: false },
-    { id: 'i4', priority: 'medium', text: 'VJ witness mode — BMO detects Resolume running via OSC, goes quiet, occasionally whispers one sentence about what it sees.', done: false },
+    { id: 'i4', priority: 'medium', text: 'VJ witness mode — Resolume OSC session detection, witness mode controller, post-session debrief reflection, photo pipeline with vision captions.', done: false },
     { id: 'i5', priority: 'medium', text: 'Physical button mapping — A: cycle emotional state, B: camera look, Select: witness mode, Start: wake/text adventure.', done: false },
     { id: 'i6', priority: 'medium', text: 'Emotional state model — curious/contemplative/playful/sleepy probabilistically influences system prompt tone.', done: false },
     { id: 'i7', priority: 'medium', text: 'RAG from creative life — ChromaDB + nomic-embed-text indexes journals, VJ logs, project READMEs. Folder watcher auto-indexes.', done: false },
