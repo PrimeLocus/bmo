@@ -219,3 +219,50 @@ try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_resolume_sessions_started O
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_resolume_events_session ON resolume_events(session_id)").run(); } catch { /* already exists */ }
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_resolume_events_ts ON resolume_events(timestamp)").run(); } catch { /* already exists */ }
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_photos_session ON photos(session_id)").run(); } catch { /* already exists */ }
+
+// Phase 4 — reflective tables
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS journal_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    entry_at TEXT NOT NULL DEFAULT (datetime('now')),
+    title TEXT,
+    body TEXT NOT NULL,
+    mood TEXT,
+    tags_json TEXT,
+    visibility TEXT NOT NULL DEFAULT 'private',
+    surfaced_at TEXT,
+    file_path TEXT
+  )`).run();
+} catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS noticings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    pattern_text TEXT NOT NULL,
+    basis_summary TEXT,
+    observation_window TEXT,
+    surfaced_at TEXT,
+    status TEXT NOT NULL DEFAULT 'draft',
+    category TEXT
+  )`).run();
+} catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS consent_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+    event_type TEXT NOT NULL,
+    target_id INTEGER,
+    target_type TEXT,
+    session_token TEXT,
+    notes TEXT
+  )`).run();
+} catch { /* already exists */ }
+
+// Phase 4 — indexes
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_journal_entries_at ON journal_entries(entry_at DESC)").run(); } catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_noticings_status ON noticings(status)").run(); } catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_consent_events_ts ON consent_events(timestamp DESC)").run(); } catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_consent_events_target ON consent_events(target_type, target_id)").run(); } catch { /* already exists */ }
