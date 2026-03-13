@@ -10,6 +10,8 @@ export const TOPICS = {
   SENSORS_CAMERA: 'beau/sensors/camera',
 } as const;
 
+export const SUBSCRIBE_TOPICS = Object.values(TOPICS);
+
 export const MODES = ['ambient', 'witness', 'collaborator', 'archivist', 'social'] as const;
 
 export type Mode = (typeof MODES)[number];
