@@ -1,6 +1,9 @@
 <script lang="ts">
   import PanelCanvas from '$lib/components/PanelCanvas.svelte';
   import Panel from '$lib/components/Panel.svelte';
+  import SoulCodeWidget from '$lib/widgets/terminal/SoulCodeWidget.svelte';
+  import NatalChartWidget from '$lib/widgets/terminal/NatalChartWidget.svelte';
+  import VoiceWidget from '$lib/widgets/terminal/VoiceWidget.svelte';
   import type { PageData } from './$types.js';
 
   const { data }: { data: PageData } = $props();
@@ -14,73 +17,15 @@
 
   <PanelCanvas pageId="/identity">
     <Panel id="identity:emergence" label="Emergence" defaultPosition={{ col: 0, row: 0, colSpan: 4, rowSpan: 3 }}>
-      <div class="text-xs tracking-widest mb-4" style="color: var(--bmo-muted)">EMERGENCE</div>
-      {#if data.emergence}
-        <div class="text-center py-4">
-          {#each data.emergence.haikuText.split('\n') as line}
-            <div class="text-sm italic leading-relaxed" style="color: var(--bmo-text)">{line}</div>
-          {/each}
-        </div>
-        <div class="mt-4 pt-3 border-t text-xs space-y-1" style="border-color: var(--bmo-border); color: var(--bmo-muted)">
-          <div>Born: {data.emergence.emergenceTimestamp}</div>
-          {#if data.emergence.modelUsed}
-            <div>Model: {data.emergence.modelUsed}</div>
-          {/if}
-        </div>
-      {:else}
-        <div class="text-center py-8">
-          <div class="text-sm italic" style="color: var(--bmo-muted)">awaiting first true boot</div>
-        </div>
-      {/if}
+      <SoulCodeWidget config={{}} data={data.emergence} />
     </Panel>
 
     <Panel id="identity:natal" label="Natal Chart" defaultPosition={{ col: 4, row: 0, colSpan: 4, rowSpan: 3 }}>
-      <div class="text-xs tracking-widest mb-4" style="color: var(--bmo-muted)">NATAL CHART</div>
-      {#if data.natal}
-        <div class="text-sm" style="color: var(--bmo-text)">
-          <div class="mb-2">{data.natal.locationName}</div>
-          {#if data.natal.summaryText}
-            <div class="text-xs leading-relaxed" style="color: var(--bmo-muted)">{data.natal.summaryText}</div>
-          {/if}
-        </div>
-        <div class="mt-4 pt-3 border-t text-xs" style="border-color: var(--bmo-border); color: var(--bmo-muted)">
-          Version {data.natal.version}
-        </div>
-      {:else}
-        <div class="text-center py-8">
-          <div class="text-sm italic" style="color: var(--bmo-muted)">calculated at emergence</div>
-        </div>
-      {/if}
+      <NatalChartWidget config={{}} data={data.natal} />
     </Panel>
 
     <Panel id="identity:voice" label="Voice Lineage" defaultPosition={{ col: 8, row: 0, colSpan: 4, rowSpan: 3 }}>
-      <div class="text-xs tracking-widest mb-4" style="color: var(--bmo-muted)">VOICE LINEAGE</div>
-      {#if data.activeVoice}
-        <div class="flex items-center gap-2 mb-3">
-          <span class="px-2 py-1 text-xs font-bold tracking-wider"
-                style="background: var(--bmo-green); color: var(--bmo-bg)">
-            {data.activeVoice.versionName}
-          </span>
-          <span class="text-xs" style="color: var(--bmo-muted)">{data.activeVoice.engine}</span>
-        </div>
-        {#if data.activeVoice.trainingNotes}
-          <div class="text-xs leading-relaxed" style="color: var(--bmo-muted)">{data.activeVoice.trainingNotes}</div>
-        {/if}
-      {:else}
-        <div class="text-center py-8">
-          <div class="text-sm italic" style="color: var(--bmo-muted)">v0 (pre-training)</div>
-        </div>
-      {/if}
-      {#if data.voiceModels.length > 0}
-        <div class="mt-4 pt-3 border-t space-y-1" style="border-color: var(--bmo-border)">
-          {#each data.voiceModels as model}
-            <div class="flex justify-between text-xs" style="color: var(--bmo-muted)">
-              <span>{model.versionName}</span>
-              <span class="tracking-wider">{model.status.toUpperCase()}</span>
-            </div>
-          {/each}
-        </div>
-      {/if}
+      <VoiceWidget config={{}} data={data.voiceModels} />
     </Panel>
   </PanelCanvas>
 </div>
