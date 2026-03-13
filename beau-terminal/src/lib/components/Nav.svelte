@@ -2,15 +2,44 @@
   import { page } from '$app/state';
   import { bumpFontSize, settings } from '$lib/stores/settings.svelte.js';
 
-  const links = [
-    { href: '/',         label: 'DASHBOARD', icon: '◈' },
-    { href: '/parts',    label: 'PARTS',     icon: '⬡' },
-    { href: '/software', label: 'SOFTWARE',  icon: '◉' },
-    { href: '/ideas',    label: 'IDEAS',     icon: '✦' },
-    { href: '/todo',     label: 'TODO',      icon: '◫' },
-    { href: '/memory',   label: 'MEMORY',    icon: '◎' },
-    { href: '/prompt',   label: 'PROMPT',    icon: '≋' },
-    { href: '/haikus',   label: 'HAIKUS',    icon: '✿' },
+  type NavLink = { href: string; label: string; icon: string; disabled?: boolean };
+  type NavGroup = { heading: string; links: NavLink[] };
+
+  const groups: NavGroup[] = [
+    {
+      heading: 'BEAU',
+      links: [
+        { href: '/',         label: 'DASHBOARD', icon: '◈' },
+        { href: '/identity', label: 'IDENTITY',  icon: '◇' },
+        { href: '/presence', label: 'PRESENCE',  icon: '◉', disabled: true },
+        { href: '/journal',  label: 'JOURNAL',   icon: '◬', disabled: true },
+      ],
+    },
+    {
+      heading: 'CREATIVE',
+      links: [
+        { href: '/sessions',    label: 'SESSIONS',    icon: '▶', disabled: true },
+        { href: '/photography', label: 'PHOTOGRAPHY', icon: '◻', disabled: true },
+        { href: '/haikus',      label: 'HAIKUS',      icon: '✿' },
+      ],
+    },
+    {
+      heading: 'BUILD',
+      links: [
+        { href: '/parts',    label: 'PARTS',    icon: '⬡' },
+        { href: '/software', label: 'SOFTWARE', icon: '◉' },
+        { href: '/ideas',    label: 'IDEAS',    icon: '✦' },
+        { href: '/todo',     label: 'TODO',     icon: '◫' },
+      ],
+    },
+    {
+      heading: 'SYSTEM',
+      links: [
+        { href: '/memory',   label: 'MEMORY',   icon: '◎' },
+        { href: '/prompt',   label: 'PROMPT',   icon: '≋' },
+        { href: '/settings', label: 'SETTINGS', icon: '⚙' },
+      ],
+    },
   ];
 </script>
 
@@ -31,19 +60,36 @@
     </div>
   </div>
 
-  {#each links as link}
-    {@const active = page.url.pathname === link.href}
-    <a href={link.href}
-       class="flex items-center gap-2 px-2 py-2 text-sm tracking-widest transition-all"
-       title={link.label}
-       style="
-         color: {active ? 'var(--bmo-bg)' : 'var(--bmo-muted)'};
-         background: {active ? 'var(--bmo-green)' : 'transparent'};
-         border: 1px solid {active ? 'var(--bmo-green)' : 'transparent'};
-       ">
-      <span class="text-base shrink-0">{link.icon}</span>
-      <span class="hidden lg:inline whitespace-nowrap overflow-hidden">{link.label}</span>
-    </a>
+  {#each groups as group}
+    <div class="mb-2">
+      <div class="hidden lg:block text-xs tracking-widest px-2 py-1 mb-1"
+           style="color: var(--bmo-muted); opacity: 0.6; font-size: 0.6rem">
+        {group.heading}
+      </div>
+      {#each group.links as link}
+        {@const active = page.url.pathname === link.href}
+        {#if link.disabled}
+          <div class="flex items-center gap-2 px-2 py-2 text-sm tracking-widest cursor-default"
+               title="{link.label} — coming soon"
+               style="color: var(--bmo-muted); opacity: 0.3">
+            <span class="text-base shrink-0">{link.icon}</span>
+            <span class="hidden lg:inline whitespace-nowrap overflow-hidden">{link.label}</span>
+          </div>
+        {:else}
+          <a href={link.href}
+             class="flex items-center gap-2 px-2 py-2 text-sm tracking-widest transition-all"
+             title={link.label}
+             style="
+               color: {active ? 'var(--bmo-bg)' : 'var(--bmo-muted)'};
+               background: {active ? 'var(--bmo-green)' : 'transparent'};
+               border: 1px solid {active ? 'var(--bmo-green)' : 'transparent'};
+             ">
+            <span class="text-base shrink-0">{link.icon}</span>
+            <span class="hidden lg:inline whitespace-nowrap overflow-hidden">{link.label}</span>
+          </a>
+        {/if}
+      {/each}
+    </div>
   {/each}
 
   <!-- Spacer -->
@@ -69,15 +115,5 @@
         A⁺
       </button>
     </div>
-    <a href="/settings"
-       class="flex items-center justify-center gap-2 mt-1 px-2 py-2 text-sm tracking-widest border transition-all w-full"
-       style="
-         color: {page.url.pathname === '/settings' ? 'var(--bmo-bg)' : 'var(--bmo-muted)'};
-         background: {page.url.pathname === '/settings' ? 'var(--bmo-green)' : 'transparent'};
-         border-color: {page.url.pathname === '/settings' ? 'var(--bmo-green)' : 'var(--bmo-border)'};
-       ">
-      <span class="text-base shrink-0">⚙</span>
-      <span class="hidden lg:inline whitespace-nowrap">DISPLAY</span>
-    </a>
   </div>
 </nav>
