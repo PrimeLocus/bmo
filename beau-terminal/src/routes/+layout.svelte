@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { connectBeauWS, disconnectBeauWS } from '$lib/stores/beau.svelte.js';
-  import { settings, updateSettings } from '$lib/stores/settings.svelte.js';
+  import { applyCurrentSettings } from '$lib/stores/settings.svelte.js';
   import Nav from '$lib/components/Nav.svelte';
   import StatusBar from '$lib/components/StatusBar.svelte';
   import '../app.css';
@@ -10,7 +10,7 @@
 
   onMount(() => {
     // Re-apply settings after hydration (blocking script already ran, this ensures state sync)
-    updateSettings({});
+    applyCurrentSettings();
     connectBeauWS();
     return () => disconnectBeauWS();
   });

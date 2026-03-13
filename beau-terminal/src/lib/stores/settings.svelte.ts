@@ -23,10 +23,31 @@ export const SIZE_PRESETS = [
 function load(): Settings {
   if (typeof localStorage === 'undefined') return { ...DEFAULTS };
   try {
-    const saved = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('bmo-settings') || '{}') };
-    // Migration: '1.6' was invalid, map to nearest valid value
-    if ((saved.lineHeight as string) === '1.6') saved.lineHeight = '1.5';
-    return saved;
+    const raw = JSON.parse(localStorage.getItem('bmo-settings') || '{}') ?? {};
+
+    const fontSize =
+      typeof raw.fontSize === 'number' && raw.fontSize >= 14 && raw.fontSize <= 32
+        ? raw.fontSize
+        : DEFAULTS.fontSize;
+
+    const contrast =
+      raw.contrast === 'high' || raw.contrast === 'standard'
+        ? raw.contrast
+        : DEFAULTS.contrast;
+
+    const fontWeight =
+      raw.fontWeight === '400' || raw.fontWeight === '600'
+        ? raw.fontWeight
+        : DEFAULTS.fontWeight;
+
+    let lineHeight = raw.lineHeight;
+    if (lineHeight === '1.6') lineHeight = '1.5'; // migration
+    lineHeight =
+      lineHeight === '1.5' || lineHeight === '1.7' || lineHeight === '1.9'
+        ? lineHeight
+        : DEFAULTS.lineHeight;
+
+    return { fontSize, contrast, fontWeight, lineHeight };
   } catch {
     return { ...DEFAULTS };
   }
@@ -67,4 +88,8 @@ export function resetSettings() {
 export function bumpFontSize(delta: number) {
   const next = Math.min(32, Math.max(14, settings.fontSize + delta));
   updateSettings({ fontSize: next });
+}
+
+export function applyCurrentSettings() {
+  apply({ ...settings });
 }

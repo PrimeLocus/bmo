@@ -15,14 +15,14 @@
 
 html {
   font-size: 20px; /* bumped default — user can adjust in settings */
+  font-weight: var(--bmo-font-weight);
+  line-height: var(--bmo-line-height);
 }
 
 body {
   background: var(--bmo-bg);
   color: var(--bmo-text);
   font-family: 'Courier New', Courier, monospace;
-  font-weight: var(--bmo-font-weight);
-  line-height: var(--bmo-line-height);
 }
 
 /* High contrast mode */
