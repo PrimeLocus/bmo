@@ -40,6 +40,30 @@
     </div>
   </div>
 
+  <!-- Environment status (Phase 2) -->
+  <div class="grid grid-cols-3 gap-3 mb-4">
+    <div class="p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+      <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">SLEEP</div>
+      <div class="text-sm tracking-wider font-bold"
+           style="color: {beauState.sleepState === 'asleep' ? '#636e72' : 'var(--bmo-green)'}">
+        {beauState.sleepState.toUpperCase()}
+      </div>
+    </div>
+    <div class="p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+      <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">ROOM</div>
+      <div class="text-sm tracking-wider font-bold"
+           style="color: {beauState.presenceState === 'occupied' ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
+        {beauState.presenceState.toUpperCase()}
+      </div>
+    </div>
+    <div class="p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+      <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">WEATHER</div>
+      <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-text)">
+        {beauState.weatherSummary || '—'}
+      </div>
+    </div>
+  </div>
+
   <!-- Live state grid -->
   <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
     {#each [
