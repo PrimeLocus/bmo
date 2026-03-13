@@ -11,7 +11,7 @@
       links: [
         { href: '/',         label: 'DASHBOARD', icon: '◈' },
         { href: '/identity', label: 'IDENTITY',  icon: '◇' },
-        { href: '/presence', label: 'PRESENCE',  icon: '◉', disabled: true },
+        { href: '/presence', label: 'PRESENCE',  icon: '◉' },
         { href: '/journal',  label: 'JOURNAL',   icon: '◬', disabled: true },
       ],
     },
