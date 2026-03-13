@@ -1,5 +1,5 @@
 import mqtt from 'mqtt';
-import { desc } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { haikus, dispatches } from '../db/schema.js';
 import { TOPICS, SUBSCRIBE_TOPICS } from './topics.js';
@@ -9,6 +9,10 @@ import { SleepMachine } from '../environment/sleep.js';
 import { processLuxReading } from '../environment/lux.js';
 import { startWeatherPolling, getSeasonalContext, formatWeatherSummary } from '../environment/weather.js';
 import type { WeatherData } from '../environment/weather.js';
+import { ResolumeSessionManager, parseResolumeLiveMessage } from '../creative/resolume.js';
+import { WitnessController } from '../creative/witness.js';
+import { DebriefScheduler, formatDebriefPrompt } from '../creative/debrief.js';
+import { resolumeSessions, resolumeEvents } from '../db/schema.js';
 
 export type BeauState = {
   mode: string;
@@ -27,6 +31,11 @@ export type BeauState = {
   weather: WeatherData | null;
   weatherSummary: string;
   seasonalContext: string;
+  // Phase 3
+  resolumeActive: boolean;
+  currentSessionId: number | null;
+  currentClip: string | null;
+  currentBpm: number | null;
 };
 
 const DEFAULT_STATE: BeauState = {
@@ -46,6 +55,11 @@ const DEFAULT_STATE: BeauState = {
   weather: null,
   weatherSummary: '',
   seasonalContext: getSeasonalContext(),
+  // Phase 3
+  resolumeActive: false,
+  currentSessionId: null,
+  currentClip: null,
+  currentBpm: null,
 };
 
 let state: BeauState = { ...DEFAULT_STATE };
@@ -138,6 +152,74 @@ export function connectMQTT() {
     state = { ...state, sleepState: ss };
     logEnvironmentEvent(ss === 'asleep' ? 'sleep_entered' : ss === 'waking' ? 'wake_triggered' : 'sleep_state_changed', { state: ss }, 'system');
     broadcast();
+  });
+
+  // Phase 3 — Resolume session lifecycle
+  let dbSessionId: number | null = null;
+  let eventSequence = 0;
+
+  const debriefScheduler = new DebriefScheduler({
+    onDebrief: (sessionId) => {
+      try {
+        const session = db.select().from(resolumeSessions).where(eq(resolumeSessions.id, sessionId)).get();
+        if (!session || session.debriefText) return;
+        const startTime = new Date(session.startedAt).getTime();
+        const endTime = session.endedAt ? new Date(session.endedAt).getTime() : Date.now();
+        const durationMinutes = Math.round((endTime - startTime) / 60000);
+        const clips = session.clipsUsedJson ? JSON.parse(session.clipsUsedJson) : [];
+        const prompt = formatDebriefPrompt({
+          durationMinutes,
+          clips,
+          bpmRange: [session.bpmMin ?? 0, session.bpmMax ?? 0],
+          venue: session.venue ?? undefined,
+        });
+        _publish?.(TOPICS.command.prompt, prompt);
+      } catch { /* non-fatal */ }
+    },
+  });
+
+  const resolumeManager = new ResolumeSessionManager({
+    onSessionStart: () => {
+      try {
+        const result = db.insert(resolumeSessions).values({
+          startedAt: new Date().toISOString(),
+          beauPresent: state.presenceState === 'occupied',
+        }).run();
+        dbSessionId = Number(result.lastInsertRowid);
+        eventSequence = 0;
+        state = { ...state, resolumeActive: true, currentSessionId: dbSessionId };
+        witnessController.onSessionStart(state.presenceState, state.mode);
+        broadcast();
+      } catch { /* non-fatal */ }
+    },
+    onSessionEnd: () => {
+      if (dbSessionId) {
+        const stats = resolumeManager.getSessionStats();
+        try {
+          db.update(resolumeSessions).set({
+            endedAt: new Date().toISOString(),
+            status: 'completed',
+            bpmMin: stats?.bpmMin ?? null,
+            bpmMax: stats?.bpmMax ?? null,
+            bpmAvg: stats ? Math.round(stats.bpmSum / stats.eventCount) : null,
+            clipsUsedJson: stats ? JSON.stringify(stats.clips) : null,
+          }).where(eq(resolumeSessions.id, dbSessionId)).run();
+        } catch { /* non-fatal */ }
+        debriefScheduler.scheduleDebrief(dbSessionId);
+      }
+      witnessController.onSessionEnd();
+      state = { ...state, resolumeActive: false, currentSessionId: null, currentClip: null, currentBpm: null };
+      dbSessionId = null;
+      broadcast();
+    },
+  });
+
+  const witnessController = new WitnessController({
+    onModeChange: (mode) => {
+      state = { ...state, mode };
+      _publish?.(TOPICS.state.mode, mode);
+      broadcast();
+    },
   });
 
   // Start weather polling (no-op if API key not set)
@@ -256,6 +338,7 @@ export function connectMQTT() {
             interactionAge: 0, // TODO: track actual interaction age
           });
           maybeWriteSnapshot();
+          witnessController.onPresenceChange(presenceMachine.state, resolumeManager.isActive);
         }
         break;
       }
@@ -277,6 +360,41 @@ export function connectMQTT() {
         break;
       case TOPICS.environment.seasonal:
         state = { ...state, seasonalContext: msg };
+        break;
+      // Phase 3 — creative
+      case TOPICS.creative.resolume.session:
+        // External session status (informational — actual lifecycle driven by live events)
+        break;
+      case TOPICS.creative.resolume.live: {
+        const liveEvent = parseResolumeLiveMessage(msg);
+        if (liveEvent) {
+          resolumeManager.onLiveEvent(liveEvent);
+          state = { ...state, currentClip: liveEvent.clip, currentBpm: liveEvent.bpm };
+          // Persist event
+          if (dbSessionId) {
+            try {
+              db.insert(resolumeEvents).values({
+                sessionId: dbSessionId,
+                timestamp: new Date().toISOString(),
+                sequence: eventSequence++,
+                eventType: 'clip_change',
+                payloadJson: JSON.stringify(liveEvent),
+              }).run();
+            } catch { /* non-fatal */ }
+          }
+        }
+        break;
+      }
+      case TOPICS.creative.resolume.debrief:
+        // Debrief arrives 3-5 min after session ends — no active session guard
+        try {
+          const parsed = JSON.parse(msg);
+          if (typeof parsed.sessionId === 'number' && typeof parsed.text === 'string') {
+            db.update(resolumeSessions).set({
+              debriefText: parsed.text,
+            }).where(eq(resolumeSessions.id, parsed.sessionId)).run();
+          }
+        } catch { /* ignore malformed */ }
         break;
     }
     broadcast();
