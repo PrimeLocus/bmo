@@ -106,17 +106,15 @@ export const actions: Actions = {
     const id = Number(formData.get('id'));
     if (!Number.isInteger(id) || id <= 0) return fail(400, { error: 'Invalid ID' });
 
-    try {
-      db.insert(consentEvents).values(
-        buildConsentEventValues('entry_deleted', {
-          targetId: id,
-          targetType: 'journal_entry',
-          sessionToken,
-          notes: 'user requested deletion',
-        })
-      ).run();
-    } catch { /* non-fatal audit */ }
-
+    // Audit + delete in one transaction — both succeed or neither does
+    db.insert(consentEvents).values(
+      buildConsentEventValues('entry_deleted', {
+        targetId: id,
+        targetType: 'journal_entry',
+        sessionToken,
+        notes: 'user requested deletion',
+      })
+    ).run();
     db.delete(journalEntries).where(eq(journalEntries.id, id)).run();
     return { success: true };
   },

@@ -126,7 +126,7 @@
               {/each}
             </div>
             {#if entry.tagsJson}
-              {@const tags = JSON.parse(entry.tagsJson) as string[]}
+              {@const tags = (() => { try { return JSON.parse(entry.tagsJson) as string[]; } catch { return []; } })()}
               {#if tags.length > 0}
                 <div class="flex flex-wrap gap-1 mt-3">
                   {#each tags as tag}
