@@ -50,6 +50,7 @@ export const haikus = sqliteTable('haikus', {
   wakeWord: text('wake_word'),
   isImmutable: integer('is_immutable', { mode: 'boolean' }).notNull().default(false),
   sourceContext: text('source_context'),
+  sessionId: integer('session_id'),
 });
 
 export const todos = sqliteTable('todos', {
@@ -161,4 +162,53 @@ export const environmentEvents = sqliteTable('environment_events', {
   eventType: text('event_type').notNull(),
   payloadJson: text('payload_json'),
   source: text('source'),
+});
+
+// ─── Creative Domain (Phase 3) ───
+
+export const resolumeSessions = sqliteTable('resolume_sessions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  startedAt: text('started_at').notNull(),
+  endedAt: text('ended_at'),
+  status: text('status').notNull().default('active'),
+  sessionName: text('session_name'),
+  venue: text('venue'),
+  bpmMin: real('bpm_min'),
+  bpmMax: real('bpm_max'),
+  bpmAvg: real('bpm_avg'),
+  clipsUsedJson: text('clips_used_json'),
+  columnsTriggeredJson: text('columns_triggered_json'),
+  colorObservations: text('color_observations'),
+  oscLogPath: text('osc_log_path'),
+  debriefText: text('debrief_text'),
+  moodTagsJson: text('mood_tags_json'),
+  visualPrompt: text('visual_prompt'),
+  beauPresent: integer('beau_present', { mode: 'boolean' }).notNull().default(false),
+  embeddingStatus: text('embedding_status').notNull().default('pending'),
+});
+
+export const resolumeEvents = sqliteTable('resolume_events', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sessionId: integer('session_id').notNull().references(() => resolumeSessions.id, { onDelete: 'cascade' }),
+  timestamp: text('timestamp').notNull(),
+  sequence: integer('sequence').notNull(),
+  eventType: text('event_type').notNull(),
+  source: text('source').notNull().default('osc'),
+  payloadJson: text('payload_json'),
+});
+
+export const photos = sqliteTable('photos', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  capturedAt: text('captured_at'),
+  sessionId: integer('session_id').references(() => resolumeSessions.id, { onDelete: 'set null' }),
+  imagePath: text('image_path').notNull(),
+  thumbnailPath: text('thumbnail_path'),
+  caption: text('caption'),
+  notes: text('notes'),
+  tagsJson: text('tags_json'),
+  sourceType: text('source_type').notNull().default('instant_scan'),
+  isPrivate: integer('is_private', { mode: 'boolean' }).notNull().default(false),
+  embeddingStatus: text('embedding_status').notNull().default('pending'),
 });

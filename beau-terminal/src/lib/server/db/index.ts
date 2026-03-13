@@ -156,3 +156,65 @@ try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_env_snapshots_ts ON environ
 
 // Phase 2 — index on environment_events.timestamp for timeline queries
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_env_events_ts ON environment_events(timestamp)").run(); } catch { /* already exists */ }
+
+// Phase 3 — creative tables
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS resolume_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    started_at TEXT NOT NULL,
+    ended_at TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    session_name TEXT,
+    venue TEXT,
+    bpm_min REAL,
+    bpm_max REAL,
+    bpm_avg REAL,
+    clips_used_json TEXT,
+    columns_triggered_json TEXT,
+    color_observations TEXT,
+    osc_log_path TEXT,
+    debrief_text TEXT,
+    mood_tags_json TEXT,
+    visual_prompt TEXT,
+    beau_present INTEGER NOT NULL DEFAULT 0,
+    embedding_status TEXT NOT NULL DEFAULT 'pending'
+  )`).run();
+} catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS resolume_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL REFERENCES resolume_sessions(id) ON DELETE CASCADE,
+    timestamp TEXT NOT NULL,
+    sequence INTEGER NOT NULL,
+    event_type TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'osc',
+    payload_json TEXT
+  )`).run();
+} catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    captured_at TEXT,
+    session_id INTEGER REFERENCES resolume_sessions(id) ON DELETE SET NULL,
+    image_path TEXT NOT NULL,
+    thumbnail_path TEXT,
+    caption TEXT,
+    notes TEXT,
+    tags_json TEXT,
+    source_type TEXT NOT NULL DEFAULT 'instant_scan',
+    is_private INTEGER NOT NULL DEFAULT 0,
+    embedding_status TEXT NOT NULL DEFAULT 'pending'
+  )`).run();
+} catch { /* already exists */ }
+
+// Phase 3 — haikus.session_id FK
+try { sqlite.prepare("ALTER TABLE haikus ADD COLUMN session_id INTEGER").run(); } catch { /* already exists */ }
+
+// Phase 3 — indexes
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_resolume_events_session ON resolume_events(session_id)").run(); } catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_resolume_events_ts ON resolume_events(timestamp)").run(); } catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_photos_session ON photos(session_id)").run(); } catch { /* already exists */ }
