@@ -101,7 +101,7 @@ The Python router builds the final prompt by replacing placeholders:
 |---|---|---|
 | `{{WAKE_WORD}}` | Wake word detector | `Hey Beau` |
 | `{{MODE}}` | MQTT `beau/state/mode` | `Collaborator` |
-| `{{ENVIRONMENT}}` | HA + process monitor | `TouchDesigner is offline. It is 11:43pm.` |
+| `{{ENVIRONMENT}}` | HA + process monitor | `Resolume is offline. It is 11:43pm.` |
 | `{{TIME_OF_DAY}}` | System clock | `late night` |
 | `{{RAG_FRAGMENTS}}` | ChromaDB query | Journal/VJ log excerpts, 3–5 chunks max |
 | `{{EMOTIONAL_STATE}}` | Probabilistic state model | `contemplative` |

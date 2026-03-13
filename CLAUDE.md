@@ -9,7 +9,7 @@ Physical BMO robot build — Raspberry Pi 5 + Hailo NPU + custom AI personality 
 - **Voice**: Korean-Cajun blend, custom Piper TTS trained via TextyMcSpeechy on Legion RTX 4090.
 - **Brain routing**: Hailo NPU (reflex/vision) → Pi CPU Ollama (philosophy/poetry) → ThinkStation via Tailscale (heavy reasoning). See `docs/reference.md` for full routing details.
 - **RAG**: ChromaDB + nomic-embed-text from journals, VJ logs, project docs.
-- **Integrations**: Home Assistant, TouchDesigner VJ witness mode, Tailscale, MQTT (Mosquitto on Proxmox).
+- **Integrations**: Home Assistant, Resolume VJ witness mode, Tailscale, MQTT (Mosquitto on Proxmox).
 
 ## Architecture Decisions (resolved)
 
