@@ -63,7 +63,9 @@ function backfillDispatcherLog() {
         .filter((r) => r.querySummary)
         .map((r) => r.querySummary as string),
     };
-  } catch { /* table may not exist yet on first run */ }
+  } catch (err) {
+    console.warn('[bridge] dispatcher backfill skipped:', (err as Error).message);
+  }
 }
 
 export function connectMQTT() {
@@ -139,17 +141,21 @@ export function connectMQTT() {
           ...state,
           dispatcherLog: [...state.dispatcherLog.slice(-99), msg],
         };
-        // Persist to dispatches table
+        // Persist JSON dispatcher messages to dispatches table
         try {
           const parsed = JSON.parse(msg);
-          db.insert(dispatches).values({
-            tier: parsed.tier ?? null,
-            model: parsed.model ?? null,
-            querySummary: parsed.query ?? null,
-            routingReason: parsed.reason ?? null,
-            contextMode: state.mode,
-            durationMs: parsed.duration_ms ?? null,
-          }).run();
+          try {
+            db.insert(dispatches).values({
+              tier: parsed.tier ?? null,
+              model: parsed.model ?? null,
+              querySummary: parsed.query ?? null,
+              routingReason: parsed.reason ?? null,
+              contextMode: state.mode,
+              durationMs: parsed.duration_ms ?? null,
+            }).run();
+          } catch (dbErr) {
+            console.warn('[bridge] dispatch insert failed:', (dbErr as Error).message);
+          }
         } catch {
           // Non-JSON dispatcher messages are just logged in-memory, not persisted
         }

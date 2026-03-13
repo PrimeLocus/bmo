@@ -2,7 +2,7 @@ import { db } from '$lib/server/db/index.js';
 import { parts, softwareSteps } from '$lib/server/db/schema.js';
 import { count, eq } from 'drizzle-orm';
 import type { PageServerLoad } from './$types.js';
-import { getSoulCodeHaiku } from '$lib/server/identity/emergence.js';
+import { hasEmerged } from '$lib/server/identity/emergence.js';
 import { getVoiceModelVersion } from '$lib/server/identity/voice.js';
 
 export const load: PageServerLoad = async () => {
@@ -15,7 +15,7 @@ export const load: PageServerLoad = async () => {
     totalSteps,
     doneSteps,
     totalCost,
-    soulCodeStatus: getSoulCodeHaiku() !== 'not yet written' ? 'exists' : 'awaiting',
+    soulCodeStatus: hasEmerged() ? 'exists' : 'awaiting',
     voiceModelVersion: getVoiceModelVersion(),
   };
 };

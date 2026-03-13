@@ -2,8 +2,7 @@ import { db } from '../db/index.js';
 import { emergenceArtifacts } from '../db/schema.js';
 
 export function hasEmerged(): boolean {
-  const count = db.select().from(emergenceArtifacts).all().length;
-  return count > 0;
+  return db.select().from(emergenceArtifacts).get() !== undefined;
 }
 
 export function getEmergenceArtifact() {
