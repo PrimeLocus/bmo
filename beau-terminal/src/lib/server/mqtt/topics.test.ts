@@ -29,6 +29,12 @@ describe('TOPICS', () => {
     expect(SUBSCRIBE_TOPICS).toContain(TOPICS.environment.presence);
     expect(SUBSCRIBE_TOPICS).toContain(TOPICS.state.sleep);
   });
+
+  it('SUBSCRIBE_TOPICS includes Phase 3 creative topics', () => {
+    expect(SUBSCRIBE_TOPICS).toContain(TOPICS.creative.resolume.session);
+    expect(SUBSCRIBE_TOPICS).toContain(TOPICS.creative.resolume.live);
+    expect(SUBSCRIBE_TOPICS).toContain(TOPICS.creative.resolume.debrief);
+  });
 });
 
 describe('type unions', () => {

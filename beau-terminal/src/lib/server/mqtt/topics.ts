@@ -29,6 +29,13 @@ export const TOPICS = {
   command: {
     prompt: 'beau/command/prompt',
   },
+  creative: {
+    resolume: {
+      session: 'beau/creative/resolume/session',
+      live: 'beau/creative/resolume/live',
+      debrief: 'beau/creative/resolume/debrief',
+    },
+  },
 } as const;
 
 // Topics the terminal subscribes to (inbound from BMO)
@@ -47,6 +54,10 @@ export const SUBSCRIBE_TOPICS: string[] = [
   TOPICS.environment.lux,
   TOPICS.environment.weather,
   TOPICS.environment.seasonal,
+  // Phase 3
+  TOPICS.creative.resolume.session,
+  TOPICS.creative.resolume.live,
+  TOPICS.creative.resolume.debrief,
 ];
 
 // ─── Type unions ───
