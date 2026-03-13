@@ -1,24 +1,37 @@
 <script lang="ts">
+	import { beauState, EMOTION_LABELS } from '$lib/stores/beau.svelte.js';
+
 	let { config, data }: { config: Record<string, unknown>; data?: unknown } = $props();
 </script>
 
-<div class="widget-stub">
-	<span class="stub-label">WIDGET STUB</span>
+<div class="emotion-widget">
+	<div class="widget-label">STATE</div>
+	<div class="emotion-value">
+		{(EMOTION_LABELS[beauState.emotionalState] ?? beauState.emotionalState).toUpperCase()}
+	</div>
 </div>
 
 <style>
-	.widget-stub {
+	.emotion-widget {
 		width: 100%;
 		height: 100%;
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-family: 'Courier New', monospace;
+		flex-direction: column;
+		font-family: 'Courier New', Courier, monospace;
 	}
-	.stub-label {
-		color: var(--bmo-muted);
-		font-size: 10px;
-		text-transform: uppercase;
+
+	.widget-label {
+		font-size: 0.75rem;
 		letter-spacing: 0.15em;
+		text-transform: uppercase;
+		color: var(--bmo-muted);
+		margin-bottom: 0.5rem;
+	}
+
+	.emotion-value {
+		font-size: 0.875rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		color: var(--bmo-green);
 	}
 </style>

@@ -1,24 +1,53 @@
 <script lang="ts">
-	let { config, data }: { config: Record<string, unknown>; data?: unknown } = $props();
+	import { beauState } from '$lib/stores/beau.svelte.js';
+
+	let { config }: { config: Record<string, unknown>; data?: unknown } = $props();
+
+	let season = $derived(beauState.seasonalContext);
+
+	let monthLabel = $derived.by(() => {
+		const now = new Date();
+		return now.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+	});
 </script>
 
-<div class="widget-stub">
-	<span class="stub-label">WIDGET STUB</span>
+<div class="season-widget">
+	<span class="label">SEASON</span>
+	<span class="month">{monthLabel}</span>
+	<span class="context">{season || '\u2014'}</span>
 </div>
 
 <style>
-	.widget-stub {
+	.season-widget {
 		width: 100%;
 		height: 100%;
 		display: flex;
+		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		font-family: 'Courier New', monospace;
+		gap: 0.25rem;
+		font-family: 'Courier New', Courier, monospace;
 	}
-	.stub-label {
+
+	.label {
+		font-size: 0.625rem;
 		color: var(--bmo-muted);
-		font-size: 10px;
 		text-transform: uppercase;
 		letter-spacing: 0.15em;
+	}
+
+	.month {
+		font-size: 0.875rem;
+		font-weight: 700;
+		color: var(--bmo-green);
+		letter-spacing: 0.1em;
+	}
+
+	.context {
+		font-size: 0.7rem;
+		color: var(--bmo-text);
+		text-align: center;
+		line-height: 1.4;
+		max-width: 90%;
 	}
 </style>

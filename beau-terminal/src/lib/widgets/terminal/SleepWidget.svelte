@@ -1,24 +1,43 @@
 <script lang="ts">
+	import { beauState, SLEEP_LABELS } from '$lib/stores/beau.svelte.js';
+
 	let { config, data }: { config: Record<string, unknown>; data?: unknown } = $props();
+
+	const isAsleep = $derived(beauState.sleepState === 'asleep');
 </script>
 
-<div class="widget-stub">
-	<span class="stub-label">WIDGET STUB</span>
+<div class="sleep-widget">
+	<div class="widget-label">SLEEP</div>
+	<div class="sleep-value" class:asleep={isAsleep}>
+		{(SLEEP_LABELS[beauState.sleepState] ?? beauState.sleepState).toUpperCase()}
+	</div>
 </div>
 
 <style>
-	.widget-stub {
+	.sleep-widget {
 		width: 100%;
 		height: 100%;
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-family: 'Courier New', monospace;
+		flex-direction: column;
+		font-family: 'Courier New', Courier, monospace;
 	}
-	.stub-label {
-		color: var(--bmo-muted);
-		font-size: 10px;
-		text-transform: uppercase;
+
+	.widget-label {
+		font-size: 0.75rem;
 		letter-spacing: 0.15em;
+		text-transform: uppercase;
+		color: var(--bmo-muted);
+		margin-bottom: 0.5rem;
+	}
+
+	.sleep-value {
+		font-size: 0.875rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		color: var(--bmo-green);
+	}
+
+	.sleep-value.asleep {
+		color: #636e72;
 	}
 </style>

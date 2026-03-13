@@ -1,24 +1,47 @@
 <script lang="ts">
-	let { config, data }: { config: Record<string, unknown>; data?: unknown } = $props();
+	import { beauState } from '$lib/stores/beau.svelte.js';
+
+	let { config }: { config: Record<string, unknown>; data?: unknown } = $props();
+
+	let active = $derived(beauState.cameraActive);
 </script>
 
-<div class="widget-stub">
-	<span class="stub-label">WIDGET STUB</span>
+<div class="camera-widget">
+	<span class="label">CAMERA</span>
+	<span class="status" style:color={active ? 'var(--bmo-green)' : 'var(--bmo-muted)'}>
+		{active ? 'ACTIVE' : 'OFF'}
+	</span>
+	<span class="indicator" style:color={active ? 'var(--bmo-green)' : '#636e72'}>
+		{active ? '\u25CF' : '\u25CB'}
+	</span>
 </div>
 
 <style>
-	.widget-stub {
+	.camera-widget {
 		width: 100%;
 		height: 100%;
 		display: flex;
+		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		font-family: 'Courier New', monospace;
+		gap: 0.25rem;
+		font-family: 'Courier New', Courier, monospace;
 	}
-	.stub-label {
+
+	.label {
+		font-size: 0.625rem;
 		color: var(--bmo-muted);
-		font-size: 10px;
 		text-transform: uppercase;
 		letter-spacing: 0.15em;
+	}
+
+	.status {
+		font-size: 0.875rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+	}
+
+	.indicator {
+		font-size: 0.5rem;
 	}
 </style>

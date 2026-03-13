@@ -1,24 +1,56 @@
 <script lang="ts">
+	import { beauState } from '$lib/stores/beau.svelte.js';
+
 	let { config, data }: { config: Record<string, unknown>; data?: unknown } = $props();
 </script>
 
-<div class="widget-stub">
-	<span class="stub-label">WIDGET STUB</span>
+<div class="haiku-widget">
+	<div class="widget-label">LAST HAIKU</div>
+
+	{#if beauState.lastHaiku}
+		<div class="haiku-lines">
+			{#each beauState.lastHaiku.split('\n') as line}
+				<div class="haiku-line">{line}</div>
+			{/each}
+		</div>
+	{:else}
+		<div class="empty">no haiku yet</div>
+	{/if}
 </div>
 
 <style>
-	.widget-stub {
+	.haiku-widget {
 		width: 100%;
 		height: 100%;
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-family: 'Courier New', monospace;
+		flex-direction: column;
+		font-family: 'Courier New', Courier, monospace;
 	}
-	.stub-label {
-		color: var(--bmo-muted);
-		font-size: 10px;
-		text-transform: uppercase;
+
+	.widget-label {
+		font-size: 0.75rem;
 		letter-spacing: 0.15em;
+		text-transform: uppercase;
+		color: var(--bmo-muted);
+		margin-bottom: 0.75rem;
+	}
+
+	.haiku-lines {
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+	}
+
+	.haiku-line {
+		font-size: 0.875rem;
+		line-height: 1.625;
+		font-style: italic;
+		color: var(--bmo-text);
+	}
+
+	.empty {
+		font-size: 0.75rem;
+		color: var(--bmo-muted);
+		letter-spacing: 0.1em;
 	}
 </style>
