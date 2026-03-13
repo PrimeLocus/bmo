@@ -275,3 +275,17 @@ try {
     updated_at INTEGER NOT NULL
   )`).run();
 } catch { /* already exists */ }
+
+// Edit Mode Phase 3 — custom pages
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS custom_pages (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    icon TEXT DEFAULT '📄',
+    group_name TEXT NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`).run();
+} catch { /* already exists */ }

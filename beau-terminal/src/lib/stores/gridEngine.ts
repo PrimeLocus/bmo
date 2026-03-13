@@ -8,6 +8,9 @@ export type GridPosition = {
   colSpan: number; // columns wide (1–12)
   rowSpan: number; // rows tall (1+)
   fontSize?: number;
+  widgetId?: string;
+  instanceId?: string;
+  config?: Record<string, unknown>;
 };
 
 export const GRID_COLS = 12;
@@ -31,7 +34,7 @@ export function clampToGrid(pos: GridPosition): GridPosition {
   const rowSpan = Math.max(MIN_ROW_SPAN, pos.rowSpan);
   const col = Math.max(0, Math.min(GRID_COLS - colSpan, pos.col));
   const row = Math.max(0, pos.row);
-  return { col, row, colSpan, rowSpan, ...(pos.fontSize !== undefined ? { fontSize: pos.fontSize } : {}) };
+  return { ...pos, col, row, colSpan, rowSpan };
 }
 
 /**

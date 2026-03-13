@@ -33,6 +33,9 @@ function isValidGridLayout(data: unknown): data is GridLayout {
     if (typeof p.col !== 'number' || typeof p.row !== 'number') return false;
     if (typeof p.colSpan !== 'number' || typeof p.rowSpan !== 'number') return false;
     if (p.fontSize !== undefined && typeof p.fontSize !== 'number') return false;
+    if (p.widgetId !== undefined && typeof p.widgetId !== 'string') return false;
+    if (p.instanceId !== undefined && typeof p.instanceId !== 'string') return false;
+    if (p.config !== undefined && (typeof p.config !== 'object' || p.config === null)) return false;
   }
   // Optional hiddenPanels must be an array of strings
   if (d.hiddenPanels !== undefined) {

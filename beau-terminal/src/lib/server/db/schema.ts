@@ -256,3 +256,16 @@ export const layouts = sqliteTable('layouts', {
   data: text('data').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
+
+// ─── Custom Pages (Edit Mode Phase 3) ───
+
+export const customPages = sqliteTable('custom_pages', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  icon: text('icon').default('📄'),
+  groupName: text('group_name').notNull(),
+  sortOrder: integer('sort_order').default(0),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});

@@ -26,6 +26,9 @@ function validateLayout(data: unknown): boolean {
     if (typeof p.colSpan !== 'number' || !Number.isInteger(p.colSpan)) return false;
     if (typeof p.rowSpan !== 'number' || !Number.isInteger(p.rowSpan)) return false;
     if (p.fontSize !== undefined && typeof p.fontSize !== 'number') return false;
+    if (p.widgetId !== undefined && typeof p.widgetId !== 'string') return false;
+    if (p.instanceId !== undefined && typeof p.instanceId !== 'string') return false;
+    if (p.config !== undefined && (typeof p.config !== 'object' || p.config === null)) return false;
   }
   // Optional hiddenPanels: array of strings
   if (d.hiddenPanels !== undefined) {

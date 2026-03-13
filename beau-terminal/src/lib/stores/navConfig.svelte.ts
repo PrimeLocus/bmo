@@ -210,3 +210,33 @@ export function reorderGroup(group: string, direction: 'up' | 'down') {
   }
   persist({ ..._config, groups });
 }
+
+export function addGroup(name: string) {
+  if (_config.groups.includes(name)) return;
+  const updated = structuredClone(_config);
+  updated.groups.push(name);
+  persist(updated);
+}
+
+export function renameGroup(oldName: string, newName: string) {
+  if (oldName === newName) return;
+  const updated = structuredClone(_config);
+  const idx = updated.groups.indexOf(oldName);
+  if (idx < 0) return;
+  updated.groups[idx] = newName;
+  for (const item of updated.items) {
+    if (item.group === oldName) item.group = newName;
+  }
+  persist(updated);
+}
+
+export function removeGroup(name: string) {
+  if (_config.groups.length <= 1) return;
+  const updated = structuredClone(_config);
+  updated.groups = updated.groups.filter(g => g !== name);
+  const fallback = updated.groups[0];
+  for (const item of updated.items) {
+    if (item.group === name) item.group = fallback;
+  }
+  persist(updated);
+}
