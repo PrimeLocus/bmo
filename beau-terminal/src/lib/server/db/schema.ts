@@ -212,3 +212,39 @@ export const photos = sqliteTable('photos', {
   isPrivate: integer('is_private', { mode: 'boolean' }).notNull().default(false),
   embeddingStatus: text('embedding_status').notNull().default('pending'),
 });
+
+// ─── Reflective Domain (Phase 4) ───
+
+export const journalEntries = sqliteTable('journal_entries', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  entryAt: text('entry_at').notNull().default(sql`(datetime('now'))`),
+  title: text('title'),
+  body: text('body').notNull(),
+  mood: text('mood'),
+  tagsJson: text('tags_json'),
+  visibility: text('visibility').notNull().default('private'),
+  surfacedAt: text('surfaced_at'),
+  filePath: text('file_path'),
+});
+
+export const noticings = sqliteTable('noticings', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  patternText: text('pattern_text').notNull(),
+  basisSummary: text('basis_summary'),
+  observationWindow: text('observation_window'),
+  surfacedAt: text('surfaced_at'),
+  status: text('status').notNull().default('draft'),
+  category: text('category'),
+});
+
+export const consentEvents = sqliteTable('consent_events', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  timestamp: text('timestamp').notNull().default(sql`(datetime('now'))`),
+  eventType: text('event_type').notNull(),
+  targetId: integer('target_id'),
+  targetType: text('target_type'),
+  sessionToken: text('session_token'),
+  notes: text('notes'),
+});
