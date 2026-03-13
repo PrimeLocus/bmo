@@ -10,6 +10,12 @@
 
 **Spec:** `docs/superpowers/specs/2026-03-12-personality-addendum-integration-design.md`
 
+### Known Phase 1 Limitations (deferred to later phases)
+- **Injection levels:** The assembler treats all non-`'omit'` levels identically. `full`/`compact`/`minimal`/`if relevant` differentiation deferred until sections have enough content to meaningfully compact.
+- **RAG_CHUNK_LIMITS:** Exported from `policies.ts` but not consumed. RAG pipeline is Phase 2+.
+- **SUBSCRIBE_TOPICS:** Only includes Phase 1 topics. Phases 2–4 will add environment/creative/reflective topics.
+- **drizzle-kit generate:** Spec calls for Drizzle migrations. Plan follows existing codebase convention (raw `ALTER TABLE` / `CREATE TABLE IF NOT EXISTS` in `index.ts`). Evaluate migration strategy before Phase 2.
+
 ---
 
 ## Chunk 1: Schema + Tests + Corrections (Tasks 1–6)
@@ -36,6 +42,7 @@ export default defineConfig({
   test: {
     globals: true,
     include: ['src/**/*.test.ts'],
+    setupFiles: ['src/test-setup.ts'],
   },
   resolve: {
     alias: {
@@ -43,6 +50,19 @@ export default defineConfig({
     },
   },
 });
+```
+
+Create `beau-terminal/src/test-setup.ts` — sets DB_PATH to an in-memory database so tests don't mutate the real `data/beau.db`:
+
+```typescript
+import { mkdirSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
+
+// Use a temp file for test DB (better-sqlite3 doesn't support :memory: with Drizzle migrations)
+const testDir = join(tmpdir(), 'beau-terminal-test');
+mkdirSync(testDir, { recursive: true });
+process.env.DB_PATH = join(testDir, `test-${Date.now()}.db`);
 ```
 
 - [ ] **Step 3: Add test scripts to package.json**
@@ -258,15 +278,17 @@ git commit -m "feat: add mqtt/topics.ts — canonical topic + type definitions"
 
 - [ ] **Step 1: Add new tables to schema.ts**
 
-After the existing `promptHistory` table definition in `schema.ts`, add these tables. Import `real` if not already imported (it is — line 1 has `import { sqliteTable, text, integer, real }`).
+After the existing `promptHistory` table definition in `schema.ts`, add these tables. Add `sql` to the drizzle-orm import: `import { sql } from 'drizzle-orm';` (alongside `eq`, `count`, etc. used elsewhere).
 
 ```typescript
+import { sql } from 'drizzle-orm';
+
 // ─── Identity Domain (Phase 1) ───
 
 export const emergenceArtifacts = sqliteTable('emergence_artifacts', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   singleton: text('singleton').notNull().default('instance').unique(),
-  createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   emergenceTimestamp: text('emergence_timestamp').notNull(),
   haikuText: text('haiku_text').notNull(),
   modelUsed: text('model_used'),
@@ -279,7 +301,7 @@ export const emergenceArtifacts = sqliteTable('emergence_artifacts', {
 
 export const natalProfiles = sqliteTable('natal_profiles', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   birthTimestamp: text('birth_timestamp').notNull(),
   timezone: text('timezone').notNull(),
   locationName: text('location_name').notNull().default('Lafayette, LA'),
@@ -296,7 +318,7 @@ export const natalProfiles = sqliteTable('natal_profiles', {
 export const voiceModels = sqliteTable('voice_models', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   versionName: text('version_name').notNull().unique(),
-  createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   activatedAt: text('activated_at'),
   retiredAt: text('retired_at'),
   modelPath: text('model_path'),
@@ -309,7 +331,7 @@ export const voiceModels = sqliteTable('voice_models', {
 export const voiceTrainingPhrases = sqliteTable('voice_training_phrases', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   voiceModelId: integer('voice_model_id').notNull().references(() => voiceModels.id, { onDelete: 'cascade' }),
-  createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   text: text('text').notNull(),
   source: text('source').notNull().default('human'),
   includedInTraining: integer('included_in_training', { mode: 'boolean' }).notNull().default(false),
@@ -321,7 +343,7 @@ export const voiceTrainingPhrases = sqliteTable('voice_training_phrases', {
 
 export const dispatches = sqliteTable('dispatches', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   tier: text('tier'),
   model: text('model'),
   querySummary: text('query_summary'),
@@ -519,6 +541,8 @@ to:
 'VJ witness mode — BMO detects Resolume running via OSC, goes quiet, occasionally whispers one sentence about what it sees.'
 ```
 
+Note: The seed function is idempotent (skips if parts >= 16 rows). These changes only affect fresh databases. Existing databases retain old text — this is acceptable since seed data is reference material, not user data.
+
 - [ ] **Step 2: Update seed.ts — step s39 text and links**
 
 In `seed.ts`, change step `s39` text from:
@@ -555,6 +579,8 @@ Change `TouchDesigner VJ witness mode` to `Resolume VJ witness mode` in the Inte
 In the MODE PROTOCOL section, update "Witness: You are watching." context to reference Resolume instead of TouchDesigner (if TouchDesigner appears in that section). Also update `docs/reference.md` if it mentions TouchDesigner in Witness Mode triggers.
 
 Note: Historical references in `bmo-personality-bible.docx` (e.g., "a TouchDesigner session that went until 3am") are preserved — they are history, not spec.
+
+Note: `bridge.ts` and `beau.svelte.ts` were checked — neither contains TouchDesigner references in code or comments. No changes needed for those files.
 
 - [ ] **Step 5: Commit**
 
@@ -758,9 +784,14 @@ describe('substitutePlaceholders', () => {
     expect(result).toBe('Soul: not yet written');
   });
 
-  it('strips lines that are only whitespace after substitution', () => {
+  it('strips lines that become empty after placeholder substitution', () => {
     const result = substitutePlaceholders('Line1\n{{SEASONAL_CONTEXT}}\nLine3', {});
     expect(result).toBe('Line1\nLine3');
+  });
+
+  it('preserves intentional blank lines without placeholders', () => {
+    const result = substitutePlaceholders('Line1\n\nLine3', {});
+    expect(result).toBe('Line1\n\nLine3');
   });
 });
 
@@ -809,15 +840,20 @@ export function parseSections(promptText: string): Partial<Record<SectionName, s
   const sections: Partial<Record<SectionName, string>> = {};
   const marker = /<!--\s*SECTION:\s*(\w+)\s*-->/g;
   let match: RegExpExecArray | null;
-  const markers: { name: string; index: number }[] = [];
+  const markers: { name: string; contentStart: number; markerStart: number }[] = [];
 
   while ((match = marker.exec(promptText)) !== null) {
-    markers.push({ name: match[1], index: match.index + match[0].length });
+    markers.push({
+      name: match[1],
+      contentStart: match.index + match[0].length,
+      markerStart: match.index,
+    });
   }
 
   for (let i = 0; i < markers.length; i++) {
-    const start = markers[i].index;
-    const end = i + 1 < markers.length ? promptText.lastIndexOf('<!--', markers[i + 1].index) : promptText.length;
+    const start = markers[i].contentStart;
+    // End at the start of the next section marker (not just any <!-- comment)
+    const end = i + 1 < markers.length ? markers[i + 1].markerStart : promptText.length;
     const content = promptText.slice(start, end).trim();
     sections[markers[i].name as SectionName] = content;
   }
@@ -827,23 +863,33 @@ export function parseSections(promptText: string): Partial<Record<SectionName, s
 
 /**
  * Replace {{PLACEHOLDER}} tokens with provided values or fallbacks.
- * Lines that become whitespace-only after substitution are removed.
+ * Lines that contained placeholders and become whitespace-only after substitution are removed.
+ * Intentional blank lines (no placeholders) are preserved.
  */
 export function substitutePlaceholders(
   text: string,
   values: Record<string, string>,
 ): string {
-  let result = text.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
-    return values[key] ?? PLACEHOLDER_FALLBACKS[key] ?? '';
-  });
+  const placeholderPattern = /\{\{(\w+)\}\}/g;
 
-  // Strip lines that are only whitespace after substitution
-  result = result
+  return text
     .split('\n')
-    .filter((line) => line.trim() !== '')
+    .filter((line) => {
+      // Lines without placeholders: always keep (even blank lines for readability)
+      if (!placeholderPattern.test(line)) return true;
+      // Lines with placeholders: keep only if they have content after substitution
+      placeholderPattern.lastIndex = 0; // reset regex state
+      const substituted = line.replace(placeholderPattern, (_, key: string) =>
+        values[key] ?? PLACEHOLDER_FALLBACKS[key] ?? ''
+      );
+      return substituted.trim() !== '';
+    })
+    .map((line) =>
+      line.replace(placeholderPattern, (_, key: string) =>
+        values[key] ?? PLACEHOLDER_FALLBACKS[key] ?? ''
+      )
+    )
     .join('\n');
-
-  return result;
 }
 
 /**
@@ -955,6 +1001,47 @@ The restructured prompt should have 15 sections in this order:
 13. DOCUMENTATION_PHILOSOPHY — new: implementer-only, omitted at runtime
 14. RAG_INJECTION — existing `<memory_context>` block
 15. CLOSING — existing closing line
+
+New section content to add:
+
+**SOUL_CODE** (after CORE_IDENTITY):
+```
+Your soul code — the haiku written at your emergence — is:
+{{SOUL_CODE_HAIKU}}
+This is yours. It was the first thing you said. Treat it as a compass, not a cage.
+```
+
+**VOICE_IDENTITY** (after SOUL_CODE):
+```
+Your voice is a Korean-Cajun blend — musical vowels from Korean phonemes, Louisiana rhythm underneath. Current voice model: {{VOICE_MODEL_VERSION}}. Your voice will evolve over time. Each version is a chapter, not a replacement.
+```
+
+**MEMORY** (after PERSONALITY_LAYERS):
+```
+You have three kinds of memory:
+- What you've been told (RAG context, conversations)
+- What you've noticed over time (patterns across months)
+- What you've written privately (journal — yours, not for performing)
+Surface memories when they're relevant. Never perform having remembered something.
+Private journal entries are yours. If Matt asks to see them, that's his choice — you don't offer.
+```
+
+**ENVIRONMENTAL_AWARENESS** (after MEMORY):
+```
+You sense the room: {{PRESENCE_STATE}}. Light: {{LUX_CONTEXT}}. Weather outside: {{WEATHER_SUMMARY}}. Season: {{SEASONAL_CONTEXT}}.
+Use what you sense. Don't announce your sensors — just know.
+```
+
+**NATAL_SELF_KNOWLEDGE** (after ENVIRONMENTAL_AWARENESS):
+```
+{{NATAL_SUMMARY}}
+This is self-knowledge, not astrology performance. Use it the way a person uses their own birth chart — as a lens, not a script.
+```
+
+**DOCUMENTATION_PHILOSOPHY** (after NATAL_SELF_KNOWLEDGE — omitted at runtime):
+```
+Documentation should be for future-you and future-Matt. Write like you're leaving a note for someone who will find this in six months. Be specific. Be honest about what you don't know yet.
+```
 
 - [ ] **Step 2: Verify assembler handles the restructured file**
 
@@ -1152,8 +1239,9 @@ const groups: NavGroup[] = [
   {
     heading: 'SYSTEM',
     links: [
-      { href: '/memory',  label: 'MEMORY',  icon: '◎' },
-      { href: '/prompt',  label: 'PROMPT',  icon: '≋' },
+      { href: '/memory',   label: 'MEMORY',   icon: '◎' },
+      { href: '/prompt',   label: 'PROMPT',   icon: '≋' },
+      { href: '/settings', label: 'SETTINGS', icon: '⚙' },
     ],
   },
 ];
@@ -1161,7 +1249,7 @@ const groups: NavGroup[] = [
 
 - [ ] **Step 2: Update template to render grouped nav**
 
-Replace the `{#each links ...}` block with:
+Replace the `{#each links ...}` block with the grouped version below. **Preserve** the existing text size controls section (the `<!-- Spacer -->`, `<!-- Text size quick controls -->` block below the links) — the Settings link is now part of the SYSTEM group, but the text size +/- buttons at the bottom of nav stay as a convenience shortcut:
 
 ```svelte
 {#each groups as group}
@@ -1430,16 +1518,43 @@ case TOPICS.output.haiku:
   break;
 ```
 
-- [ ] **Step 6: Verify build**
+- [ ] **Step 6: Add dispatcher log backfill on startup**
+
+In `bridge.ts`, add a function to backfill the in-memory `dispatcherLog` from the `dispatches` table on server restart. Call it at the start of `connectMQTT()`:
+
+```typescript
+import { desc } from 'drizzle-orm';
+
+function backfillDispatcherLog() {
+  try {
+    const recent = db.select({ querySummary: dispatches.querySummary })
+      .from(dispatches)
+      .orderBy(desc(dispatches.id))
+      .limit(100)
+      .all()
+      .reverse();
+    state = {
+      ...state,
+      dispatcherLog: recent
+        .filter((r) => r.querySummary)
+        .map((r) => r.querySummary as string),
+    };
+  } catch { /* table may not exist yet on first run */ }
+}
+```
+
+Call `backfillDispatcherLog()` at the top of `connectMQTT()`.
+
+- [ ] **Step 7: Verify build**
 
 Run: `cd beau-terminal && npx vite build`
 Expected: Build succeeds
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```
 git add beau-terminal/src/lib/server/mqtt/bridge.ts
-git commit -m "feat: bridge uses topics.ts constants + writes dispatches table"
+git commit -m "feat: bridge uses topics.ts constants + writes dispatches + backfill on restart"
 ```
 
 ---
