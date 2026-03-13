@@ -58,7 +58,7 @@ bmo/
     │   │   └── server/
     │   │       ├── db/
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
-    │   │       │   ├── schema.ts     # 12 tables — source of truth for DB schema
+    │   │       │   ├── schema.ts     # 14 tables — source of truth for DB schema
     │   │       │   └── seed.ts       # 16 parts, 10 phases, 44 steps, 11 ideas
     │   │       ├── mqtt/
     │   │       │   ├── bridge.ts     # MQTT → BeauState → WebSocket broadcast
@@ -67,6 +67,11 @@ bmo/
     │   │       │   ├── emergence.ts   # Soul code query + empty state
     │   │       │   ├── natal.ts       # Active natal profile query
     │   │       │   └── voice.ts       # Voice model queries
+    │   │       ├── environment/
+    │   │       │   ├── presence.ts     # Camera-based room state machine
+    │   │       │   ├── sleep.ts        # Earned sleep state machine
+    │   │       │   ├── weather.ts      # Weather API + seasonal context
+    │   │       │   └── lux.ts          # Light sensor integration
     │   │       └── prompt/
     │   │           ├── sections.ts    # Section name definitions
     │   │           ├── policies.ts    # Mode injection matrix + fallbacks
@@ -75,6 +80,7 @@ bmo/
     │       ├── +layout.svelte        # Shell: Nav + StatusBar + slot
     │       ├── +page.svelte          # Dashboard — live state, build stats
     │       ├── identity/             # Identity — emergence, natal, voice lineage
+    │       ├── presence/             # Presence — room state, sleep, environment sensors
     │       ├── parts/                # Parts Tracker — sortable table, inline edit
     │       ├── software/             # Software Build — phased checklist, progress bars
     │       ├── ideas/                # Ideas Board — 3-column kanban
@@ -142,6 +148,8 @@ When working on Beau's Terminal, read these first:
 - `src/hooks.server.ts` — startup orchestration
 - `src/lib/server/mqtt/topics.ts` — MQTT topic constants and mode types
 - `src/lib/server/prompt/assembler.ts` — prompt section parser + mode injection
+- `src/lib/server/environment/sleep.ts` — sleep/wake state machine
+- `src/lib/server/environment/presence.ts` — room presence state machine
 
 ## Deep Reference
 

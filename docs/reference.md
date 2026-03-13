@@ -17,6 +17,11 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 | `beau/output/haiku` | BMO → Terminal | Haiku text (auto-persisted to SQLite) |
 | `beau/dispatcher/log` | BMO → Terminal | Dispatcher log entries (persisted to dispatches table + in-memory) |
 | `beau/sensors/camera` | BMO → Terminal | Camera status ("active" / other) |
+| `beau/state/sleep` | BMO → Terminal | Sleep state (awake/settling/asleep/waking) |
+| `beau/environment/presence` | BMO → Terminal | Presence detection JSON ({ detected, confidence }) |
+| `beau/environment/lux` | BMO → Terminal | Lux reading JSON ({ lux: number }) |
+| `beau/environment/weather` | BMO → Terminal | Weather data JSON |
+| `beau/environment/seasonal` | BMO → Terminal | Seasonal context string |
 | `beau/command/*` | Terminal → BMO | Commands sent via Prompt Console |
 
 **BeauState** (server-side, broadcast via WebSocket):
@@ -31,6 +36,14 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
   dispatcherLog: string[];
   cameraActive: boolean;
   online: boolean;
+  // Phase 2
+  sleepState: string;
+  presenceState: string;
+  lux: number | null;
+  luxLabel: string;
+  weather: WeatherData | null;
+  weatherSummary: string;
+  seasonalContext: string;
 }
 ```
 
@@ -38,7 +51,7 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 
 ## Database Schema
 
-12 tables in `beau-terminal/data/beau.db` (defined in `src/lib/server/db/schema.ts`):
+14 tables in `beau-terminal/data/beau.db` (defined in `src/lib/server/db/schema.ts`):
 
 | Table | Purpose | Key Columns |
 |---|---|---|
@@ -53,7 +66,9 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 | **natalProfiles** | Birth chart data | id, birthTimestamp, timezone, locationName, lat/lon, westernChartJson, summaryText, isActive, version |
 | **voiceModels** | Voice model versions | id, versionName (unique), engine, modelPath, trainingNotes, status, activatedAt, retiredAt |
 | **voiceTrainingPhrases** | Training phrases per voice model | id, voiceModelId (FK), text, source, includedInTraining, sortOrder |
-| **dispatches** | Brain routing dispatch log | id, tier, model, querySummary, routingReason, contextMode, durationMs |
+| **dispatches** | Brain routing dispatch log | id, tier, model, querySummary, routingReason, contextMode, durationMs, environmentId |
+| **environmentSnapshots** | Environment state snapshots (60s min interval) | id, timestamp, presenceState, lux, sleepState, weatherJson, seasonalSummary, contextMode |
+| **environmentEvents** | Environment state change events | id, timestamp, eventType, payloadJson, source |
 
 Seed data: 16 parts, 10 phases, 44 steps, 11 ideas + 116 link mappings. Idempotent — skips if parts table already has data.
 
