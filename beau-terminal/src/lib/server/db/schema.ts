@@ -248,3 +248,11 @@ export const consentEvents = sqliteTable('consent_events', {
   sessionToken: text('session_token'),
   notes: text('notes'),
 });
+
+// ─── Layout Persistence (Edit Mode) ───
+
+export const layouts = sqliteTable('layouts', {
+  id: text('id').primaryKey(),
+  data: text('data').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
