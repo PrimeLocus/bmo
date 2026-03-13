@@ -1,5 +1,7 @@
 <script lang="ts">
   import { beauState, MODE_LABELS, EMOTION_LABELS } from '$lib/stores/beau.svelte.js';
+  import PanelCanvas from '$lib/components/PanelCanvas.svelte';
+  import Panel from '$lib/components/Panel.svelte';
   import type { PageData } from './$types.js';
 
   const { data }: { data: PageData } = $props();
@@ -10,7 +12,7 @@
 </script>
 
 <div class="max-w-4xl">
-  <!-- Header -->
+  <!-- Header (outside panel system — not draggable) -->
   <div class="mb-8 flex items-end justify-between">
     <div>
       <h1 class="text-2xl tracking-widest font-bold" style="color: var(--bmo-green)">BEAU'S TERMINAL</h1>
@@ -23,46 +25,52 @@
     </div>
   </div>
 
-  <!-- Identity status -->
-  <div class="grid grid-cols-2 gap-3 mb-4">
-    <div class="p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+  <PanelCanvas pageId="/">
+    <!-- Identity: Soul Code -->
+    <Panel id="dashboard:soul-code" defaultPosition={{ col: 0, row: 0, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">SOUL CODE</div>
       <div class="text-sm tracking-wider font-bold"
            style="color: {data.soulCodeStatus === 'exists' ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
         {data.soulCodeStatus === 'exists' ? 'WRITTEN' : 'AWAITING'}
       </div>
-    </div>
-    <div class="p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+    </Panel>
+
+    <!-- Identity: Voice -->
+    <Panel id="dashboard:voice" defaultPosition={{ col: 6, row: 0, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">VOICE</div>
       <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
         {data.voiceModelVersion.toUpperCase()}
       </div>
-    </div>
-  </div>
+    </Panel>
 
-  <!-- Environment status (Phase 2) -->
-  <div class="grid grid-cols-4 gap-3 mb-4">
-    <div class="p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+    <!-- Environment: Sleep -->
+    <Panel id="dashboard:sleep" defaultPosition={{ col: 0, row: 1, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">SLEEP</div>
       <div class="text-sm tracking-wider font-bold"
            style="color: {beauState.sleepState === 'asleep' ? '#636e72' : 'var(--bmo-green)'}">
         {beauState.sleepState.toUpperCase()}
       </div>
-    </div>
-    <div class="p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+    </Panel>
+
+    <!-- Environment: Room -->
+    <Panel id="dashboard:room" defaultPosition={{ col: 6, row: 1, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">ROOM</div>
       <div class="text-sm tracking-wider font-bold"
            style="color: {beauState.presenceState === 'occupied' ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
         {beauState.presenceState.toUpperCase()}
       </div>
-    </div>
-    <div class="p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+    </Panel>
+
+    <!-- Environment: Weather -->
+    <Panel id="dashboard:weather" defaultPosition={{ col: 0, row: 2, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">WEATHER</div>
       <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-text)">
         {beauState.weatherSummary || '—'}
       </div>
-    </div>
-    <div class="p-3 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+    </Panel>
+
+    <!-- Environment: Resolume -->
+    <Panel id="dashboard:resolume" defaultPosition={{ col: 6, row: 2, colSpan: 6, rowSpan: 1 }}>
       <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">RESOLUME</div>
       <div class="text-sm tracking-wider font-bold"
            style="color: {beauState.resolumeActive ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
@@ -73,40 +81,54 @@
           {beauState.currentClip} · {beauState.currentBpm ?? '—'} BPM
         </div>
       {/if}
-    </div>
-  </div>
+    </Panel>
 
-  <!-- Live state grid -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-    {#each [
-      { label: 'MODE', value: MODE_LABELS[beauState.mode] ?? beauState.mode },
-      { label: 'STATE', value: EMOTION_LABELS[beauState.emotionalState] ?? beauState.emotionalState },
-      { label: 'ENVIRONMENT', value: beauState.environment || '—' },
-      { label: 'CAMERA', value: beauState.cameraActive ? 'ACTIVE' : 'OFF' },
-    ] as card}
-      <div class="p-4 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
-        <div class="text-xs mb-2 tracking-widest" style="color: var(--bmo-muted)">{card.label}</div>
-        <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">{card.value.toUpperCase()}</div>
+    <!-- Live State: Mode -->
+    <Panel id="dashboard:mode" defaultPosition={{ col: 0, row: 3, colSpan: 6, rowSpan: 1 }}>
+      <div class="text-xs mb-2 tracking-widest" style="color: var(--bmo-muted)">MODE</div>
+      <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
+        {(MODE_LABELS[beauState.mode] ?? beauState.mode).toUpperCase()}
       </div>
-    {/each}
-  </div>
+    </Panel>
 
-  <!-- Last haiku -->
-  {#if beauState.lastHaiku}
-    <div class="p-5 mb-6 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
-      <div class="text-xs tracking-widest mb-3" style="color: var(--bmo-muted)">LAST HAIKU</div>
-      <div class="text-sm leading-relaxed italic" style="color: var(--bmo-text)">
-        {#each beauState.lastHaiku.split('\n') as line}
-          <div>{line}</div>
-        {/each}
+    <!-- Live State: Emotion -->
+    <Panel id="dashboard:emotion" defaultPosition={{ col: 6, row: 3, colSpan: 6, rowSpan: 1 }}>
+      <div class="text-xs mb-2 tracking-widest" style="color: var(--bmo-muted)">STATE</div>
+      <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
+        {(EMOTION_LABELS[beauState.emotionalState] ?? beauState.emotionalState).toUpperCase()}
       </div>
-    </div>
-  {/if}
+    </Panel>
 
-  <!-- Stats + dispatcher -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <!-- Build stats -->
-    <div class="p-4 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+    <!-- Live State: Environment -->
+    <Panel id="dashboard:env" defaultPosition={{ col: 0, row: 4, colSpan: 6, rowSpan: 1 }}>
+      <div class="text-xs mb-2 tracking-widest" style="color: var(--bmo-muted)">ENVIRONMENT</div>
+      <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
+        {(beauState.environment || '—').toUpperCase()}
+      </div>
+    </Panel>
+
+    <!-- Live State: Camera -->
+    <Panel id="dashboard:camera" defaultPosition={{ col: 6, row: 4, colSpan: 6, rowSpan: 1 }}>
+      <div class="text-xs mb-2 tracking-widest" style="color: var(--bmo-muted)">CAMERA</div>
+      <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
+        {beauState.cameraActive ? 'ACTIVE' : 'OFF'}
+      </div>
+    </Panel>
+
+    <!-- Last Haiku (full width) -->
+    {#if beauState.lastHaiku}
+      <Panel id="dashboard:haiku" defaultPosition={{ col: 0, row: 5, colSpan: 12, rowSpan: 2 }}>
+        <div class="text-xs tracking-widest mb-3" style="color: var(--bmo-muted)">LAST HAIKU</div>
+        <div class="text-sm leading-relaxed italic" style="color: var(--bmo-text)">
+          {#each beauState.lastHaiku.split('\n') as line}
+            <div>{line}</div>
+          {/each}
+        </div>
+      </Panel>
+    {/if}
+
+    <!-- Build Stats -->
+    <Panel id="dashboard:build-stats" defaultPosition={{ col: 0, row: 7, colSpan: 6, rowSpan: 2 }}>
       <div class="text-xs tracking-widest mb-4" style="color: var(--bmo-muted)">BUILD STATS</div>
       <div class="space-y-3">
         <div class="flex justify-between text-xs">
@@ -128,10 +150,10 @@
           <div class="text-xs mt-1" style="color: var(--bmo-muted)">{pct}% complete</div>
         </div>
       </div>
-    </div>
+    </Panel>
 
-    <!-- Dispatcher log -->
-    <div class="p-4 border" style="border-color: var(--bmo-border); background: var(--bmo-surface)">
+    <!-- Dispatcher Log -->
+    <Panel id="dashboard:dispatcher" defaultPosition={{ col: 6, row: 7, colSpan: 6, rowSpan: 2 }}>
       <div class="text-xs tracking-widest mb-4" style="color: var(--bmo-muted)">DISPATCHER LOG</div>
       {#if beauState.dispatcherLog.length === 0}
         <div class="text-xs" style="color: var(--bmo-muted)">no events yet</div>
@@ -144,10 +166,10 @@
           {/each}
         </div>
       {/if}
-    </div>
-  </div>
+    </Panel>
+  </PanelCanvas>
 
-  <!-- Wake word -->
+  <!-- Wake word (outside panel system) -->
   {#if beauState.wakeWord}
     <div class="mt-4 p-3 border text-xs" style="border-color: var(--bmo-border); color: var(--bmo-muted)">
       LAST WAKE: <span style="color: var(--bmo-green)">{beauState.wakeWord}</span>

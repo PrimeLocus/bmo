@@ -266,3 +266,12 @@ try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_journal_entries_at ON journ
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_noticings_status ON noticings(status)").run(); } catch { /* already exists */ }
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_consent_events_ts ON consent_events(timestamp DESC)").run(); } catch { /* already exists */ }
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_consent_events_target ON consent_events(target_type, target_id)").run(); } catch { /* already exists */ }
+
+// Edit Mode — layouts table
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS layouts (
+    id         TEXT PRIMARY KEY,
+    data       TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`).run();
+} catch { /* already exists */ }

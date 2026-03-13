@@ -41,14 +41,20 @@
       ],
     },
   ];
+
+  let collapsed: Record<string, boolean> = $state({});
+
+  function toggle(heading: string) {
+    collapsed[heading] = !collapsed[heading];
+  }
 </script>
 
 <nav class="flex flex-col gap-1 p-3 border-r shrink-0"
      style="border-color: var(--bmo-border); background: var(--bmo-surface);
-            width: clamp(52px, 12vw, 200px)">
+            width: clamp(52px, 12vw, 200px); min-height: 0">
 
   <!-- Logo -->
-  <div class="flex items-center gap-2 mb-6 pb-4" style="border-bottom: 1px solid var(--bmo-border)">
+  <div class="flex items-center gap-2 mb-4 pb-4 shrink-0" style="border-bottom: 1px solid var(--bmo-border)">
     <div class="flex items-center justify-center w-8 h-8 font-bold text-base shrink-0"
          style="background: var(--bmo-green); color: var(--bmo-bg);
                 clip-path: polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%)">
@@ -60,43 +66,47 @@
     </div>
   </div>
 
-  {#each groups as group}
-    <div class="mb-2">
-      <div class="hidden lg:block text-xs tracking-widest px-2 py-1 mb-1"
-           style="color: var(--bmo-muted); opacity: 0.6; font-size: 0.6rem">
-        {group.heading}
-      </div>
-      {#each group.links as link}
-        {@const active = page.url.pathname === link.href}
-        {#if link.disabled}
-          <div class="flex items-center gap-2 px-2 py-2 text-sm tracking-widest cursor-default"
-               title="{link.label} — coming soon"
-               style="color: var(--bmo-muted); opacity: 0.3">
-            <span class="text-base shrink-0">{link.icon}</span>
-            <span class="hidden lg:inline whitespace-nowrap overflow-hidden">{link.label}</span>
-          </div>
-        {:else}
-          <a href={link.href}
-             class="flex items-center gap-2 px-2 py-2 text-sm tracking-widest transition-all"
-             title={link.label}
-             style="
-               color: {active ? 'var(--bmo-bg)' : 'var(--bmo-muted)'};
-               background: {active ? 'var(--bmo-green)' : 'transparent'};
-               border: 1px solid {active ? 'var(--bmo-green)' : 'transparent'};
-             ">
-            <span class="text-base shrink-0">{link.icon}</span>
-            <span class="hidden lg:inline whitespace-nowrap overflow-hidden">{link.label}</span>
-          </a>
+  <!-- Scrollable nav groups -->
+  <div class="flex-1 overflow-y-auto min-h-0" style="scrollbar-width: thin; scrollbar-color: var(--bmo-border) transparent">
+    {#each groups as group}
+      <div class="mb-2">
+        <button onclick={() => toggle(group.heading)}
+                class="hidden lg:flex items-center justify-between w-full text-left px-2 py-1 mb-1 cursor-pointer transition-colors hover:opacity-80"
+                style="color: var(--bmo-muted); opacity: 0.6; font-size: 0.6rem; background: none; border: none">
+          <span class="tracking-widest">{group.heading}</span>
+          <span class="text-xs transition-transform" style="transform: rotate({collapsed[group.heading] ? '-90deg' : '0deg'})">▾</span>
+        </button>
+        {#if !collapsed[group.heading]}
+          {#each group.links as link}
+            {@const active = page.url.pathname === link.href}
+            {#if link.disabled}
+              <div class="flex items-center gap-2 px-2 py-2 text-sm tracking-widest cursor-default"
+                   title="{link.label} — coming soon"
+                   style="color: var(--bmo-muted); opacity: 0.3">
+                <span class="text-base shrink-0">{link.icon}</span>
+                <span class="hidden lg:inline whitespace-nowrap overflow-hidden">{link.label}</span>
+              </div>
+            {:else}
+              <a href={link.href}
+                 class="flex items-center gap-2 px-2 py-2 text-sm tracking-widest transition-all"
+                 title={link.label}
+                 style="
+                   color: {active ? 'var(--bmo-bg)' : 'var(--bmo-muted)'};
+                   background: {active ? 'var(--bmo-green)' : 'transparent'};
+                   border: 1px solid {active ? 'var(--bmo-green)' : 'transparent'};
+                 ">
+                <span class="text-base shrink-0">{link.icon}</span>
+                <span class="hidden lg:inline whitespace-nowrap overflow-hidden">{link.label}</span>
+              </a>
+            {/if}
+          {/each}
         {/if}
-      {/each}
-    </div>
-  {/each}
-
-  <!-- Spacer -->
-  <div class="flex-1"></div>
+      </div>
+    {/each}
+  </div>
 
   <!-- Text size quick controls -->
-  <div class="pt-3 border-t" style="border-color: var(--bmo-border)">
+  <div class="pt-3 border-t shrink-0" style="border-color: var(--bmo-border)">
     <div class="hidden lg:flex items-center justify-between mb-1 px-1">
       <span class="text-xs tracking-widest" style="color: var(--bmo-muted)">TEXT</span>
       <span class="text-xs font-bold" style="color: var(--bmo-green)">{settings.fontSize}px</span>
