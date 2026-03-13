@@ -38,3 +38,86 @@ try {
     created_at INTEGER NOT NULL
   )`).run();
 } catch { /* already exists */ }
+
+// Phase 1 — haiku columns
+try { sqlite.prepare("ALTER TABLE haikus ADD COLUMN haiku_type TEXT NOT NULL DEFAULT 'daily'").run(); } catch { /* already exists */ }
+try { sqlite.prepare("ALTER TABLE haikus ADD COLUMN wake_word TEXT").run(); } catch { /* already exists */ }
+try { sqlite.prepare("ALTER TABLE haikus ADD COLUMN is_immutable INTEGER NOT NULL DEFAULT 0").run(); } catch { /* already exists */ }
+try { sqlite.prepare("ALTER TABLE haikus ADD COLUMN source_context TEXT").run(); } catch { /* already exists */ }
+
+// Phase 1 — new tables
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS emergence_artifacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    singleton TEXT NOT NULL DEFAULT 'instance' UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    emergence_timestamp TEXT NOT NULL,
+    haiku_text TEXT NOT NULL,
+    model_used TEXT,
+    prompt_used TEXT,
+    natal_input_json TEXT,
+    file_path TEXT,
+    checksum TEXT,
+    boot_id TEXT
+  )`).run();
+} catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS natal_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    birth_timestamp TEXT NOT NULL,
+    timezone TEXT NOT NULL,
+    location_name TEXT NOT NULL DEFAULT 'Lafayette, LA',
+    latitude REAL NOT NULL DEFAULT 30.2241,
+    longitude REAL NOT NULL DEFAULT -92.0198,
+    western_chart_json TEXT,
+    vedic_chart_json TEXT,
+    varga_chart_json TEXT,
+    summary_text TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    version INTEGER NOT NULL DEFAULT 1
+  )`).run();
+} catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS voice_models (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    version_name TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    activated_at TEXT,
+    retired_at TEXT,
+    model_path TEXT,
+    engine TEXT NOT NULL DEFAULT 'piper',
+    training_notes TEXT,
+    status TEXT NOT NULL DEFAULT 'draft',
+    checksum TEXT
+  )`).run();
+} catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS voice_training_phrases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    voice_model_id INTEGER NOT NULL REFERENCES voice_models(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    text TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'human',
+    included_in_training INTEGER NOT NULL DEFAULT 0,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    notes TEXT
+  )`).run();
+} catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS dispatches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    tier TEXT,
+    model TEXT,
+    query_summary TEXT,
+    routing_reason TEXT,
+    context_mode TEXT,
+    duration_ms INTEGER,
+    prompt_version TEXT
+  )`).run();
+} catch { /* already exists */ }
