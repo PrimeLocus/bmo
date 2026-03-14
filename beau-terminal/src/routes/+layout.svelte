@@ -6,11 +6,22 @@
   import Nav from '$lib/components/Nav.svelte';
   import StatusBar from '$lib/components/StatusBar.svelte';
   import EditBar from '$lib/components/EditBar.svelte';
+  import CommandPalette from '$lib/components/CommandPalette.svelte';
   import '../app.css';
 
   const { children } = $props();
 
+  let paletteOpen = $state(false);
+
   function handleKeydown(e: KeyboardEvent) {
+    // Ctrl+K / Cmd+K — open command palette (allow from anywhere except active text inputs)
+    if (e.key === 'k' && (e.ctrlKey || e.metaKey)) {
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      e.preventDefault();
+      paletteOpen = !paletteOpen;
+      return;
+    }
+
     // Guard: don't intercept when typing in form fields
     if (
       e.target instanceof HTMLInputElement ||
@@ -36,6 +47,8 @@
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
+
+<CommandPalette bind:open={paletteOpen} />
 
 <div class="flex h-screen overflow-hidden">
   <Nav />
