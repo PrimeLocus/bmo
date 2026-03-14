@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { onMount } from 'svelte';
+  import { afterNavigate } from '$app/navigation';
   import { bumpFontSize, settings } from '$lib/stores/settings.svelte.js';
   import { editModeState } from '$lib/stores/editMode.svelte.js';
   import {
@@ -21,9 +22,21 @@
   } from '$lib/stores/navConfig.svelte.js';
   import BmoFace from '$lib/components/BmoFace.svelte';
 
+  let workshopStats = $state<{ partsReceived: number; partsTotal: number; stepsDone: number; stepsTotal: number } | null>(null);
+
+  async function fetchWorkshopStats() {
+    try {
+      const res = await fetch('/api/workshop-stats');
+      if (res.ok) workshopStats = await res.json();
+    } catch {}
+  }
+
   onMount(() => {
     loadNavConfig();
+    fetchWorkshopStats();
   });
+
+  afterNavigate(fetchWorkshopStats);
 
   const config = $derived(getNavConfig());
   const editing = $derived(editModeState.active);
@@ -195,31 +208,38 @@
             />
           </div>
         {:else}
-          <div class="hidden lg:flex items-center justify-between w-full px-2 py-1 mb-1"
+          <div class="hidden lg:flex flex-col w-full px-2 py-1 mb-1"
                style="color: var(--bmo-muted); opacity: 0.6; font-size: 0.6rem">
-            <button onclick={() => toggle(group)}
-                    class="flex-1 text-left cursor-pointer transition-colors hover:opacity-80"
-                    style="background: none; border: none; color: inherit; font-family: inherit; font-size: inherit">
-              <span class="tracking-widest">{group}</span>
-              <span class="text-xs transition-transform" style="transform: rotate({isGroupCollapsed(group) ? '-90deg' : '0deg'})">▾</span>
-            </button>
-            {#if editing}
-              <div class="flex items-center gap-0.5 shrink-0">
-                <button onclick={() => startGroupRename(group)}
-                        style="color: var(--bmo-muted); font-size: 8px; background: none; border: none; cursor: pointer"
-                        title="Rename group">✎</button>
-                <button onclick={() => reorderGroup(group, 'up')}
-                        style="color: var(--bmo-muted); font-size: 8px; background: none; border: none; cursor: pointer"
-                        title="Move group up">▲</button>
-                <button onclick={() => reorderGroup(group, 'down')}
-                        style="color: var(--bmo-muted); font-size: 8px; background: none; border: none; cursor: pointer"
-                        title="Move group down">▼</button>
-                {#if config.groups.length > 1}
-                  <button onclick={() => handleRemoveGroup(group)}
+            <div class="flex items-center justify-between w-full">
+              <button onclick={() => toggle(group)}
+                      class="flex-1 text-left cursor-pointer transition-colors hover:opacity-80"
+                      style="background: none; border: none; color: inherit; font-family: inherit; font-size: inherit">
+                <span class="tracking-widest">{group}</span>
+                <span class="text-xs transition-transform" style="transform: rotate({isGroupCollapsed(group) ? '-90deg' : '0deg'})">▾</span>
+              </button>
+              {#if editing}
+                <div class="flex items-center gap-0.5 shrink-0">
+                  <button onclick={() => startGroupRename(group)}
                           style="color: var(--bmo-muted); font-size: 8px; background: none; border: none; cursor: pointer"
-                          title="Remove group">✕</button>
-                {/if}
-              </div>
+                          title="Rename group">✎</button>
+                  <button onclick={() => reorderGroup(group, 'up')}
+                          style="color: var(--bmo-muted); font-size: 8px; background: none; border: none; cursor: pointer"
+                          title="Move group up">▲</button>
+                  <button onclick={() => reorderGroup(group, 'down')}
+                          style="color: var(--bmo-muted); font-size: 8px; background: none; border: none; cursor: pointer"
+                          title="Move group down">▼</button>
+                  {#if config.groups.length > 1}
+                    <button onclick={() => handleRemoveGroup(group)}
+                            style="color: var(--bmo-muted); font-size: 8px; background: none; border: none; cursor: pointer"
+                            title="Remove group">✕</button>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+            {#if workshopStats && group.toUpperCase() === 'WORKSHOP'}
+              <span class="hidden lg:block text-xs" style="color: var(--bmo-muted); letter-spacing: 1px; opacity: 0.8; margin-top: 2px;">
+                {workshopStats.partsReceived}/{workshopStats.partsTotal} parts · {workshopStats.stepsDone}/{workshopStats.stepsTotal} steps
+              </span>
             {/if}
           </div>
         {/if}
