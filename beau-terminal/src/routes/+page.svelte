@@ -19,6 +19,15 @@
     onboarded = localStorage.getItem('bmo-onboarded') === 'true';
   });
 
+  let isDesktop = $state(true);
+  $effect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    isDesktop = mq.matches;
+    const handler = (e: MediaQueryListEvent) => { isDesktop = e.matches; };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  });
+
   let greeting = $derived.by(() => {
     if (beauState.sleepState === 'asleep') return 'beau is resting. the build continues.';
     const hour = new Date().getHours();
@@ -93,35 +102,47 @@
   </div>
 {/if}
 
-<!-- Panel grid -->
-<PanelCanvas pageId="/">
-  <!-- Row 0–1: WORKSHOP PROGRESS (col 0, span 8) -->
-  <Panel id="today:workshop-progress" label="WORKSHOP PROGRESS" defaultPosition={{ col: 0, row: 0, colSpan: 8, rowSpan: 2 }}>
-    <WorkshopProgressWidget config={{}} data={data.workshopProgress} />
-  </Panel>
+{#if isDesktop}
+  <!-- Panel grid -->
+  <PanelCanvas pageId="/">
+    <!-- Row 0–1: WORKSHOP PROGRESS (col 0, span 8) -->
+    <Panel id="today:workshop-progress" label="WORKSHOP PROGRESS" defaultPosition={{ col: 0, row: 0, colSpan: 8, rowSpan: 2 }}>
+      <WorkshopProgressWidget config={{}} data={data.workshopProgress} />
+    </Panel>
 
-  <!-- Row 0–1: BLOCKED / WAITING (col 8, span 4) -->
-  <Panel id="today:blocked-waiting" label="BLOCKED / WAITING" defaultPosition={{ col: 8, row: 0, colSpan: 4, rowSpan: 2 }}>
-    <BlockedWaitingWidget config={{}} data={data.blockedParts} />
-  </Panel>
+    <!-- Row 0–1: BLOCKED / WAITING (col 8, span 4) -->
+    <Panel id="today:blocked-waiting" label="BLOCKED / WAITING" defaultPosition={{ col: 8, row: 0, colSpan: 4, rowSpan: 2 }}>
+      <BlockedWaitingWidget config={{}} data={data.blockedParts} />
+    </Panel>
 
-  <!-- Row 2–3: RECENT ACTIVITY (col 0, span 8) -->
-  <Panel id="today:recent-activity" label="RECENT ACTIVITY" defaultPosition={{ col: 0, row: 2, colSpan: 8, rowSpan: 2 }}>
-    <RecentActivityWidget config={{}} data={data.recentActivity} />
-  </Panel>
+    <!-- Row 2–3: RECENT ACTIVITY (col 0, span 8) -->
+    <Panel id="today:recent-activity" label="RECENT ACTIVITY" defaultPosition={{ col: 0, row: 2, colSpan: 8, rowSpan: 2 }}>
+      <RecentActivityWidget config={{}} data={data.recentActivity} />
+    </Panel>
 
-  <!-- Row 2–3: BEAU VITALS (col 8, span 4) -->
-  <Panel id="today:beau-vitals" label="BEAU VITALS" defaultPosition={{ col: 8, row: 2, colSpan: 4, rowSpan: 2 }}>
+    <!-- Row 2–3: BEAU VITALS (col 8, span 4) -->
+    <Panel id="today:beau-vitals" label="BEAU VITALS" defaultPosition={{ col: 8, row: 2, colSpan: 4, rowSpan: 2 }}>
+      <BeauVitalsWidget config={{}} />
+    </Panel>
+
+    <!-- Row 4–5: NEXT STEPS (col 0, span 6) -->
+    <Panel id="today:next-steps" label="NEXT STEPS" defaultPosition={{ col: 0, row: 4, colSpan: 6, rowSpan: 2 }}>
+      <NextStepsWidget config={{}} data={data.nextSteps} />
+    </Panel>
+
+    <!-- Row 4–5: LAST HAIKU (col 6, span 6) -->
+    <Panel id="today:last-haiku" label="LAST HAIKU" defaultPosition={{ col: 6, row: 4, colSpan: 6, rowSpan: 2 }}>
+      <LastHaikuWidget config={{}} />
+    </Panel>
+  </PanelCanvas>
+{:else}
+  <!-- Mobile stack layout -->
+  <div class="flex flex-col gap-4 p-4">
     <BeauVitalsWidget config={{}} />
-  </Panel>
-
-  <!-- Row 4–5: NEXT STEPS (col 0, span 6) -->
-  <Panel id="today:next-steps" label="NEXT STEPS" defaultPosition={{ col: 0, row: 4, colSpan: 6, rowSpan: 2 }}>
-    <NextStepsWidget config={{}} data={data.nextSteps} />
-  </Panel>
-
-  <!-- Row 4–5: LAST HAIKU (col 6, span 6) -->
-  <Panel id="today:last-haiku" label="LAST HAIKU" defaultPosition={{ col: 6, row: 4, colSpan: 6, rowSpan: 2 }}>
-    <LastHaikuWidget config={{}} />
-  </Panel>
-</PanelCanvas>
+    <RecentActivityWidget config={{ limit: 5 }} data={data.recentActivity?.slice(0, 5)} />
+    <BlockedWaitingWidget config={{}} data={data.blockedParts} />
+    <div style="color: var(--bmo-muted); font-family: 'Courier New', monospace; font-size: 0.7rem; text-align: center; letter-spacing: 2px; padding-top: 1rem;">
+      panel editing available on desktop
+    </div>
+  </div>
+{/if}
