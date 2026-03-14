@@ -37,3 +37,9 @@ vite.config.ts.timestamp-*
 *.tsbuildinfo
 .worktrees
 .superpowers/
+
+# Private documents (personality bible, background info)
+*.docx
+
+# One-off migration scripts with sensitive data
+beau-terminal/scripts/

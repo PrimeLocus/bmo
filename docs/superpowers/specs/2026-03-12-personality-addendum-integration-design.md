@@ -337,7 +337,7 @@ In Phase 1, `dispatches` has no FK — it's a standalone logging table. The `env
 | `mood` | TEXT | YES | NULL | |
 | `tags_json` | TEXT | YES | NULL | JSON array |
 | `visibility` | TEXT | NOT NULL | `'private'` | `'private'\|'shared'` |
-| `surfaced_at` | TEXT | YES | NULL | last time Matt viewed body text (audit) |
+| `surfaced_at` | TEXT | YES | NULL | last time papa viewed body text (audit) |
 | `file_path` | TEXT | YES | NULL | metadata only — Pi-side sync path |
 
 #### noticings
@@ -839,7 +839,7 @@ Inputs: occupancy (camera), lux, noise (ReSpeaker RMS), interaction recency, man
 - Private by default, never auto-surfaced
 - Consent is session-scoped (HTTP-only session cookie, expires on browser close)
 - Views audited in `consent_events` table
-- Entries deletable by Matt (logged in `consent_events`)
+- Entries deletable by papa (logged in `consent_events`)
 - No search/export from UI
 - Journal content in embeddings accessible to Beau's own RAG context, not surfaced in Terminal UI
 
