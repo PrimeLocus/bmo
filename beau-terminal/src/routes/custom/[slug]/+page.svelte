@@ -31,6 +31,7 @@
   // Widget drawer state
   let showWidgetDrawer = $state(false);
   let widgetCount = $derived(widgetPanels().length);
+  const existingWidgetIds = $derived(widgetPanels().map((wp) => wp.widgetId));
 
   // Config modal state
   let configPanelId = $state<string | null>(null);
@@ -163,6 +164,7 @@
     onClose={() => showWidgetDrawer = false}
     onApplyTemplate={handleApplyTemplate}
     {widgetCount}
+    {existingWidgetIds}
   />
 {/if}
 
