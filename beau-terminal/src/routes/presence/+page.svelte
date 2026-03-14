@@ -13,7 +13,7 @@
   const { data }: { data: PageData } = $props();
 </script>
 
-<div class="max-w-4xl">
+<div>
   <div class="mb-8">
     <h1 class="text-2xl tracking-widest font-bold" style="color: var(--bmo-green)">PRESENCE</h1>
     <p class="text-xs mt-1" style="color: var(--bmo-muted)">what beau senses — room, light, weather</p>

@@ -31,7 +31,7 @@
   }
 </script>
 
-<div class="max-w-3xl">
+<div>
   <div class="mb-6">
     <h1 class="text-xl tracking-widest font-bold" style="color: var(--bmo-green)">SOFTWARE BUILD</h1>
     <p class="text-xs mt-1" style="color: var(--bmo-muted)">{totalDone} / {allSteps.length} steps · {totalPct}%</p>

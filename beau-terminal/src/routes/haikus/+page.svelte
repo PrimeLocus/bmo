@@ -19,7 +19,7 @@
   }
 </script>
 
-<div class="max-w-5xl">
+<div>
   <div class="mb-6 flex items-end justify-between">
     <div>
       <h1 class="text-xl tracking-widest font-bold" style="color: var(--bmo-green)">HAIKU ARCHIVE</h1>

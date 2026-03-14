@@ -7,7 +7,7 @@
   const { data }: { data: PageData } = $props();
 </script>
 
-<div class="max-w-4xl">
+<div>
   <div class="mb-6 flex items-end justify-between">
     <div>
       <h1 class="text-2xl tracking-widest font-bold" style="color: var(--bmo-green)">JOURNAL</h1>

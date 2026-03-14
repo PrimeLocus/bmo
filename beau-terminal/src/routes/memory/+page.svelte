@@ -8,7 +8,7 @@
   const { data }: { data: PageData } = $props();
 </script>
 
-<div class="max-w-5xl">
+<div>
   <div class="mb-6">
     <h1 class="text-xl tracking-widest font-bold" style="color: var(--bmo-green)">MEMORY</h1>
     <p class="text-xs mt-1" style="color: var(--bmo-muted)">live dispatcher · {data.haikus.length} haikus stored</p>

@@ -7,7 +7,7 @@
   import Panel from '$lib/components/Panel.svelte';
 </script>
 
-<div class="w-full max-w-2xl">
+<div>
 
   <!-- Header — deliberately large -->
   <div class="mb-10">

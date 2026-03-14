@@ -15,7 +15,7 @@
   }
 </script>
 
-<div class="max-w-4xl">
+<div>
   <div class="mb-6">
     <h1 class="text-2xl tracking-widest font-bold" style="color: var(--bmo-green)">SESSIONS</h1>
     <p class="text-xs mt-1" style="color: var(--bmo-muted)">resolume vj session archive</p>

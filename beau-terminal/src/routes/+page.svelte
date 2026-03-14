@@ -11,7 +11,7 @@
   );
 </script>
 
-<div class="max-w-4xl">
+<div>
   <!-- Header (outside panel system — not draggable) -->
   <div class="mb-8 flex items-end justify-between">
     <div>

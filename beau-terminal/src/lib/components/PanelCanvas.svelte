@@ -192,7 +192,7 @@
     grid-auto-rows: {rowHeight}px;
     gap: 8px;
     position: relative;
-    {editModeState.active ? `background-image: ${gridLinesBg};` : ''}
+    {editModeState.active ? `background-image: ${gridLinesBg}; min-height: 80vh; padding-bottom: 320px;` : ''}
   "
   onpointermove={handlePointerMove}
   onpointerup={handlePointerUp}

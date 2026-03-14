@@ -45,7 +45,7 @@
   }
 </script>
 
-<div class="w-full max-w-3xl">
+<div>
 
   <!-- Header -->
   <div class="mb-6">
