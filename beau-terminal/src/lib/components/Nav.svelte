@@ -19,6 +19,7 @@
     isGroupCollapsed,
     type NavItem,
   } from '$lib/stores/navConfig.svelte.js';
+  import BmoFace from '$lib/components/BmoFace.svelte';
 
   onMount(() => {
     loadNavConfig();
@@ -171,11 +172,7 @@
 
   <!-- Logo -->
   <div class="flex items-center gap-2 mb-4 pb-4 shrink-0" style="border-bottom: 1px solid var(--bmo-border)">
-    <div class="flex items-center justify-center w-8 h-8 font-bold text-base shrink-0"
-         style="background: var(--bmo-green); color: var(--bmo-bg);
-                clip-path: polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%)">
-      B
-    </div>
+    <BmoFace size="mini" />
     <div class="hidden lg:block overflow-hidden">
       <div class="text-xs tracking-widest whitespace-nowrap" style="color: var(--bmo-green)">BEAU</div>
       <div class="text-xs whitespace-nowrap" style="color: var(--bmo-muted); letter-spacing: 2px">TERMINAL</div>

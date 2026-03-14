@@ -628,6 +628,17 @@ const REGISTRY: Record<string, WidgetMeta> = {
 			}
 		],
 		dataKind: 'none'
+	},
+
+	'bmo-face': {
+		id: 'bmo-face',
+		label: 'BMO Face',
+		icon: '\u{1F916}',
+		category: 'content',
+		component: () => import('./content/BmoFaceWidget.svelte'),
+		defaultPosition: { colSpan: 3, rowSpan: 1 },
+		configSchema: [],
+		dataKind: 'websocket',
 	}
 };
 
