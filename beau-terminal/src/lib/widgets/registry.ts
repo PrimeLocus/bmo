@@ -263,6 +263,39 @@ const REGISTRY: Record<string, WidgetMeta> = {
 
 	// ── Build ──────────────────────────────────────────────────────────────
 
+	'workshop-progress': {
+		id: 'workshop-progress',
+		label: 'Workshop Progress',
+		icon: '\u{1F6E0}',
+		category: 'build',
+		component: () => import('./terminal/WorkshopProgressWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 3 },
+		configSchema: [],
+		dataKind: 'database'
+	},
+
+	'blocked-waiting': {
+		id: 'blocked-waiting',
+		label: 'Blocked / Waiting',
+		icon: '\u{23F3}',
+		category: 'build',
+		component: () => import('./terminal/BlockedWaitingWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 3 },
+		configSchema: [],
+		dataKind: 'database'
+	},
+
+	'next-steps': {
+		id: 'next-steps',
+		label: 'Next Steps',
+		icon: '\u{27A1}',
+		category: 'build',
+		component: () => import('./terminal/NextStepsWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 3 },
+		configSchema: [],
+		dataKind: 'database'
+	},
+
 	'build-stats': {
 		id: 'build-stats',
 		label: 'Build Stats',
@@ -361,6 +394,35 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	},
 
 	// ── System ─────────────────────────────────────────────────────────────
+
+	'beau-vitals': {
+		id: 'beau-vitals',
+		label: 'Beau Vitals',
+		icon: '\u{1F4F6}',
+		category: 'environment',
+		component: () => import('./terminal/BeauVitalsWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 2 },
+		configSchema: [],
+		dataKind: 'websocket'
+	},
+
+	'recent-activity': {
+		id: 'recent-activity',
+		label: 'Recent Activity',
+		icon: '\u{1F4CB}',
+		category: 'system',
+		component: () => import('./terminal/RecentActivityWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 4 },
+		configSchema: [
+			{
+				key: 'limit',
+				label: 'Limit',
+				type: 'number',
+				default: 10
+			}
+		],
+		dataKind: 'database'
+	},
 
 	mode: {
 		id: 'mode',
@@ -639,6 +701,17 @@ const REGISTRY: Record<string, WidgetMeta> = {
 		defaultPosition: { colSpan: 3, rowSpan: 1 },
 		configSchema: [],
 		dataKind: 'websocket',
+	},
+
+	'quick-capture': {
+		id: 'quick-capture',
+		label: 'Quick Capture',
+		icon: '\u{270F}',
+		category: 'content',
+		component: () => import('./content/QuickCaptureWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 3 },
+		configSchema: [],
+		dataKind: 'none'
 	}
 };
 
