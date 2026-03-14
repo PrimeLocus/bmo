@@ -3,7 +3,8 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import * as schema from './schema.js';
 import { join } from 'path';
-import { mkdirSync } from 'fs';
+import { mkdirSync, readFileSync } from 'fs';
+import { createHash } from 'crypto';
 
 const DB_PATH = process.env.DB_PATH || join(process.cwd(), 'data', 'beau.db');
 
@@ -17,9 +18,51 @@ export const db = drizzle(sqlite, { schema });
 
 try {
   migrate(db, { migrationsFolder: join(process.cwd(), 'drizzle') });
-} catch (error) {
-  console.error('[db] Migration failed:', error);
-  throw error;
+} catch (error: unknown) {
+  const cause = (error as { cause?: { code?: string; message?: string } })?.cause;
+  if (cause?.code === 'SQLITE_ERROR' &&
+      (cause?.message?.includes('already exists') || cause?.message?.includes('duplicate column'))) {
+    console.warn('[db] Migration conflict — reconciling with existing schema');
+    reconcileMigrations();
+  } else {
+    console.error('[db] Migration failed:', error);
+    throw error;
+  }
+}
+
+/** Re-apply pending migrations tolerating "already exists" / "duplicate column" errors,
+ *  then record them in __drizzle_migrations so Drizzle won't retry. */
+function reconcileMigrations() {
+  const migrationsFolder = join(process.cwd(), 'drizzle');
+  const journal = JSON.parse(
+    readFileSync(join(migrationsFolder, 'meta', '_journal.json'), 'utf8')
+  );
+  const rows = sqlite.prepare('SELECT hash FROM "__drizzle_migrations"').all() as { hash: string }[];
+  const applied = new Set(rows.map((r) => r.hash));
+  for (const entry of journal.entries) {
+    const sql = readFileSync(join(migrationsFolder, `${entry.tag}.sql`), 'utf8');
+    const hash = createHash('sha256').update(sql).digest('hex');
+    if (applied.has(hash)) continue;
+    const statements = sql.split('--> statement-breakpoint');
+    for (const stmt of statements) {
+      const trimmed = stmt.trim();
+      if (!trimmed) continue;
+      try {
+        sqlite.prepare(trimmed).run();
+      } catch (err: unknown) {
+        const sqlErr = err as { code?: string; message?: string };
+        if (sqlErr.code === 'SQLITE_ERROR' &&
+            (sqlErr.message?.includes('already exists') || sqlErr.message?.includes('duplicate column'))) {
+          continue;
+        }
+        throw err;
+      }
+    }
+    sqlite.prepare(
+      'INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)'
+    ).run(hash, entry.when);
+    console.log(`[db] Reconciled migration: ${entry.tag}`);
+  }
 }
 
 // Additive column migrations — safe to run repeatedly
