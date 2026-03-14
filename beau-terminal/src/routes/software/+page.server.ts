@@ -3,6 +3,7 @@ import { softwarePhases, softwareSteps } from '$lib/server/db/schema.js';
 import { eq, asc } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types.js';
+import { logActivity } from '$lib/server/db/activity.js';
 
 export const load: PageServerLoad = async () => {
   const phases = db.select().from(softwarePhases).orderBy(asc(softwarePhases.order)).all();
@@ -27,7 +28,9 @@ export const actions: Actions = {
     const id = form.get('id') as string;
     const done = form.get('done') === 'true';
     if (!id) return fail(400, { error: 'missing id' });
+    const step = db.select().from(softwareSteps).where(eq(softwareSteps.id, id)).get();
     db.update(softwareSteps).set({ done: !done }).where(eq(softwareSteps.id, id)).run();
+    logActivity('step', id, !done ? 'completed' : 'updated', `${step?.text ?? 'step'} — ${!done ? 'done' : 'undone'}`);
     return { success: true };
   },
 };

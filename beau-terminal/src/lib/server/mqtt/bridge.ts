@@ -2,6 +2,7 @@ import mqtt from 'mqtt';
 import { desc, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { haikus, dispatches } from '../db/schema.js';
+import { logActivity } from '../db/activity.js';
 import { TOPICS, SUBSCRIBE_TOPICS } from './topics.js';
 import { environmentSnapshots, environmentEvents } from '../db/schema.js';
 import { PresenceMachine, parsePresenceMessage } from '../environment/presence.js';
@@ -295,6 +296,7 @@ export function connectMQTT() {
             haikuType: 'daily',
             wakeWord: state.wakeWord || null,
           }).run();
+          logActivity('haiku', null, 'created', 'New haiku written');
         } catch { /* non-fatal */ }
         break;
       case TOPICS.dispatcher.log:
