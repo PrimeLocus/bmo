@@ -5,40 +5,38 @@ export type NavItem = {
   id: string;        // route path, e.g. "/identity"
   label: string;     // display name
   icon: string;      // unicode icon
-  group: string;     // group heading (BEAU, CREATIVE, BUILD, SYSTEM)
+  group: string;     // group heading (TODAY, WORKSHOP, BEAU, SYSTEM)
   sortOrder: number; // within group
   hidden: boolean;   // user-hidden from sidebar
 };
 
 export type NavConfig = {
+  version?: number;          // migration version
   groups: string[];          // ordered group headings
   items: NavItem[];          // all nav items
   collapsedGroups?: string[]; // collapsed group names
 };
 
 export const DEFAULT_NAV_CONFIG: NavConfig = {
-  groups: ['BEAU', 'CREATIVE', 'BUILD', 'SYSTEM'],
-  items: [
-    // BEAU
-    { id: '/',         label: 'DASHBOARD', icon: '◈', group: 'BEAU',     sortOrder: 0, hidden: false },
-    { id: '/identity', label: 'IDENTITY',  icon: '◇', group: 'BEAU',     sortOrder: 1, hidden: false },
-    { id: '/presence', label: 'PRESENCE',  icon: '◉', group: 'BEAU',     sortOrder: 2, hidden: false },
-    { id: '/journal',  label: 'JOURNAL',   icon: '◬', group: 'BEAU',     sortOrder: 3, hidden: false },
-    // CREATIVE
-    { id: '/sessions',    label: 'SESSIONS',    icon: '▶', group: 'CREATIVE', sortOrder: 0, hidden: false },
-    { id: '/photography', label: 'PHOTOGRAPHY', icon: '◻', group: 'CREATIVE', sortOrder: 1, hidden: false },
-    { id: '/haikus',      label: 'HAIKUS',      icon: '✿', group: 'CREATIVE', sortOrder: 2, hidden: false },
-    // BUILD
-    { id: '/parts',    label: 'PARTS',    icon: '⬡', group: 'BUILD', sortOrder: 0, hidden: false },
-    { id: '/software', label: 'SOFTWARE', icon: '◉', group: 'BUILD', sortOrder: 1, hidden: false },
-    { id: '/ideas',    label: 'IDEAS',    icon: '✦', group: 'BUILD', sortOrder: 2, hidden: false },
-    { id: '/todo',     label: 'TODO',     icon: '◫', group: 'BUILD', sortOrder: 3, hidden: false },
-    // SYSTEM
-    { id: '/memory',   label: 'MEMORY',   icon: '◎', group: 'SYSTEM', sortOrder: 0, hidden: false },
-    { id: '/prompt',   label: 'PROMPT',   icon: '≋', group: 'SYSTEM', sortOrder: 1, hidden: false },
-    { id: '/settings', label: 'SETTINGS', icon: '⚙', group: 'SYSTEM', sortOrder: 2, hidden: false },
-  ],
+  version: 1,
+  groups: ['TODAY', 'WORKSHOP', 'BEAU', 'SYSTEM'],
   collapsedGroups: ['SYSTEM'],
+  items: [
+    { id: '/',            label: 'TODAY',       icon: '◈', group: 'TODAY',    sortOrder: 0, hidden: false },
+    { id: '/parts',       label: 'PARTS',       icon: '⬡', group: 'WORKSHOP', sortOrder: 0, hidden: false },
+    { id: '/software',    label: 'SOFTWARE',    icon: '◉', group: 'WORKSHOP', sortOrder: 1, hidden: false },
+    { id: '/ideas',       label: 'IDEAS',       icon: '✦', group: 'WORKSHOP', sortOrder: 2, hidden: false },
+    { id: '/todo',        label: 'TASKS',       icon: '◫', group: 'WORKSHOP', sortOrder: 3, hidden: false },
+    { id: '/sessions',    label: 'SESSIONS',    icon: '▶', group: 'WORKSHOP', sortOrder: 4, hidden: false },
+    { id: '/photography', label: 'PHOTOGRAPHY', icon: '◻', group: 'WORKSHOP', sortOrder: 5, hidden: false },
+    { id: '/haikus',      label: 'HAIKUS',      icon: '✿', group: 'WORKSHOP', sortOrder: 6, hidden: false },
+    { id: '/identity',    label: 'IDENTITY',    icon: '◇', group: 'BEAU',     sortOrder: 0, hidden: false },
+    { id: '/journal',     label: 'JOURNAL',     icon: '◬', group: 'BEAU',     sortOrder: 1, hidden: false },
+    { id: '/memory',      label: 'MEMORY',      icon: '◎', group: 'BEAU',     sortOrder: 2, hidden: false },
+    { id: '/presence',    label: 'PRESENCE',    icon: '◉', group: 'BEAU',     sortOrder: 3, hidden: false },
+    { id: '/prompt',      label: 'PROMPT',      icon: '≋', group: 'SYSTEM',   sortOrder: 0, hidden: false },
+    { id: '/settings',    label: 'SETTINGS',    icon: '⚙', group: 'SYSTEM',   sortOrder: 1, hidden: false },
+  ],
 };
 
 const LS_KEY = 'bmo-nav-config';
@@ -110,6 +108,48 @@ function persist(config: NavConfig) {
   scheduleSQLiteSync(config);
 }
 
+function migrateNavConfig(config: NavConfig): NavConfig {
+  if (config.version && config.version >= 1) return config;
+
+  // Check if user customized (added/removed/renamed items beyond defaults)
+  const oldDefaultIds = ['/', '/identity', '/presence', '/journal', '/sessions',
+    '/photography', '/haikus', '/parts', '/software', '/ideas', '/todo',
+    '/memory', '/prompt', '/settings'];
+  const hasCustomItems = config.items.some(item => !oldDefaultIds.includes(item.id));
+
+  if (!hasCustomItems) {
+    // No customizations — replace entirely
+    return { ...DEFAULT_NAV_CONFIG };
+  }
+
+  // Preserve customizations but remap groups
+  const groupMap: Record<string, string> = {
+    'CREATIVE': 'WORKSHOP',
+    'BUILD': 'WORKSHOP',
+  };
+  const itemGroupMap: Record<string, string> = {
+    '/': 'TODAY',
+    '/memory': 'BEAU',
+  };
+  const labelMap: Record<string, string> = {
+    'DASHBOARD': 'TODAY',
+    'TODO': 'TASKS',
+  };
+
+  const migratedItems = config.items.map(item => ({
+    ...item,
+    group: itemGroupMap[item.id] ?? groupMap[item.group] ?? item.group,
+    label: labelMap[item.label] ?? item.label,
+  }));
+
+  return {
+    version: 1,
+    groups: ['TODAY', 'WORKSHOP', 'BEAU', 'SYSTEM'],
+    collapsedGroups: config.collapsedGroups ?? ['SYSTEM'],
+    items: migratedItems,
+  };
+}
+
 /** Synchronous read — returns current config from memory or localStorage. */
 export function getNavConfig(): NavConfig {
   return _config;
@@ -120,8 +160,12 @@ export async function loadNavConfig(): Promise<NavConfig> {
   // Try localStorage first
   const ls = readLS();
   if (ls) {
-    _config = ls;
-    return ls;
+    const migrated = migrateNavConfig(ls);
+    if (migrated !== ls) {
+      saveNavConfig(migrated); // Persist the migration
+    }
+    _config = migrated;
+    return migrated;
   }
   // SQLite fallback
   if (typeof fetch !== 'undefined') {
@@ -130,9 +174,13 @@ export async function loadNavConfig(): Promise<NavConfig> {
       if (res.ok) {
         const data = await res.json();
         if (isValidNavConfig(data)) {
-          _config = data;
-          writeLS(data);
-          return data;
+          const migrated = migrateNavConfig(data);
+          if (migrated !== data) {
+            saveNavConfig(migrated); // Persist the migration
+          }
+          _config = migrated;
+          writeLS(migrated);
+          return migrated;
         }
       }
     } catch {/* use default */}
