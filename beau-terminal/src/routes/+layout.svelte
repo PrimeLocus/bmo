@@ -40,6 +40,7 @@
   }
 
   onMount(() => {
+    (window as any).__BMO_READY = true;
     applyCurrentSettings();
     connectBeauWS();
     return () => disconnectBeauWS();
