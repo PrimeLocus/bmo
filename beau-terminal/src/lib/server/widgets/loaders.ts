@@ -52,9 +52,13 @@ export async function loadWidgetData(
     }
     case 'build-stats': {
       const parts = db.select().from(schema.parts).all();
-      const phases = db.select().from(schema.softwarePhases).all();
       const steps = db.select().from(schema.softwareSteps).all();
-      return { parts, phases, steps };
+      return {
+        partsCount: parts.length,
+        totalCost: parts.reduce((sum, p) => sum + p.price, 0),
+        doneSteps: steps.filter(s => s.done).length,
+        totalSteps: steps.length
+      };
     }
     case 'parts-tracker': {
       return db.select().from(schema.parts).all();
