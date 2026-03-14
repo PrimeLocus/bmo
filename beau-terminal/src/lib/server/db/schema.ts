@@ -269,3 +269,23 @@ export const customPages = sqliteTable('custom_pages', {
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
+
+// ─── Quick Capture (Phase 2) ───────────────────────────────────────────────────
+
+export const captures = sqliteTable('captures', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  text: text('text').notNull(),
+  type: text('type').notNull().default('note'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+});
+
+// ─── Activity Log (Phase 2) ───────────────────────────────────────────────────
+
+export const activityLog = sqliteTable('activity_log', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id'),              // text to match text PKs on ideas/steps tables
+  action: text('action').notNull(),
+  summary: text('summary').notNull(),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+});
