@@ -15,10 +15,10 @@
     renameGroup,
     removeGroup,
     reorderGroup,
+    toggleGroupCollapse,
+    isGroupCollapsed,
     type NavItem,
   } from '$lib/stores/navConfig.svelte.js';
-
-  let collapsed: Record<string, boolean> = $state({});
 
   onMount(() => {
     loadNavConfig();
@@ -52,7 +52,7 @@
   let cpIcon = $state('📄');
 
   function toggle(heading: string) {
-    collapsed[heading] = !collapsed[heading];
+    toggleGroupCollapse(heading);
   }
 
   function itemsInGroup(group: string): NavItem[] {
@@ -204,7 +204,7 @@
                     class="flex-1 text-left cursor-pointer transition-colors hover:opacity-80"
                     style="background: none; border: none; color: inherit; font-family: inherit; font-size: inherit">
               <span class="tracking-widest">{group}</span>
-              <span class="text-xs transition-transform" style="transform: rotate({collapsed[group] ? '-90deg' : '0deg'})">▾</span>
+              <span class="text-xs transition-transform" style="transform: rotate({isGroupCollapsed(group) ? '-90deg' : '0deg'})">▾</span>
             </button>
             {#if editing}
               <div class="flex items-center gap-0.5 shrink-0">
@@ -226,7 +226,7 @@
             {/if}
           </div>
         {/if}
-        {#if !collapsed[group]}
+        {#if !isGroupCollapsed(group)}
           {#each itemsInGroup(group) as item (item.id)}
             {@const active = page.url.pathname === item.id}
             {#if !editing && item.hidden}

@@ -11,8 +11,9 @@ export type NavItem = {
 };
 
 export type NavConfig = {
-  groups: string[];   // ordered group headings
-  items: NavItem[];   // all nav items
+  groups: string[];          // ordered group headings
+  items: NavItem[];          // all nav items
+  collapsedGroups?: string[]; // collapsed group names
 };
 
 export const DEFAULT_NAV_CONFIG: NavConfig = {
@@ -37,6 +38,7 @@ export const DEFAULT_NAV_CONFIG: NavConfig = {
     { id: '/prompt',   label: 'PROMPT',   icon: '≋', group: 'SYSTEM', sortOrder: 1, hidden: false },
     { id: '/settings', label: 'SETTINGS', icon: '⚙', group: 'SYSTEM', sortOrder: 2, hidden: false },
   ],
+  collapsedGroups: ['SYSTEM'],
 };
 
 const LS_KEY = 'bmo-nav-config';
@@ -239,4 +241,18 @@ export function removeGroup(name: string) {
     if (item.group === name) item.group = fallback;
   }
   persist(updated);
+}
+
+export function toggleGroupCollapse(group: string) {
+  const config = getNavConfig();
+  const collapsed = config.collapsedGroups ?? [];
+  const updated = collapsed.includes(group)
+    ? collapsed.filter(g => g !== group)
+    : [...collapsed, group];
+  saveNavConfig({ ...config, collapsedGroups: updated });
+}
+
+export function isGroupCollapsed(group: string): boolean {
+  const config = getNavConfig();
+  return (config.collapsedGroups ?? []).includes(group);
 }
