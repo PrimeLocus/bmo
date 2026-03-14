@@ -102,6 +102,11 @@ export async function loadWidgetData(
         .sort((a, b) => (a.expectedDelivery ?? '').localeCompare(b.expectedDelivery ?? ''))
         .map(p => ({ name: p.name, status: p.status, expectedDelivery: p.expectedDelivery }));
     }
+    case 'integrations-status': {
+      return db.select().from(schema.integrations)
+        .orderBy(asc(schema.integrations.sortOrder)).all()
+        .map(i => ({ name: i.name, icon: i.icon, status: i.status }));
+    }
     case 'recent-activity': {
       const limit = typeof config?.limit === 'number' ? config.limit : 10;
       return db.select().from(schema.activityLog)

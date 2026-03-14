@@ -395,6 +395,17 @@ const REGISTRY: Record<string, WidgetMeta> = {
 
 	// ── System ─────────────────────────────────────────────────────────────
 
+	'integrations-status': {
+		id: 'integrations-status',
+		label: 'Integrations Status',
+		icon: '\u26A1',
+		category: 'system',
+		component: () => import('./terminal/IntegrationsStatusWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 3 },
+		configSchema: [],
+		dataKind: 'database'
+	},
+
 	'beau-vitals': {
 		id: 'beau-vitals',
 		label: 'Beau Vitals',
