@@ -342,7 +342,7 @@ For quick capture "note" type only. Ideas and tasks route to their existing tabl
 export const activityLog = sqliteTable('activity_log', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   entityType: text('entity_type').notNull(),   // 'part' | 'step' | 'idea' | 'task' | 'haiku' | 'journal' | 'capture'
-  entityId: integer('entity_id'),
+  entityId: text('entity_id'),              // text — ideas and softwareSteps use text PKs
   action: text('action').notNull(),            // 'created' | 'updated' | 'completed' | 'deleted'
   summary: text('summary').notNull(),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
@@ -358,8 +358,14 @@ The `activity_log` table must be populated for the `RecentActivityWidget` to be 
 **Helper function** (in `src/lib/server/db/index.ts` or a new `src/lib/server/db/activity.ts`):
 
 ```typescript
-export function logActivity(entityType: string, entityId: number, action: string, summary: string) {
-  db.insert(activityLog).values({ entityType, entityId, action, summary }).run();
+export function logActivity(
+  entityType: string,
+  entityId: string | number | null,
+  action: string,
+  summary: string
+) {
+  const id = entityId != null ? String(entityId) : null;
+  db.insert(activityLog).values({ entityType, entityId: id, action, summary }).run();
 }
 ```
 
@@ -401,9 +407,9 @@ Update `src/routes/+page.server.ts` to load:
 export const entityLinks = sqliteTable('entity_links', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   sourceType: text('source_type').notNull(),   // 'part' | 'step' | 'idea' | 'task' | 'session'
-  sourceId: integer('source_id').notNull(),
+  sourceId: text('source_id').notNull(),     // text — ideas and softwareSteps use text PKs
   targetType: text('target_type').notNull(),
-  targetId: integer('target_id').notNull(),
+  targetId: text('target_id').notNull(),     // text — same reason
   relationship: text('relationship').notNull(), // 'blocks' | 'relates-to' | 'inspired-by' | 'used-in'
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
