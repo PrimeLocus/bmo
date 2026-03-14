@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { beauState } from '$lib/stores/beau.svelte.js';
   import PanelCanvas from '$lib/components/PanelCanvas.svelte';
   import Panel from '$lib/components/Panel.svelte';
@@ -12,6 +13,11 @@
   import type { PageData } from './$types.js';
 
   let { data }: { data: PageData } = $props();
+
+  let onboarded = $state(true);  // default true to avoid flash during SSR
+  onMount(() => {
+    onboarded = localStorage.getItem('bmo-onboarded') === 'true';
+  });
 
   let greeting = $derived.by(() => {
     if (beauState.sleepState === 'asleep') return 'beau is resting. the build continues.';
@@ -75,6 +81,17 @@
     style="background: var(--bmo-green); color: var(--bmo-bg); border: none; padding: 0.25rem 0.75rem; cursor: pointer; font-family: inherit; font-size: 0.75rem; letter-spacing: 2px; font-weight: bold;"
   >+</button>
 </div>
+
+<!-- First-run onboarding hint -->
+{#if !onboarded}
+  <div style="padding: 0.75rem 1.5rem; color: var(--bmo-muted); font-family: 'Courier New', monospace; font-size: 0.8rem; border-bottom: 1px solid var(--bmo-border); display: flex; justify-content: space-between; align-items: center;">
+    <span>tip: press Ctrl+E to customize panels, add widgets, and build custom pages.</span>
+    <button onclick={() => { localStorage.setItem('bmo-onboarded', 'true'); onboarded = true; }}
+      style="color: var(--bmo-green); background: none; border: 1px solid var(--bmo-green); padding: 0.15rem 0.5rem; cursor: pointer; font-family: inherit; font-size: 0.75rem; letter-spacing: 2px;">
+      got it
+    </button>
+  </div>
+{/if}
 
 <!-- Panel grid -->
 <PanelCanvas pageId="/">

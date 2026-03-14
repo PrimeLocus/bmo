@@ -42,6 +42,7 @@
   <!-- Edit mode toggle -->
   <button
     onclick={toggleEditMode}
+    title="Toggle edit mode (Ctrl+E) — drag panels, resize, add widgets"
     class="ml-auto text-xs tracking-widest px-3 py-1 border transition-all hover:opacity-80"
     style="
       border-color: {editModeState.active ? 'var(--bmo-green)' : 'var(--bmo-border)'};
