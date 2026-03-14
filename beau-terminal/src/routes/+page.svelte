@@ -4,6 +4,7 @@
   import PanelCanvas from '$lib/components/PanelCanvas.svelte';
   import Panel from '$lib/components/Panel.svelte';
   import BmoFace from '$lib/components/BmoFace.svelte';
+  import SpeechBubble from '$lib/components/SpeechBubble.svelte';
   import WorkshopProgressWidget from '$lib/widgets/terminal/WorkshopProgressWidget.svelte';
   import BlockedWaitingWidget from '$lib/widgets/terminal/BlockedWaitingWidget.svelte';
   import RecentActivityWidget from '$lib/widgets/terminal/RecentActivityWidget.svelte';
@@ -15,8 +16,48 @@
   let { data }: { data: PageData } = $props();
 
   let onboarded = $state(true);  // default true to avoid flash during SSR
+  let bubbleMessage = $state<string | null>(null);
+
   onMount(() => {
     onboarded = localStorage.getItem('bmo-onboarded') === 'true';
+
+    const lastVisit = localStorage.getItem('bmo-last-visit');
+
+    if (lastVisit && data.recentActivity) {
+      // Check for long idle (>4h)
+      const idleHours = (Date.now() - new Date(lastVisit).getTime()) / (1000 * 60 * 60);
+      if (idleHours > 4) {
+        bubbleMessage = 'welcome back.';
+      } else {
+        const newEvents = data.recentActivity.filter(e => e.createdAt > lastVisit);
+        if (newEvents.length > 0) {
+          const delivered = newEvents.find(e => e.entityType === 'part' && e.action === 'updated');
+          const step = newEvents.find(e => e.entityType === 'step' && e.action === 'completed');
+          const haiku = newEvents.find(e => e.entityType === 'haiku');
+          if (delivered) bubbleMessage = 'a package arrived.';
+          else if (step) bubbleMessage = 'one more step done.';
+          else if (haiku) bubbleMessage = 'wrote something.';
+          else bubbleMessage = `${newEvents.length} thing${newEvents.length > 1 ? 's' : ''} happened.`;
+        }
+      }
+    }
+
+    // Write last-visit on page hide
+    const handleVisibility = () => {
+      if (document.hidden) {
+        localStorage.setItem('bmo-last-visit', new Date().toISOString());
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  });
+
+  let wasOffline = $state(!beauState.online);
+  $effect(() => {
+    if (wasOffline && beauState.online) {
+      bubbleMessage = 'good morning.';
+    }
+    wasOffline = !beauState.online;
   });
 
   let isDesktop = $state(true);
@@ -65,7 +106,12 @@
 <div style="display: flex; align-items: center; gap: 1.5rem; padding: 1rem 1.5rem; background: var(--bmo-surface); border-bottom: 1px solid var(--bmo-border);">
   <BmoFace size="standard" />
   <div>
-    <div style="color: var(--bmo-text); font-family: 'Courier New', monospace; font-size: 1rem;">{greeting}</div>
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+      <div style="color: var(--bmo-text); font-family: 'Courier New', monospace; font-size: 1rem;">{greeting}</div>
+      {#if bubbleMessage}
+        <SpeechBubble message={bubbleMessage} />
+      {/if}
+    </div>
     <div style="color: var(--bmo-muted); font-family: 'Courier New', monospace; font-size: 0.75rem; letter-spacing: 2px; margin-top: 0.25rem; text-transform: uppercase;">
       {beauState.mode ?? '—'} · {beauState.emotionalState ?? '—'}
     </div>
