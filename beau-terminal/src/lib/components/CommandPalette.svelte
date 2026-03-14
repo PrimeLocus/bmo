@@ -132,7 +132,7 @@
   }
 
   // Scroll selected item into view
-  let listEl: HTMLUListElement;
+  let listEl: HTMLUListElement = $state() as HTMLUListElement;
   function scrollSelectedIntoView() {
     // Run after the DOM update
     setTimeout(() => {
@@ -142,7 +142,7 @@
   }
 
   // Auto-focus and reset on open
-  let inputEl: HTMLInputElement;
+  let inputEl: HTMLInputElement = $state() as HTMLInputElement;
   $effect(() => {
     if (open) {
       query = '';
@@ -220,6 +220,7 @@
               aria-selected={selectedIndex === item.globalIndex}
               onmouseenter={() => { selectedIndex = item.globalIndex; }}
               onclick={() => handleSelect(item)}
+              onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') handleSelect(item); }}
             >
               <span class="palette-item-icon" aria-hidden="true">
                 {TYPE_ICONS[item.type] ?? '◦'}
