@@ -289,3 +289,59 @@ try {
     updated_at INTEGER NOT NULL
   )`).run();
 } catch { /* already exists */ }
+
+// Phase 2 — quick capture
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS captures (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'note',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`).run();
+} catch { /* already exists */ }
+
+// Phase 2 — activity log
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS activity_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT,
+    action TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`).run();
+} catch { /* already exists */ }
+
+// Phase 3 — entity links
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS entity_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_type TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    relationship TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`).run();
+} catch { /* already exists */ }
+
+// Phase 3 — integrations
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS integrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    icon TEXT NOT NULL DEFAULT '⚡',
+    type TEXT NOT NULL DEFAULT 'custom',
+    endpoint TEXT,
+    health_check TEXT DEFAULT 'none',
+    status TEXT NOT NULL DEFAULT 'unknown',
+    last_seen TEXT,
+    notes TEXT,
+    config TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`).run();
+} catch { /* already exists */ }
+
+// Phase 3 — entity_links unique index
+try { sqlite.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_entity_links_unique ON entity_links(source_type, source_id, target_type, target_id, relationship)").run(); } catch { /* already exists */ }
