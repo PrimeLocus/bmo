@@ -75,6 +75,10 @@
     savePageLayout(pageId, { ...currentLayout, panels: compact(rest) });
   }
 
+  function handleApplyTemplate(templatePanels: Record<string, unknown>) {
+    savePageLayout(pageId, { panels: templatePanels });
+  }
+
   function openConfig(panelId: string) {
     const pos = layout?.panels[panelId];
     if (!pos?.widgetId) return;
@@ -157,6 +161,7 @@
   <WidgetDrawer
     onAdd={handleAddWidget}
     onClose={() => showWidgetDrawer = false}
+    onApplyTemplate={handleApplyTemplate}
     {widgetCount}
   />
 {/if}

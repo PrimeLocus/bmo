@@ -1,15 +1,18 @@
 <script lang="ts">
 	import { WIDGET_CATEGORIES, getWidgetsByCategory } from './registry.js';
 	import type { WidgetMeta } from './registry.js';
+	import { PAGE_TEMPLATES, instantiateTemplate } from './templates.js';
 
 	let {
 		onAdd,
 		onClose,
+		onApplyTemplate,
 		widgetCount,
 		maxWidgets = 24
 	}: {
 		onAdd: (widgetId: string) => void;
 		onClose: () => void;
+		onApplyTemplate?: (panels: Record<string, unknown>) => void;
 		widgetCount: number;
 		maxWidgets?: number;
 	} = $props();
@@ -23,6 +26,14 @@
 			widgets: getWidgetsByCategory(cat.id)
 		})).filter((g) => g.widgets.length > 0)
 	);
+
+	function applyTemplate(key: string) {
+		const template = PAGE_TEMPLATES[key];
+		if (!template || !onApplyTemplate) return;
+		if (!confirm(`Replace current layout with "${template.label}"?`)) return;
+		onApplyTemplate(instantiateTemplate(template));
+		onClose();
+	}
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -43,6 +54,25 @@
 
 	<!-- Widget list -->
 	<div class="list">
+		{#if onApplyTemplate}
+			<!-- Templates section -->
+			<div class="category">
+				<div class="category-heading">TEMPLATES</div>
+				{#each Object.entries(PAGE_TEMPLATES) as [key, template]}
+					<button
+						class="template-btn"
+						onclick={() => applyTemplate(key)}
+					>
+						<span class="template-icon">{template.icon}</span>
+						<div class="template-content">
+							<div class="template-label">{template.label}</div>
+							<div class="template-description">{template.description}</div>
+						</div>
+					</button>
+				{/each}
+			</div>
+		{/if}
+
 		{#each groups as group (group.id)}
 			<div class="category">
 				<div class="category-heading">{group.label}</div>
@@ -184,5 +214,53 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	.template-btn {
+		display: flex;
+		align-items: flex-start;
+		gap: 10px;
+		width: 100%;
+		padding: 8px 16px;
+		background: none;
+		border: none;
+		color: var(--bmo-text);
+		font-family: 'Courier New', monospace;
+		font-size: 11px;
+		text-align: left;
+		cursor: pointer;
+		transition: background 0.12s;
+	}
+
+	.template-btn:hover {
+		background: rgba(0, 229, 160, 0.06);
+	}
+
+	.template-icon {
+		font-size: 14px;
+		width: 20px;
+		text-align: center;
+		flex-shrink: 0;
+		margin-top: 2px;
+	}
+
+	.template-content {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.template-label {
+		color: var(--bmo-text);
+		font-size: 11px;
+		font-weight: 500;
+		margin-bottom: 2px;
+	}
+
+	.template-description {
+		color: var(--bmo-muted);
+		font-size: 9px;
+		line-height: 1.2;
+		white-space: normal;
+		word-break: break-word;
 	}
 </style>
