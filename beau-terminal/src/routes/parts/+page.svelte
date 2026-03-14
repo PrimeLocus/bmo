@@ -107,6 +107,8 @@
   function isUrl(val: string) {
     return val.startsWith('http://') || val.startsWith('https://');
   }
+
+  const inTransit = $derived(data.parts.some(p => p.status === 'ordered' || p.status === 'shipped'));
 </script>
 
 <div class="w-full">
@@ -443,6 +445,13 @@
       </div>
     </div>
   </div>
+
+  <!-- Empty state when nothing in transit -->
+  {#if !inTransit}
+    <div style="padding: 2rem; text-align: center">
+      <p class="text-sm" style="color: var(--bmo-muted)">nothing in transit. the workshop is quiet.</p>
+    </div>
+  {/if}
 
   <!-- ── MOBILE CARDS (< md) ────────────────────────────── -->
   <div class="md:hidden space-y-2">

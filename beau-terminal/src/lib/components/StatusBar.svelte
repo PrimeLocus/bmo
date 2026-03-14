@@ -9,7 +9,7 @@
     <div class="w-2 h-2 rounded-full"
          style="background: {beauState.online ? 'var(--bmo-green)' : '#636e72'}"></div>
     <span style="color: var(--bmo-muted); letter-spacing: 2px">
-      {beauState.online ? 'ONLINE' : 'OFFLINE'}
+      {beauState.online ? 'AWAKE' : 'SLEEPING'}
     </span>
   </div>
 

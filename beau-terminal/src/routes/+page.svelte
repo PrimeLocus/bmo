@@ -30,6 +30,9 @@
 
   let greeting = $derived.by(() => {
     if (beauState.sleepState === 'asleep') return 'beau is resting. the build continues.';
+    if (beauState.mode === 'witness') return 'watching closely.';
+    if (beauState.mode === 'collaborator') return "let's build something.";
+    if (beauState.mode === 'archivist') return 'recording.';
     const hour = new Date().getHours();
     if (hour < 12) return "good morning. here's where things stand.";
     if (hour < 18) return 'afternoon check-in.';

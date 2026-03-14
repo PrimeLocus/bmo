@@ -254,6 +254,8 @@
 
   {#if totalCount === 0}
     <p class="text-sm" style="color: var(--bmo-muted)">no tasks yet — add one above</p>
+  {:else if doneCount === totalCount}
+    <p class="text-sm" style="color: var(--bmo-muted)">clear board. nice work.</p>
   {/if}
 
   </Panel>
