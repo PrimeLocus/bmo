@@ -3,6 +3,7 @@ import { ideas } from '$lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types.js';
+import { logActivity } from '$lib/server/db/activity.js';
 
 export const load: PageServerLoad = async () => {
   return {
@@ -19,7 +20,9 @@ export const actions: Actions = {
     const id = form.get('id') as string;
     const done = form.get('done') === 'true';
     if (!id) return fail(400, { error: 'missing id' });
+    const idea = db.select().from(ideas).where(eq(ideas.id, id)).get();
     db.update(ideas).set({ done: !done }).where(eq(ideas.id, id)).run();
+    logActivity('idea', id, !done ? 'completed' : 'updated', `${idea?.text?.substring(0, 60) ?? 'idea'} — ${!done ? 'done' : 'undone'}`);
     return { success: true };
   },
 
@@ -30,6 +33,7 @@ export const actions: Actions = {
     if (!text) return fail(400, { error: 'text required' });
     const id = crypto.randomUUID();
     db.insert(ideas).values({ id, text, priority, done: false }).run();
+    logActivity('idea', id, 'created', 'New idea: ' + text.substring(0, 60));
     return { success: true };
   },
 
@@ -48,7 +52,9 @@ export const actions: Actions = {
     const form = await request.formData();
     const id = form.get('id') as string;
     if (!id) return fail(400, { error: 'missing id' });
+    const idea = db.select().from(ideas).where(eq(ideas.id, id)).get();
     db.delete(ideas).where(eq(ideas.id, id)).run();
+    logActivity('idea', id, 'deleted', 'Deleted idea: ' + (idea?.text?.substring(0, 60) ?? 'unknown'));
     return { success: true };
   },
 };

@@ -9,7 +9,7 @@
     <div class="w-2 h-2 rounded-full"
          style="background: {beauState.online ? 'var(--bmo-green)' : '#636e72'}"></div>
     <span style="color: var(--bmo-muted); letter-spacing: 2px">
-      {beauState.online ? 'ONLINE' : 'OFFLINE'}
+      {beauState.online ? 'AWAKE' : 'SLEEPING'}
     </span>
   </div>
 
@@ -42,6 +42,7 @@
   <!-- Edit mode toggle -->
   <button
     onclick={toggleEditMode}
+    title="Toggle edit mode (Ctrl+E) — drag panels, resize, add widgets"
     class="ml-auto text-xs tracking-widest px-3 py-1 border transition-all hover:opacity-80"
     style="
       border-color: {editModeState.active ? 'var(--bmo-green)' : 'var(--bmo-border)'};

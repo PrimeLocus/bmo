@@ -2,19 +2,15 @@
 	let { config, data }: { config: Record<string, unknown>; data?: unknown } = $props();
 
 	type NatalProfile = {
-		id: number;
-		createdAt: string;
+		locationName: string;
 		birthTimestamp: string;
 		timezone: string;
-		locationName: string;
+		summaryText: string | null;
 		latitude: number;
 		longitude: number;
-		westernChartJson: string | null;
-		vedicChartJson: string | null;
-		vargaChartJson: string | null;
-		summaryText: string | null;
-		isActive: boolean;
 		version: number;
+		// Chart visualization fields (westernChartJson, vedicChartJson, vargaChartJson)
+		// exist in DB schema but are not rendered by this widget — deferred to future phase
 	};
 
 	let natal = $derived(data as NatalProfile | null | undefined);

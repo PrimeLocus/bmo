@@ -3,6 +3,7 @@ import { parts } from '$lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types.js';
+import { logActivity } from '$lib/server/db/activity.js';
 
 export const load: PageServerLoad = async () => {
   return { parts: db.select().from(parts).orderBy(parts.id).all() };
@@ -92,6 +93,8 @@ export const actions: Actions = {
       })
       .where(eq(parts.id, id))
       .run();
+    const part = db.select().from(parts).where(eq(parts.id, id)).get();
+    logActivity('part', id, 'updated', `${part?.name ?? 'unknown'} → ${status}`);
     return { success: true };
   },
 

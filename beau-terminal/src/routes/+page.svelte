@@ -1,178 +1,197 @@
 <script lang="ts">
-  import { beauState, MODE_LABELS, EMOTION_LABELS } from '$lib/stores/beau.svelte.js';
+  import { onMount } from 'svelte';
+  import { beauState } from '$lib/stores/beau.svelte.js';
   import PanelCanvas from '$lib/components/PanelCanvas.svelte';
   import Panel from '$lib/components/Panel.svelte';
+  import BmoFace from '$lib/components/BmoFace.svelte';
+  import SpeechBubble from '$lib/components/SpeechBubble.svelte';
+  import WorkshopProgressWidget from '$lib/widgets/terminal/WorkshopProgressWidget.svelte';
+  import BlockedWaitingWidget from '$lib/widgets/terminal/BlockedWaitingWidget.svelte';
+  import RecentActivityWidget from '$lib/widgets/terminal/RecentActivityWidget.svelte';
+  import BeauVitalsWidget from '$lib/widgets/terminal/BeauVitalsWidget.svelte';
+  import NextStepsWidget from '$lib/widgets/terminal/NextStepsWidget.svelte';
+  import LastHaikuWidget from '$lib/widgets/terminal/LastHaikuWidget.svelte';
   import type { PageData } from './$types.js';
 
-  const { data }: { data: PageData } = $props();
+  let { data }: { data: PageData } = $props();
 
-  const pct = $derived(
-    data.totalSteps > 0 ? Math.round((data.doneSteps / data.totalSteps) * 100) : 0
-  );
+  let onboarded = $state(true);  // default true to avoid flash during SSR
+  let bubbleMessage = $state<string | null>(null);
+
+  onMount(() => {
+    onboarded = localStorage.getItem('bmo-onboarded') === 'true';
+
+    const lastVisit = localStorage.getItem('bmo-last-visit');
+
+    if (lastVisit && data.recentActivity) {
+      // Check for long idle (>4h)
+      const idleHours = (Date.now() - new Date(lastVisit).getTime()) / (1000 * 60 * 60);
+      if (idleHours > 4) {
+        bubbleMessage = 'welcome back.';
+      } else {
+        const newEvents = data.recentActivity.filter(e => e.createdAt > lastVisit);
+        if (newEvents.length > 0) {
+          const delivered = newEvents.find(e => e.entityType === 'part' && e.action === 'updated');
+          const step = newEvents.find(e => e.entityType === 'step' && e.action === 'completed');
+          const haiku = newEvents.find(e => e.entityType === 'haiku');
+          if (delivered) bubbleMessage = 'a package arrived.';
+          else if (step) bubbleMessage = 'one more step done.';
+          else if (haiku) bubbleMessage = 'wrote something.';
+          else bubbleMessage = `${newEvents.length} thing${newEvents.length > 1 ? 's' : ''} happened.`;
+        }
+      }
+    }
+
+    // Write last-visit on page hide
+    const handleVisibility = () => {
+      if (document.hidden) {
+        localStorage.setItem('bmo-last-visit', new Date().toISOString());
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  });
+
+  let wasOffline = $state(!beauState.online);
+  $effect(() => {
+    if (wasOffline && beauState.online) {
+      bubbleMessage = 'good morning.';
+    }
+    wasOffline = !beauState.online;
+  });
+
+  let isDesktop = $state(true);
+  $effect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    isDesktop = mq.matches;
+    const handler = (e: MediaQueryListEvent) => { isDesktop = e.matches; };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  });
+
+  let greeting = $derived.by(() => {
+    if (beauState.sleepState === 'asleep') return 'beau is resting. the build continues.';
+    if (beauState.mode === 'witness') return 'watching closely.';
+    if (beauState.mode === 'collaborator') return "let's build something.";
+    if (beauState.mode === 'archivist') return 'recording.';
+    const hour = new Date().getHours();
+    if (hour < 12) return "good morning. here's where things stand.";
+    if (hour < 18) return 'afternoon check-in.';
+    return "wrapping up. here's the day.";
+  });
+
+  let captureText = $state('');
+  let captureType = $state<'idea' | 'task' | 'note'>('idea');
+  let captureStatus = $state<'idle' | 'ok' | 'err'>('idle');
+
+  async function submitCapture() {
+    if (!captureText.trim()) return;
+    captureStatus = 'idle';
+    const res = await fetch('/api/capture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: captureText.trim(), type: captureType }),
+    });
+    if (res.ok) {
+      captureText = '';
+      captureStatus = 'ok';
+      setTimeout(() => { captureStatus = 'idle'; }, 1500);
+    } else {
+      captureStatus = 'err';
+    }
+  }
 </script>
 
-<div>
-  <!-- Header (outside panel system — not draggable) -->
-  <div class="mb-8 flex items-end justify-between">
-    <div>
-      <h1 class="text-2xl tracking-widest font-bold" style="color: var(--bmo-green)">BEAU'S TERMINAL</h1>
-      <p class="text-xs mt-1" style="color: var(--bmo-muted)">physical BMO build — lafayette, la</p>
+<!-- Hero strip -->
+<div style="display: flex; align-items: center; gap: 1.5rem; padding: 1rem 1.5rem; background: var(--bmo-surface); border-bottom: 1px solid var(--bmo-border);">
+  <BmoFace size="standard" />
+  <div>
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+      <div style="color: var(--bmo-text); font-family: 'Courier New', monospace; font-size: 1rem;">{greeting}</div>
+      {#if bubbleMessage}
+        <SpeechBubble message={bubbleMessage} />
+      {/if}
     </div>
-    <div class="flex items-center gap-2 text-xs" style="color: var(--bmo-muted)">
-      <div class="w-2 h-2 rounded-full transition-colors"
-           style="background: {beauState.online ? 'var(--bmo-green)' : '#636e72'}"></div>
-      <span>{beauState.online ? 'BEAU ONLINE' : 'BEAU OFFLINE'}</span>
+    <div style="color: var(--bmo-muted); font-family: 'Courier New', monospace; font-size: 0.75rem; letter-spacing: 2px; margin-top: 0.25rem; text-transform: uppercase;">
+      {beauState.mode ?? '—'} · {beauState.emotionalState ?? '—'}
     </div>
   </div>
+</div>
 
+<!-- Quick capture bar -->
+<div style="display: flex; gap: 0.5rem; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--bmo-border); font-family: 'Courier New', monospace;">
+  <select
+    bind:value={captureType}
+    style="background: var(--bmo-bg); color: var(--bmo-text); border: 1px solid var(--bmo-border); padding: 0.25rem 0.5rem; font-family: inherit; font-size: 0.75rem; letter-spacing: 1px; cursor: pointer;"
+  >
+    <option value="idea">IDEA</option>
+    <option value="task">TASK</option>
+    <option value="note">NOTE</option>
+  </select>
+  <input
+    bind:value={captureText}
+    placeholder="capture an idea, task, or note..."
+    onkeydown={(e) => { if (e.key === 'Enter') submitCapture(); }}
+    style="flex: 1; background: var(--bmo-bg); color: var(--bmo-text); border: 1px solid {captureStatus === 'err' ? '#d63031' : captureStatus === 'ok' ? 'var(--bmo-green)' : 'var(--bmo-border)'}; padding: 0.25rem 0.5rem; font-family: inherit; font-size: 0.75rem;"
+  />
+  <button
+    onclick={submitCapture}
+    style="background: var(--bmo-green); color: var(--bmo-bg); border: none; padding: 0.25rem 0.75rem; cursor: pointer; font-family: inherit; font-size: 0.75rem; letter-spacing: 2px; font-weight: bold;"
+  >+</button>
+</div>
+
+<!-- First-run onboarding hint -->
+{#if !onboarded}
+  <div style="padding: 0.75rem 1.5rem; color: var(--bmo-muted); font-family: 'Courier New', monospace; font-size: 0.8rem; border-bottom: 1px solid var(--bmo-border); display: flex; justify-content: space-between; align-items: center;">
+    <span>tip: press Ctrl+E to customize panels, add widgets, and build custom pages.</span>
+    <button onclick={() => { localStorage.setItem('bmo-onboarded', 'true'); onboarded = true; }}
+      style="color: var(--bmo-green); background: none; border: 1px solid var(--bmo-green); padding: 0.15rem 0.5rem; cursor: pointer; font-family: inherit; font-size: 0.75rem; letter-spacing: 2px;">
+      got it
+    </button>
+  </div>
+{/if}
+
+{#if isDesktop}
+  <!-- Panel grid -->
   <PanelCanvas pageId="/">
-    <!-- Identity: Soul Code -->
-    <Panel id="dashboard:soul-code" defaultPosition={{ col: 0, row: 0, colSpan: 6, rowSpan: 1 }}>
-      <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">SOUL CODE</div>
-      <div class="text-sm tracking-wider font-bold"
-           style="color: {data.soulCodeStatus === 'exists' ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
-        {data.soulCodeStatus === 'exists' ? 'WRITTEN' : 'AWAITING'}
-      </div>
+    <!-- Row 0–1: WORKSHOP PROGRESS (col 0, span 8) -->
+    <Panel id="today:workshop-progress" label="WORKSHOP PROGRESS" defaultPosition={{ col: 0, row: 0, colSpan: 8, rowSpan: 2 }}>
+      <WorkshopProgressWidget config={{}} data={data.workshopProgress} />
     </Panel>
 
-    <!-- Identity: Voice -->
-    <Panel id="dashboard:voice" defaultPosition={{ col: 6, row: 0, colSpan: 6, rowSpan: 1 }}>
-      <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">VOICE</div>
-      <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
-        {data.voiceModelVersion.toUpperCase()}
-      </div>
+    <!-- Row 0–1: BLOCKED / WAITING (col 8, span 4) -->
+    <Panel id="today:blocked-waiting" label="BLOCKED / WAITING" defaultPosition={{ col: 8, row: 0, colSpan: 4, rowSpan: 2 }}>
+      <BlockedWaitingWidget config={{}} data={data.blockedParts} />
     </Panel>
 
-    <!-- Environment: Sleep -->
-    <Panel id="dashboard:sleep" defaultPosition={{ col: 0, row: 1, colSpan: 6, rowSpan: 1 }}>
-      <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">SLEEP</div>
-      <div class="text-sm tracking-wider font-bold"
-           style="color: {beauState.sleepState === 'asleep' ? '#636e72' : 'var(--bmo-green)'}">
-        {beauState.sleepState.toUpperCase()}
-      </div>
+    <!-- Row 2–3: RECENT ACTIVITY (col 0, span 8) -->
+    <Panel id="today:recent-activity" label="RECENT ACTIVITY" defaultPosition={{ col: 0, row: 2, colSpan: 8, rowSpan: 2 }}>
+      <RecentActivityWidget config={{}} data={data.recentActivity} />
     </Panel>
 
-    <!-- Environment: Room -->
-    <Panel id="dashboard:room" defaultPosition={{ col: 6, row: 1, colSpan: 6, rowSpan: 1 }}>
-      <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">ROOM</div>
-      <div class="text-sm tracking-wider font-bold"
-           style="color: {beauState.presenceState === 'occupied' ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
-        {beauState.presenceState.toUpperCase()}
-      </div>
+    <!-- Row 2–3: BEAU VITALS (col 8, span 4) -->
+    <Panel id="today:beau-vitals" label="BEAU VITALS" defaultPosition={{ col: 8, row: 2, colSpan: 4, rowSpan: 2 }}>
+      <BeauVitalsWidget config={{}} />
     </Panel>
 
-    <!-- Environment: Weather -->
-    <Panel id="dashboard:weather" defaultPosition={{ col: 0, row: 2, colSpan: 6, rowSpan: 1 }}>
-      <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">WEATHER</div>
-      <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-text)">
-        {beauState.weatherSummary || '—'}
-      </div>
+    <!-- Row 4–5: NEXT STEPS (col 0, span 6) -->
+    <Panel id="today:next-steps" label="NEXT STEPS" defaultPosition={{ col: 0, row: 4, colSpan: 6, rowSpan: 2 }}>
+      <NextStepsWidget config={{}} data={data.nextSteps} />
     </Panel>
 
-    <!-- Environment: Resolume -->
-    <Panel id="dashboard:resolume" defaultPosition={{ col: 6, row: 2, colSpan: 6, rowSpan: 1 }}>
-      <div class="text-xs tracking-widest mb-1" style="color: var(--bmo-muted)">RESOLUME</div>
-      <div class="text-sm tracking-wider font-bold"
-           style="color: {beauState.resolumeActive ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
-        {beauState.resolumeActive ? 'LIVE' : 'INACTIVE'}
-      </div>
-      {#if beauState.resolumeActive && beauState.currentClip}
-        <div class="text-xs mt-1 truncate" style="color: var(--bmo-text)">
-          {beauState.currentClip} · {beauState.currentBpm ?? '—'} BPM
-        </div>
-      {/if}
-    </Panel>
-
-    <!-- Live State: Mode -->
-    <Panel id="dashboard:mode" defaultPosition={{ col: 0, row: 3, colSpan: 6, rowSpan: 1 }}>
-      <div class="text-xs mb-2 tracking-widest" style="color: var(--bmo-muted)">MODE</div>
-      <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
-        {(MODE_LABELS[beauState.mode] ?? beauState.mode).toUpperCase()}
-      </div>
-    </Panel>
-
-    <!-- Live State: Emotion -->
-    <Panel id="dashboard:emotion" defaultPosition={{ col: 6, row: 3, colSpan: 6, rowSpan: 1 }}>
-      <div class="text-xs mb-2 tracking-widest" style="color: var(--bmo-muted)">STATE</div>
-      <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
-        {(EMOTION_LABELS[beauState.emotionalState] ?? beauState.emotionalState).toUpperCase()}
-      </div>
-    </Panel>
-
-    <!-- Live State: Environment -->
-    <Panel id="dashboard:env" defaultPosition={{ col: 0, row: 4, colSpan: 6, rowSpan: 1 }}>
-      <div class="text-xs mb-2 tracking-widest" style="color: var(--bmo-muted)">ENVIRONMENT</div>
-      <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
-        {(beauState.environment || '—').toUpperCase()}
-      </div>
-    </Panel>
-
-    <!-- Live State: Camera -->
-    <Panel id="dashboard:camera" defaultPosition={{ col: 6, row: 4, colSpan: 6, rowSpan: 1 }}>
-      <div class="text-xs mb-2 tracking-widest" style="color: var(--bmo-muted)">CAMERA</div>
-      <div class="text-sm tracking-wider font-bold" style="color: var(--bmo-green)">
-        {beauState.cameraActive ? 'ACTIVE' : 'OFF'}
-      </div>
-    </Panel>
-
-    <!-- Last Haiku (full width) -->
-    {#if beauState.lastHaiku}
-      <Panel id="dashboard:haiku" defaultPosition={{ col: 0, row: 5, colSpan: 12, rowSpan: 2 }}>
-        <div class="text-xs tracking-widest mb-3" style="color: var(--bmo-muted)">LAST HAIKU</div>
-        <div class="text-sm leading-relaxed italic" style="color: var(--bmo-text)">
-          {#each beauState.lastHaiku.split('\n') as line}
-            <div>{line}</div>
-          {/each}
-        </div>
-      </Panel>
-    {/if}
-
-    <!-- Build Stats -->
-    <Panel id="dashboard:build-stats" defaultPosition={{ col: 0, row: 7, colSpan: 6, rowSpan: 2 }}>
-      <div class="text-xs tracking-widest mb-4" style="color: var(--bmo-muted)">BUILD STATS</div>
-      <div class="space-y-3">
-        <div class="flex justify-between text-xs">
-          <span style="color: var(--bmo-muted)">PARTS TRACKED</span>
-          <span style="color: var(--bmo-text)">{data.partsCount}</span>
-        </div>
-        <div class="flex justify-between text-xs">
-          <span style="color: var(--bmo-muted)">TOTAL COST</span>
-          <span style="color: var(--bmo-text)">${data.totalCost.toFixed(2)}</span>
-        </div>
-        <div class="flex justify-between text-xs">
-          <span style="color: var(--bmo-muted)">SOFTWARE STEPS</span>
-          <span style="color: var(--bmo-text)">{data.doneSteps} / {data.totalSteps}</span>
-        </div>
-        <div>
-          <div class="h-1 mt-1" style="background: var(--bmo-border); border-radius: 1px">
-            <div class="h-1 transition-all" style="width: {pct}%; background: var(--bmo-green); border-radius: 1px"></div>
-          </div>
-          <div class="text-xs mt-1" style="color: var(--bmo-muted)">{pct}% complete</div>
-        </div>
-      </div>
-    </Panel>
-
-    <!-- Dispatcher Log -->
-    <Panel id="dashboard:dispatcher" defaultPosition={{ col: 6, row: 7, colSpan: 6, rowSpan: 2 }}>
-      <div class="text-xs tracking-widest mb-4" style="color: var(--bmo-muted)">DISPATCHER LOG</div>
-      {#if beauState.dispatcherLog.length === 0}
-        <div class="text-xs" style="color: var(--bmo-muted)">no events yet</div>
-      {:else}
-        <div class="space-y-1">
-          {#each beauState.dispatcherLog.slice(-8).reverse() as entry}
-            <div class="text-xs py-1 border-b" style="color: var(--bmo-text); border-color: var(--bmo-border)">
-              &gt; {entry}
-            </div>
-          {/each}
-        </div>
-      {/if}
+    <!-- Row 4–5: LAST HAIKU (col 6, span 6) -->
+    <Panel id="today:last-haiku" label="LAST HAIKU" defaultPosition={{ col: 6, row: 4, colSpan: 6, rowSpan: 2 }}>
+      <LastHaikuWidget config={{}} />
     </Panel>
   </PanelCanvas>
-
-  <!-- Wake word (outside panel system) -->
-  {#if beauState.wakeWord}
-    <div class="mt-4 p-3 border text-xs" style="border-color: var(--bmo-border); color: var(--bmo-muted)">
-      LAST WAKE: <span style="color: var(--bmo-green)">{beauState.wakeWord}</span>
+{:else}
+  <!-- Mobile stack layout -->
+  <div class="flex flex-col gap-4 p-4">
+    <BeauVitalsWidget config={{}} />
+    <RecentActivityWidget config={{ limit: 5 }} data={data.recentActivity?.slice(0, 5)} />
+    <BlockedWaitingWidget config={{}} data={data.blockedParts} />
+    <div style="color: var(--bmo-muted); font-family: 'Courier New', monospace; font-size: 0.7rem; text-align: center; letter-spacing: 2px; padding-top: 1rem;">
+      panel editing available on desktop
     </div>
-  {/if}
-</div>
+  </div>
+{/if}

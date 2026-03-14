@@ -31,6 +31,7 @@
   // Widget drawer state
   let showWidgetDrawer = $state(false);
   let widgetCount = $derived(widgetPanels().length);
+  const existingWidgetIds = $derived(widgetPanels().map((wp) => wp.widgetId));
 
   // Config modal state
   let configPanelId = $state<string | null>(null);
@@ -75,6 +76,10 @@
     savePageLayout(pageId, { ...currentLayout, panels: compact(rest) });
   }
 
+  function handleApplyTemplate(templatePanels: Record<string, unknown>) {
+    savePageLayout(pageId, { panels: templatePanels });
+  }
+
   function openConfig(panelId: string) {
     const pos = layout?.panels[panelId];
     if (!pos?.widgetId) return;
@@ -115,7 +120,11 @@
 {#if widgetPanels().length === 0 && !editModeState.active}
   <div class="flex flex-col items-center justify-center py-20 gap-4">
     <div class="text-sm tracking-widest" style="color: var(--bmo-muted)">EMPTY PAGE</div>
-    <div class="text-xs" style="color: var(--bmo-muted); opacity: 0.6">Press Ctrl+E to enter edit mode and add widgets</div>
+    <div class="text-xs" style="color: var(--bmo-muted); opacity: 0.6; margin-bottom: 0.5rem">Press Ctrl+E to enter edit mode and add widgets</div>
+    <button onclick={() => editModeState.active = true}
+      style="color: var(--bmo-green); border: 1px solid var(--bmo-green); padding: 0.5rem 1rem; cursor: pointer; background: transparent; font-family: 'Courier New', monospace; letter-spacing: 2px; font-size: 0.75rem;">
+      + CUSTOMIZE
+    </button>
   </div>
 {:else}
   <PanelCanvas {pageId}>
@@ -153,7 +162,9 @@
   <WidgetDrawer
     onAdd={handleAddWidget}
     onClose={() => showWidgetDrawer = false}
+    onApplyTemplate={handleApplyTemplate}
     {widgetCount}
+    {existingWidgetIds}
   />
 {/if}
 

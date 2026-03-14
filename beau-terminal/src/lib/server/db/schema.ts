@@ -269,3 +269,52 @@ export const customPages = sqliteTable('custom_pages', {
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
+
+// ─── Quick Capture (Phase 2) ───────────────────────────────────────────────────
+
+export const captures = sqliteTable('captures', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  text: text('text').notNull(),
+  type: text('type').notNull().default('note'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+});
+
+// ─── Activity Log (Phase 2) ───────────────────────────────────────────────────
+
+export const activityLog = sqliteTable('activity_log', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id'),              // text to match text PKs on ideas/steps tables
+  action: text('action').notNull(),
+  summary: text('summary').notNull(),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+});
+
+// ─── Entity Links (Phase 3) ──────────────────────────────────────────────────
+
+export const entityLinks = sqliteTable('entity_links', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sourceType: text('source_type').notNull(),
+  sourceId: text('source_id').notNull(),     // text — ideas and softwareSteps use text PKs
+  targetType: text('target_type').notNull(),
+  targetId: text('target_id').notNull(),     // text — same reason
+  relationship: text('relationship').notNull(),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+});
+
+// ─── Integrations (Phase 3) ──────────────────────────────────────────────────
+
+export const integrations = sqliteTable('integrations', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  icon: text('icon').notNull().default('⚡'),
+  type: text('type').notNull().default('custom'),
+  endpoint: text('endpoint'),
+  healthCheck: text('health_check').default('none'),
+  status: text('status').notNull().default('unknown'),
+  lastSeen: text('last_seen'),
+  notes: text('notes'),
+  config: text('config'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+});

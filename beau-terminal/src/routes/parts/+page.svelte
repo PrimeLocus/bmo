@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import PanelCanvas from '$lib/components/PanelCanvas.svelte';
   import Panel from '$lib/components/Panel.svelte';
+  import LinkEditor from '$lib/components/LinkEditor.svelte';
   import type { PageData } from './$types.js';
 
   const { data }: { data: PageData } = $props();
@@ -106,6 +107,8 @@
   function isUrl(val: string) {
     return val.startsWith('http://') || val.startsWith('https://');
   }
+
+  const inTransit = $derived(data.parts.some(p => p.status === 'ordered' || p.status === 'shipped'));
 </script>
 
 <div class="w-full">
@@ -300,6 +303,7 @@
               <p class="text-sm mb-4 italic" style="color: #f0a500">⚠ {part.notes}</p>
             {/if}
             <div class="flex gap-4 flex-wrap items-end">
+
               <!-- Status -->
               <form method="POST" action="?/update" use:enhance>
                 <input type="hidden" name="id" value={part.id} />
@@ -391,6 +395,7 @@
                 </form>
               {/if}
             </div>
+            <LinkEditor sourceType="part" sourceId={String(part.id)} />
           </div>
         {/if}
       </div>
@@ -440,6 +445,13 @@
       </div>
     </div>
   </div>
+
+  <!-- Empty state when nothing in transit -->
+  {#if !inTransit}
+    <div style="padding: 2rem; text-align: center">
+      <p class="text-sm" style="color: var(--bmo-muted)">nothing in transit. the workshop is quiet.</p>
+    </div>
+  {/if}
 
   <!-- ── MOBILE CARDS (< md) ────────────────────────────── -->
   <div class="md:hidden space-y-2">
@@ -525,6 +537,7 @@
                 </div>
               </form>
             </div>
+            <LinkEditor sourceType="part" sourceId={String(part.id)} />
           </div>
         {/if}
       </div>

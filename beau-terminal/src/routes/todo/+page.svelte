@@ -2,6 +2,7 @@
   import { enhance } from '$app/forms';
   import PanelCanvas from '$lib/components/PanelCanvas.svelte';
   import Panel from '$lib/components/Panel.svelte';
+  import LinkEditor from '$lib/components/LinkEditor.svelte';
   import type { PageData } from './$types.js';
 
   const { data }: { data: PageData } = $props();
@@ -19,6 +20,13 @@
   let showDone    = $state(true);
   let editingSection = $state<number | null>(null);
   let editSectionVal = $state('');
+  let expandedLinks = $state<Set<number>>(new Set());
+
+  function toggleLinks(id: number) {
+    const next = new Set(expandedLinks);
+    next.has(id) ? next.delete(id) : next.add(id);
+    expandedLinks = next;
+  }
 
   const allTodos = $derived(data.todos);
 
@@ -161,65 +169,82 @@
         <!-- Tasks -->
         <div class="space-y-0.5">
           {#each items as todo (todo.id)}
-            <div class="flex items-start gap-3 px-3 py-2.5 group border-b"
-                 style="border-color: var(--bmo-border)20;
-                        background: {todo.done ? 'transparent' : 'transparent'}">
+            <div class="border-b group" style="border-color: var(--bmo-border)20">
+              <div class="flex items-start gap-3 px-3 py-2.5"
+                   style="background: {todo.done ? 'transparent' : 'transparent'}">
 
-              <!-- Priority dot -->
-              <div class="mt-1 w-1.5 h-1.5 rounded-full shrink-0"
-                   style="background: {todo.done ? 'var(--bmo-border)' : PRIORITY_COLORS[todo.priority]}"></div>
+                <!-- Priority dot -->
+                <div class="mt-1 w-1.5 h-1.5 rounded-full shrink-0"
+                     style="background: {todo.done ? 'var(--bmo-border)' : PRIORITY_COLORS[todo.priority]}"></div>
 
-              <!-- Toggle checkbox -->
-              <form method="POST" action="?/toggle" use:enhance class="shrink-0 mt-0.5">
-                <input type="hidden" name="id" value={todo.id} />
-                <button type="submit"
-                        class="w-4 h-4 border flex items-center justify-center text-xs transition-all"
-                        style="border-color: {todo.done ? 'var(--bmo-muted)' : 'var(--bmo-green)'};
-                               background: {todo.done ? 'var(--bmo-surface)' : 'transparent'};
-                               color: var(--bmo-green)">
-                  {todo.done ? '✓' : ''}
-                </button>
-              </form>
-
-              <!-- Text -->
-              <span class="flex-1 text-base leading-snug"
-                    style="color: {todo.done ? 'var(--bmo-muted)' : 'var(--bmo-text)'};
-                           text-decoration: {todo.done ? 'line-through' : 'none'}">
-                {todo.text}
-              </span>
-
-              <!-- Section reassign (hover) -->
-              {#if editingSection === todo.id}
-                <form method="POST" action="?/updateSection" use:enhance={() => {
-                  return async ({ update }) => { await update(); editingSection = null; };
-                }} class="flex gap-1">
+                <!-- Toggle checkbox -->
+                <form method="POST" action="?/toggle" use:enhance class="shrink-0 mt-0.5">
                   <input type="hidden" name="id" value={todo.id} />
-                  <input type="text" name="section" bind:value={editSectionVal}
-                         list="section-options"
-                         class="text-xs px-1.5 py-0.5 border w-24"
-                         style="background: var(--bmo-bg); color: var(--bmo-text); border-color: var(--bmo-border)" />
-                  <button type="submit" class="text-xs px-1.5 border" style="border-color: var(--bmo-green); color: var(--bmo-green)">✓</button>
-                  <button type="button" onclick={() => editingSection = null}
-                          class="text-xs px-1.5 border" style="border-color: var(--bmo-border); color: var(--bmo-muted)">✕</button>
+                  <button type="submit"
+                          class="w-4 h-4 border flex items-center justify-center text-xs transition-all"
+                          style="border-color: {todo.done ? 'var(--bmo-muted)' : 'var(--bmo-green)'};
+                                 background: {todo.done ? 'var(--bmo-surface)' : 'transparent'};
+                                 color: var(--bmo-green)">
+                    {todo.done ? '✓' : ''}
+                  </button>
                 </form>
-              {:else}
-                <button type="button"
-                        onclick={() => startEditSection(todo.id, todo.section)}
-                        class="text-xs opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                        style="color: var(--bmo-muted)">
-                  ⊞
-                </button>
-              {/if}
 
-              <!-- Delete -->
-              <form method="POST" action="?/delete" use:enhance>
-                <input type="hidden" name="id" value={todo.id} />
-                <button type="submit"
+                <!-- Text -->
+                <span class="flex-1 text-base leading-snug"
+                      style="color: {todo.done ? 'var(--bmo-muted)' : 'var(--bmo-text)'};
+                             text-decoration: {todo.done ? 'line-through' : 'none'}">
+                  {todo.text}
+                </span>
+
+                <!-- Links toggle -->
+                <button type="button"
+                        onclick={() => toggleLinks(todo.id)}
                         class="text-xs opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                        style="color: var(--bmo-muted)">
-                  ✕
+                        title="Entity links"
+                        style="color: {expandedLinks.has(todo.id) ? 'var(--bmo-green)' : 'var(--bmo-muted)'}">
+                  ⛓
                 </button>
-              </form>
+
+                <!-- Section reassign (hover) -->
+                {#if editingSection === todo.id}
+                  <form method="POST" action="?/updateSection" use:enhance={() => {
+                    return async ({ update }) => { await update(); editingSection = null; };
+                  }} class="flex gap-1">
+                    <input type="hidden" name="id" value={todo.id} />
+                    <input type="text" name="section" bind:value={editSectionVal}
+                           list="section-options"
+                           class="text-xs px-1.5 py-0.5 border w-24"
+                           style="background: var(--bmo-bg); color: var(--bmo-text); border-color: var(--bmo-border)" />
+                    <button type="submit" class="text-xs px-1.5 border" style="border-color: var(--bmo-green); color: var(--bmo-green)">✓</button>
+                    <button type="button" onclick={() => editingSection = null}
+                            class="text-xs px-1.5 border" style="border-color: var(--bmo-border); color: var(--bmo-muted)">✕</button>
+                  </form>
+                {:else}
+                  <button type="button"
+                          onclick={() => startEditSection(todo.id, todo.section)}
+                          class="text-xs opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                          style="color: var(--bmo-muted)">
+                    ⊞
+                  </button>
+                {/if}
+
+                <!-- Delete -->
+                <form method="POST" action="?/delete" use:enhance>
+                  <input type="hidden" name="id" value={todo.id} />
+                  <button type="submit"
+                          class="text-xs opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                          style="color: var(--bmo-muted)">
+                    ✕
+                  </button>
+                </form>
+              </div>
+
+              <!-- Expanded links view -->
+              {#if expandedLinks.has(todo.id)}
+                <div class="px-3 pb-3">
+                  <LinkEditor sourceType="task" sourceId={String(todo.id)} />
+                </div>
+              {/if}
             </div>
           {/each}
         </div>
@@ -229,6 +254,8 @@
 
   {#if totalCount === 0}
     <p class="text-sm" style="color: var(--bmo-muted)">no tasks yet — add one above</p>
+  {:else if doneCount === totalCount}
+    <p class="text-sm" style="color: var(--bmo-muted)">clear board. nice work.</p>
   {/if}
 
   </Panel>

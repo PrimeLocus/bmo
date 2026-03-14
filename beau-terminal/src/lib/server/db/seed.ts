@@ -1,5 +1,5 @@
 import { db } from './index.js';
-import { parts, softwarePhases, softwareSteps, ideas } from './schema.js';
+import { parts, softwarePhases, softwareSteps, ideas, integrations } from './schema.js';
 import { eq } from 'drizzle-orm';
 
 type Link = { label: string; url: string; kind: 'docs' | 'github' | 'video' | 'guide' };
@@ -344,6 +344,29 @@ export function seed() {
   ]).run();
 
   console.log('[seed] Complete — 16 parts, 10 phases, 44 steps, 11 ideas');
+}
+
+export function seedIntegrations() {
+  const existing = db.select().from(integrations).all();
+  if (existing.length > 0) return;
+
+  const seeds = [
+    { name: 'MQTT (Mosquitto)', icon: '📡', type: 'mqtt', endpoint: 'mqtt://localhost:1883', healthCheck: 'mqtt-ping', sortOrder: 0 },
+    { name: 'Home Assistant', icon: '🏠', type: 'api', endpoint: 'http://homeassistant.local:8123', healthCheck: 'http-get', sortOrder: 1 },
+    { name: 'Resolume Arena', icon: '🎛', type: 'osc', endpoint: 'osc://localhost:7000', healthCheck: 'none', sortOrder: 2 },
+    { name: 'Tailscale', icon: '🌐', type: 'custom', endpoint: null, healthCheck: 'none', notes: 'Auto-detected via tailscale status', sortOrder: 3 },
+    { name: 'Ollama (Pi)', icon: '🧠', type: 'api', endpoint: 'http://localhost:11434', healthCheck: 'http-get', sortOrder: 4 },
+    { name: 'Ollama (ThinkStation)', icon: '🧠', type: 'api', endpoint: 'http://thinkstation:11434', healthCheck: 'http-get', sortOrder: 5 },
+    { name: 'ChromaDB', icon: '🔍', type: 'api', endpoint: 'http://localhost:8000', healthCheck: 'http-get', sortOrder: 6 },
+    { name: 'Piper TTS', icon: '🗣', type: 'pipe', endpoint: 'pipe:///usr/bin/piper', healthCheck: 'none', sortOrder: 7 },
+    { name: 'Hailo NPU', icon: '⚡', type: 'hardware', endpoint: '/dev/hailo0', healthCheck: 'none', sortOrder: 8 },
+  ];
+
+  for (const seed of seeds) {
+    db.insert(integrations).values(seed).run();
+  }
+
+  console.log('[seedIntegrations] 9 integrations seeded');
 }
 
 export function seedLinks() {

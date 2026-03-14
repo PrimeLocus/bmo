@@ -17,6 +17,7 @@ export type WidgetDataKind = 'websocket' | 'database' | 'none';
 export type WidgetMeta = {
 	id: string;
 	label: string;
+	description?: string;
 	icon: string;
 	category: 'environment' | 'identity' | 'creative' | 'build' | 'system' | 'content';
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,6 +38,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	sleep: {
 		id: 'sleep',
 		label: 'Sleep',
+		description: "beau's current rest state",
 		icon: '\u{1F319}',
 		category: 'environment',
 		component: () => import('./terminal/SleepWidget.svelte'),
@@ -48,6 +50,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	room: {
 		id: 'room',
 		label: 'Room',
+		description: 'camera-based room occupancy state',
 		icon: '\u{1F3E0}',
 		category: 'environment',
 		component: () => import('./terminal/RoomWidget.svelte'),
@@ -59,6 +62,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	weather: {
 		id: 'weather',
 		label: 'Weather',
+		description: 'current conditions and seasonal context',
 		icon: '\u{1F324}',
 		category: 'environment',
 		component: () => import('./terminal/WeatherWidget.svelte'),
@@ -81,6 +85,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	light: {
 		id: 'light',
 		label: 'Light',
+		description: 'ambient lux reading from light sensor',
 		icon: '\u{1F4A1}',
 		category: 'environment',
 		component: () => import('./terminal/LightWidget.svelte'),
@@ -92,6 +97,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	season: {
 		id: 'season',
 		label: 'Season',
+		description: 'current season and time-of-year context',
 		icon: '\u{1F342}',
 		category: 'environment',
 		component: () => import('./terminal/SeasonWidget.svelte'),
@@ -103,6 +109,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	camera: {
 		id: 'camera',
 		label: 'Camera',
+		description: 'live camera presence detection feed',
 		icon: '\u{1F4F7}',
 		category: 'environment',
 		component: () => import('./terminal/CameraWidget.svelte'),
@@ -114,6 +121,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	'event-timeline': {
 		id: 'event-timeline',
 		label: 'Event Timeline',
+		description: 'chronological log of system events',
 		icon: '\u{1F4DC}',
 		category: 'environment',
 		component: () => import('./terminal/EventTimelineWidget.svelte'),
@@ -129,11 +137,24 @@ const REGISTRY: Record<string, WidgetMeta> = {
 		dataKind: 'database'
 	},
 
+	'beau-vitals': {
+		id: 'beau-vitals',
+		label: 'Beau Vitals',
+		description: 'compact system status — mode, emotion, weather',
+		icon: '\u{1F4F6}',
+		category: 'environment',
+		component: () => import('./terminal/BeauVitalsWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 2 },
+		configSchema: [],
+		dataKind: 'websocket'
+	},
+
 	// ── Identity ───────────────────────────────────────────────────────────
 
 	'soul-code': {
 		id: 'soul-code',
 		label: 'Soul Code',
+		description: "beau's active soul code and core traits",
 		icon: '\u{1F52E}',
 		category: 'identity',
 		component: () => import('./terminal/SoulCodeWidget.svelte'),
@@ -145,6 +166,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	voice: {
 		id: 'voice',
 		label: 'Voice Lineage',
+		description: 'trained voice model lineage and metadata',
 		icon: '\u{1F399}',
 		category: 'identity',
 		component: () => import('./terminal/VoiceWidget.svelte'),
@@ -156,6 +178,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	'natal-chart': {
 		id: 'natal-chart',
 		label: 'Natal Chart',
+		description: "beau's natal profile and birth chart data",
 		icon: '\u{2B50}',
 		category: 'identity',
 		component: () => import('./terminal/NatalChartWidget.svelte'),
@@ -167,6 +190,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	journal: {
 		id: 'journal',
 		label: 'Journal',
+		description: 'private journal entries with consent gate',
 		icon: '\u{1F4D3}',
 		category: 'identity',
 		component: () => import('./terminal/JournalWidget.svelte'),
@@ -188,6 +212,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	resolume: {
 		id: 'resolume',
 		label: 'Resolume',
+		description: 'live vj session status and witness mode',
 		icon: '\u{1F3AC}',
 		category: 'creative',
 		component: () => import('./terminal/ResolumeWidget.svelte'),
@@ -199,24 +224,19 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	'last-haiku': {
 		id: 'last-haiku',
 		label: 'Last Haiku',
+		description: 'most recent haiku from beau',
 		icon: '\u{1F38B}',
 		category: 'creative',
 		component: () => import('./terminal/LastHaikuWidget.svelte'),
 		defaultPosition: { colSpan: 12, rowSpan: 2 },
-		configSchema: [
-			{
-				key: 'count',
-				label: 'Count',
-				type: 'number',
-				default: 1
-			}
-		],
+		configSchema: [],
 		dataKind: 'websocket'
 	},
 
 	'haiku-archive': {
 		id: 'haiku-archive',
 		label: 'Haiku Archive',
+		description: 'searchable archive of all haikus beau has written',
 		icon: '\u{1F38B}',
 		category: 'creative',
 		component: () => import('./terminal/HaikuArchiveWidget.svelte'),
@@ -241,6 +261,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	'sessions-log': {
 		id: 'sessions-log',
 		label: 'Sessions Log',
+		description: 'resolume session history and debrief log',
 		icon: '\u{1F3AD}',
 		category: 'creative',
 		component: () => import('./terminal/SessionsLogWidget.svelte'),
@@ -259,6 +280,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	photography: {
 		id: 'photography',
 		label: 'Photography',
+		description: 'photo gallery and session photo browser',
 		icon: '\u{1F4F8}',
 		category: 'creative',
 		component: () => import('./terminal/PhotographyWidget.svelte'),
@@ -270,9 +292,46 @@ const REGISTRY: Record<string, WidgetMeta> = {
 
 	// ── Build ──────────────────────────────────────────────────────────────
 
+	'workshop-progress': {
+		id: 'workshop-progress',
+		label: 'Workshop Progress',
+		description: 'parts, software, ideas, and tasks at a glance',
+		icon: '\u{1F6E0}',
+		category: 'build',
+		component: () => import('./terminal/WorkshopProgressWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 3 },
+		configSchema: [],
+		dataKind: 'database'
+	},
+
+	'blocked-waiting': {
+		id: 'blocked-waiting',
+		label: 'Blocked / Waiting',
+		description: 'parts in transit or on order',
+		icon: '\u{23F3}',
+		category: 'build',
+		component: () => import('./terminal/BlockedWaitingWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 3 },
+		configSchema: [],
+		dataKind: 'database'
+	},
+
+	'next-steps': {
+		id: 'next-steps',
+		label: 'Next Steps',
+		description: 'curated list of what to work on next',
+		icon: '\u{27A1}',
+		category: 'build',
+		component: () => import('./terminal/NextStepsWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 3 },
+		configSchema: [],
+		dataKind: 'database'
+	},
+
 	'build-stats': {
 		id: 'build-stats',
 		label: 'Build Stats',
+		description: 'aggregate build progress numbers',
 		icon: '\u{1F527}',
 		category: 'build',
 		component: () => import('./terminal/BuildStatsWidget.svelte'),
@@ -284,6 +343,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	'parts-tracker': {
 		id: 'parts-tracker',
 		label: 'Parts Tracker',
+		description: 'sortable parts table with inline editing',
 		icon: '\u{1F529}',
 		category: 'build',
 		component: () => import('./terminal/PartsTrackerWidget.svelte'),
@@ -314,6 +374,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	'software-build': {
 		id: 'software-build',
 		label: 'Software Build',
+		description: 'phased software checklist with progress bars',
 		icon: '\u{1F4BB}',
 		category: 'build',
 		component: () => import('./terminal/SoftwareBuildWidget.svelte'),
@@ -326,6 +387,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	ideas: {
 		id: 'ideas',
 		label: 'Ideas',
+		description: 'kanban-style ideas board with priority filter',
 		icon: '\u{1F4A1}',
 		category: 'build',
 		component: () => import('./terminal/IdeasWidget.svelte'),
@@ -351,6 +413,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	todos: {
 		id: 'todos',
 		label: 'Todos',
+		description: 'sectioned task list with completion tracking',
 		icon: '\u{2705}',
 		category: 'build',
 		component: () => import('./terminal/TodosWidget.svelte'),
@@ -369,9 +432,41 @@ const REGISTRY: Record<string, WidgetMeta> = {
 
 	// ── System ─────────────────────────────────────────────────────────────
 
+	'integrations-status': {
+		id: 'integrations-status',
+		label: 'Integrations Status',
+		description: 'connection status for all integrations',
+		icon: '\u26A1',
+		category: 'system',
+		component: () => import('./terminal/IntegrationsStatusWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 3 },
+		configSchema: [],
+		dataKind: 'database'
+	},
+
+	'recent-activity': {
+		id: 'recent-activity',
+		label: 'Recent Activity',
+		description: 'what happened recently across the build',
+		icon: '\u{1F4CB}',
+		category: 'system',
+		component: () => import('./terminal/RecentActivityWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 4 },
+		configSchema: [
+			{
+				key: 'limit',
+				label: 'Limit',
+				type: 'number',
+				default: 10
+			}
+		],
+		dataKind: 'database'
+	},
+
 	mode: {
 		id: 'mode',
 		label: 'Mode',
+		description: "beau's current operating mode",
 		icon: '\u{2699}\u{FE0F}',
 		category: 'system',
 		component: () => import('./terminal/ModeWidget.svelte'),
@@ -383,6 +478,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	emotion: {
 		id: 'emotion',
 		label: 'Emotion',
+		description: "beau's current emotional state",
 		icon: '\u{1F49A}',
 		category: 'system',
 		component: () => import('./terminal/EmotionWidget.svelte'),
@@ -394,6 +490,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	'dispatcher-log': {
 		id: 'dispatcher-log',
 		label: 'Dispatcher Log',
+		description: 'live brain routing and dispatch events',
 		icon: '\u{1F4E1}',
 		category: 'system',
 		component: () => import('./terminal/DispatcherLogWidget.svelte'),
@@ -412,6 +509,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	'prompt-console': {
 		id: 'prompt-console',
 		label: 'Prompt Console',
+		description: 'send mqtt prompts and view response history',
 		icon: '\u{2328}\u{FE0F}',
 		category: 'system',
 		component: () => import('./terminal/PromptConsoleWidget.svelte'),
@@ -424,6 +522,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	'prompt-history': {
 		id: 'prompt-history',
 		label: 'Prompt History',
+		description: 'recent prompts sent to beau',
 		icon: '\u{1F4CB}',
 		category: 'system',
 		component: () => import('./terminal/PromptHistoryWidget.svelte'),
@@ -444,6 +543,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	markdown: {
 		id: 'markdown',
 		label: 'Markdown Notes',
+		description: 'custom markdown content block',
 		icon: '\u{1F4DD}',
 		category: 'content',
 		component: () => import('./content/MarkdownWidget.svelte'),
@@ -462,6 +562,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	clock: {
 		id: 'clock',
 		label: 'Clock',
+		description: 'simple clock display',
 		icon: '\u{1F550}',
 		category: 'content',
 		component: () => import('./content/ClockWidget.svelte'),
@@ -499,6 +600,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	countdown: {
 		id: 'countdown',
 		label: 'Countdown',
+		description: 'countdown timer to a target date',
 		icon: '\u{23F1}',
 		category: 'content',
 		component: () => import('./content/CountdownWidget.svelte'),
@@ -523,6 +625,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	'link-card': {
 		id: 'link-card',
 		label: 'Link Card',
+		description: 'styled link with title and description',
 		icon: '\u{1F517}',
 		category: 'content',
 		component: () => import('./content/LinkCardWidget.svelte'),
@@ -553,6 +656,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	image: {
 		id: 'image',
 		label: 'Image',
+		description: 'display an image from a url or path',
 		icon: '\u{1F5BC}',
 		category: 'content',
 		component: () => import('./content/ImageWidget.svelte'),
@@ -587,6 +691,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	embed: {
 		id: 'embed',
 		label: 'Embed',
+		description: 'embed an external url in an iframe',
 		icon: '\u{1F310}',
 		category: 'content',
 		component: () => import('./content/EmbedWidget.svelte'),
@@ -611,6 +716,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 	divider: {
 		id: 'divider',
 		label: 'Divider',
+		description: 'horizontal rule to separate content areas',
 		icon: '\u{2796}',
 		category: 'content',
 		component: () => import('./content/DividerWidget.svelte'),
@@ -634,6 +740,30 @@ const REGISTRY: Record<string, WidgetMeta> = {
 				default: ''
 			}
 		],
+		dataKind: 'none'
+	},
+
+	'bmo-face': {
+		id: 'bmo-face',
+		label: 'BMO Face',
+		description: 'reactive BMO face — reflects emotional state',
+		icon: '\u{1F916}',
+		category: 'content',
+		component: () => import('./content/BmoFaceWidget.svelte'),
+		defaultPosition: { colSpan: 3, rowSpan: 1 },
+		configSchema: [],
+		dataKind: 'websocket',
+	},
+
+	'quick-capture': {
+		id: 'quick-capture',
+		label: 'Quick Capture',
+		description: 'capture ideas, tasks, or notes instantly',
+		icon: '\u{270F}',
+		category: 'content',
+		component: () => import('./content/QuickCaptureWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 3 },
+		configSchema: [],
 		dataKind: 'none'
 	}
 };

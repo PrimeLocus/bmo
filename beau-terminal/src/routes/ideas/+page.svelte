@@ -2,6 +2,7 @@
   import PanelCanvas from '$lib/components/PanelCanvas.svelte';
   import Panel from '$lib/components/Panel.svelte';
   import { enhance } from '$app/forms';
+  import LinkEditor from '$lib/components/LinkEditor.svelte';
   import type { PageData } from './$types.js';
 
   const { data }: { data: PageData } = $props();
@@ -176,6 +177,7 @@
                     {/each}
                   </div>
                 {/if}
+                <LinkEditor sourceType="idea" sourceId={idea.id} />
               </div>
             </form>
             <!-- Edit + Delete -->

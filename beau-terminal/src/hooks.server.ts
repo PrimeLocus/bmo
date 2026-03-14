@@ -4,7 +4,7 @@ import type { WebSocket } from 'ws';
 import type { IncomingMessage } from 'http';
 import type { Server } from 'http';
 import { subscribeToState, connectMQTT } from '$lib/server/mqtt/bridge.js';
-import { seed, seedLinks } from '$lib/server/db/seed.js';
+import { seed, seedLinks, seedIntegrations } from '$lib/server/db/seed.js';
 
 let wss: WebSocketServer | null = null;
 let mqttStarted = false;
@@ -28,7 +28,7 @@ function getWSS(server: Server): WebSocketServer {
 export const handle: Handle = async ({ event, resolve }) => {
   if (!mqttStarted) {
     mqttStarted = true;
-    try { seed(); seedLinks(); } catch (e) { console.error('[seed]', e); }
+    try { seed(); seedLinks(); seedIntegrations(); } catch (e) { console.error('[seed]', e); }
     connectMQTT();
   }
 
