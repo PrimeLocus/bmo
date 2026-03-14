@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db/index.js';
-import { softwarePhases, softwareSteps } from '$lib/server/db/schema.js';
-import { eq, asc } from 'drizzle-orm';
+import { softwarePhases, softwareSteps, entityLinks } from '$lib/server/db/schema.js';
+import { eq, asc, and } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types.js';
 import { logActivity } from '$lib/server/db/activity.js';
@@ -8,6 +8,11 @@ import { logActivity } from '$lib/server/db/activity.js';
 export const load: PageServerLoad = async () => {
   const phases = db.select().from(softwarePhases).orderBy(asc(softwarePhases.order)).all();
   const steps = db.select().from(softwareSteps).all();
+  const stepLinks = db
+    .select()
+    .from(entityLinks)
+    .where(and(eq(entityLinks.targetType, 'step'), eq(entityLinks.relationship, 'blocks')))
+    .all();
   return {
     phases: phases.map(p => ({
       ...p,
@@ -19,6 +24,7 @@ export const load: PageServerLoad = async () => {
           links: JSON.parse(s.links || '[]') as Array<{ label: string; url: string; kind: string }>,
         })),
     })),
+    stepLinks,
   };
 };
 

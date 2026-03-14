@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import PanelCanvas from '$lib/components/PanelCanvas.svelte';
   import Panel from '$lib/components/Panel.svelte';
+  import LinkEditor from '$lib/components/LinkEditor.svelte';
   import type { PageData } from './$types.js';
 
   const { data }: { data: PageData } = $props();
@@ -300,6 +301,7 @@
               <p class="text-sm mb-4 italic" style="color: #f0a500">⚠ {part.notes}</p>
             {/if}
             <div class="flex gap-4 flex-wrap items-end">
+
               <!-- Status -->
               <form method="POST" action="?/update" use:enhance>
                 <input type="hidden" name="id" value={part.id} />
@@ -391,6 +393,7 @@
                 </form>
               {/if}
             </div>
+            <LinkEditor sourceType="part" sourceId={String(part.id)} />
           </div>
         {/if}
       </div>
@@ -525,6 +528,7 @@
                 </div>
               </form>
             </div>
+            <LinkEditor sourceType="part" sourceId={String(part.id)} />
           </div>
         {/if}
       </div>
