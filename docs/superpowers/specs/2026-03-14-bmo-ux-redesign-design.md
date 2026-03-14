@@ -485,6 +485,97 @@ No PanelCanvas, no drag/resize, no edit mode on mobile. Small note in mobile set
 
 **Files:** `src/routes/+page.svelte`
 
+### 3.5 Integrations Hub
+
+A flexible page for wiring up external services, APIs, and sibling projects. This is the "plumbing" surface — where you manage connections between Beau and the outside world.
+
+**New route:** `/integrations`
+
+**Nav placement:** Add to SYSTEM group (below Prompt, above Settings). Icon: `⚡`. Label: `INTEGRATIONS`.
+
+#### Page Structure
+
+**Header:** `"INTEGRATIONS — wiring beau to the world"`
+
+**Integration cards** — each integration is a card showing:
+- Name + icon (e.g., `🏠 Home Assistant`, `🎛 Resolume`, `🌐 Tailscale`)
+- Status: `● CONNECTED` / `● DISCONNECTED` / `◌ NOT CONFIGURED`
+- Endpoint/URL (editable)
+- Last seen / last heartbeat timestamp
+- Notes field (free text — what this integration does, auth details, quirks)
+- `TEST` button — pings the endpoint and reports success/failure
+
+**Pre-seeded integrations** (from CLAUDE.md/reference.md):
+| Integration | Type | Default Endpoint |
+|------------|------|-----------------|
+| MQTT (Mosquitto) | Broker | `mqtt://localhost:1883` |
+| Home Assistant | API | `http://homeassistant.local:8123` |
+| Resolume Arena | OSC | `osc://localhost:7000` |
+| Tailscale | Network | (auto-detected) |
+| Ollama (Pi) | LLM API | `http://localhost:11434` |
+| Ollama (ThinkStation) | LLM API | `http://thinkstation:11434` |
+| ChromaDB | Vector DB | `http://localhost:8000` |
+| Piper TTS | Voice | `pipe:///usr/bin/piper` |
+| Hailo NPU | Hardware | `/dev/hailo0` |
+
+**"+ INTEGRATION" button** — add a custom integration with:
+- Name (text)
+- Type: `api` | `mqtt` | `osc` | `websocket` | `hardware` | `pipe` | `custom`
+- Endpoint (text)
+- Notes (textarea)
+- Health check method: `http-get` | `tcp-connect` | `mqtt-ping` | `none`
+
+#### Data Model
+
+**`integrations` table:**
+
+```typescript
+export const integrations = sqliteTable('integrations', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  icon: text('icon').notNull().default('⚡'),
+  type: text('type').notNull().default('custom'),      // 'api' | 'mqtt' | 'osc' | 'websocket' | 'hardware' | 'pipe' | 'custom'
+  endpoint: text('endpoint'),
+  healthCheck: text('health_check').default('none'),    // 'http-get' | 'tcp-connect' | 'mqtt-ping' | 'none'
+  status: text('status').notNull().default('unknown'),  // 'connected' | 'disconnected' | 'unknown'
+  lastSeen: text('last_seen'),
+  notes: text('notes'),
+  config: text('config'),                               // JSON blob for integration-specific settings
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+});
+```
+
+The `config` column is a JSON text blob — intentionally schemaless so each integration can store whatever it needs (API keys, auth tokens, custom headers, OSC port mappings, etc.) without requiring schema migrations for every new integration type.
+
+#### Health Checks
+
+Health check runs are **manual only** (via TEST button) — no background polling. Results update `status` and `lastSeen`. This keeps the system simple and avoids noisy network requests.
+
+For MQTT specifically, the existing bridge connection status (`beauState.online`) serves as a live health indicator — shown on the MQTT card without needing a separate check.
+
+#### Integration Widget
+
+Register as `integrations-status` widget in `registry.ts`:
+- category: `'system'`
+- dataKind: `'database'`
+- Compact summary: list of integrations with status dots
+- Useful on the Today page or custom dashboards for at-a-glance connectivity
+
+#### Why This Matters
+
+The BMO build involves 9+ external systems that all need to talk to each other. Right now, connection details live in env vars, code comments, and the developer's memory. This page makes the integration map visible, testable, and annotatable — especially valuable when debugging "why isn't X working" or onboarding future-self after a break.
+
+**Files:**
+- `src/routes/integrations/+page.svelte` (new)
+- `src/routes/integrations/+page.server.ts` (new)
+- `src/lib/widgets/terminal/IntegrationsStatusWidget.svelte` (new)
+- `src/lib/server/db/schema.ts` (new table)
+- `src/lib/widgets/registry.ts` (new widget)
+- `src/lib/stores/navConfig.svelte.ts` (add to SYSTEM group)
+- New migration for `integrations` table
+- `src/lib/server/db/seed.ts` (pre-seed the 9 known integrations)
+
 ---
 
 ## Phase 4: Delight & Polish
@@ -640,7 +731,10 @@ Small notification that appears near the BMO face on the Today page.
 - `src/lib/components/LinkEditor.svelte`
 - `src/routes/api/search/+server.ts`
 - `src/routes/api/entity-links/+server.ts`
-- New migration for `entity_links` table
+- `src/routes/integrations/+page.svelte`
+- `src/routes/integrations/+page.server.ts`
+- `src/lib/widgets/terminal/IntegrationsStatusWidget.svelte`
+- New migration for `entity_links` and `integrations` tables
 
 ### Phase 4
 - `src/lib/widgets/templates.ts`
@@ -669,7 +763,10 @@ Small notification that appears near the BMO face on the Today page.
 - `src/routes/+page.svelte` (first-run hint, mobile layout)
 - `src/routes/custom/[slug]/+page.svelte` (empty-state CTA)
 - `src/lib/components/StatusBar.svelte` (tooltip)
-- `src/lib/server/db/schema.ts` (entity_links table)
+- `src/lib/server/db/schema.ts` (entity_links + integrations tables)
+- `src/lib/server/db/seed.ts` (pre-seed 9 known integrations)
+- `src/lib/stores/navConfig.svelte.ts` (add Integrations to SYSTEM group)
+- `src/lib/widgets/registry.ts` (integrations-status widget)
 
 ### Phase 4
 - `src/lib/components/StatusBar.svelte` (microcopy)
