@@ -81,12 +81,6 @@ export async function loadWidgetData(
         .orderBy(desc(schema.promptHistory.createdAt))
         .limit(limit).all();
     }
-    case 'dispatcher-log': {
-      const limit = typeof config.limit === 'number' ? config.limit : 8;
-      return db.select().from(schema.dispatches)
-        .orderBy(desc(schema.dispatches.createdAt))
-        .limit(limit).all();
-    }
     default:
       return null;
   }

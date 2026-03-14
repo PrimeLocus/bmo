@@ -203,14 +203,7 @@ const REGISTRY: Record<string, WidgetMeta> = {
 		category: 'creative',
 		component: () => import('./terminal/LastHaikuWidget.svelte'),
 		defaultPosition: { colSpan: 12, rowSpan: 2 },
-		configSchema: [
-			{
-				key: 'count',
-				label: 'Count',
-				type: 'number',
-				default: 1
-			}
-		],
+		configSchema: [],
 		dataKind: 'websocket'
 	},
 
