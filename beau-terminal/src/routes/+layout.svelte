@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { connectBeauWS, disconnectBeauWS } from '$lib/stores/beau.svelte.js';
+  import { connectBeauStream, disconnectBeauStream } from '$lib/stores/beau.svelte.js';
   import { applyCurrentSettings } from '$lib/stores/settings.svelte.js';
   import { editModeState, toggleEditMode, exitEditMode } from '$lib/stores/editMode.svelte.js';
   import Nav from '$lib/components/Nav.svelte';
@@ -42,8 +42,8 @@
   onMount(() => {
     (window as any).__BMO_READY = true;
     applyCurrentSettings();
-    connectBeauWS();
-    return () => disconnectBeauWS();
+    connectBeauStream();
+    return () => disconnectBeauStream();
   });
 </script>
 

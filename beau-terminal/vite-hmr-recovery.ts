@@ -26,12 +26,16 @@ export function hmrRecovery(): Plugin {
 (function() {
   var INIT_TIMEOUT = 8000;
   var POLL_MS = 2000;
-  var HEARTBEAT_MS = 15000;
-  var MAX_HEARTBEAT_FAILS = 3;
+  var HEARTBEAT_MS = 30000;
+  var MAX_HEARTBEAT_FAILS = 4;
   var MAX_RELOADS = 5;
   var RELOAD_KEY = '__hmr_recovery_reloads';
+  var RELOAD_TS_KEY = '__hmr_recovery_ts';
 
   var el, active = false, heartbeatFails = 0;
+  // Reset reload counter if last reload was more than 60s ago (not a rapid loop)
+  var lastTs = +(sessionStorage.getItem(RELOAD_TS_KEY) || 0);
+  if (lastTs && Date.now() - lastTs > 60000) sessionStorage.removeItem(RELOAD_KEY);
   var reloads = +(sessionStorage.getItem(RELOAD_KEY) || 0);
 
   function show(t) {
@@ -52,6 +56,7 @@ export function hmrRecovery(): Plugin {
 
   function doReload() {
     sessionStorage.setItem(RELOAD_KEY, String(reloads + 1));
+    sessionStorage.setItem(RELOAD_TS_KEY, String(Date.now()));
     location.reload();
   }
 

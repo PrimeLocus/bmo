@@ -25,7 +25,7 @@ export const actions: Actions = {
       sortOrder: maxOrder + 1,
       createdAt: new Date(),
     }).run();
-    logActivity('task', result.lastInsertRowid, 'created', 'New task: ' + text.substring(0, 60));
+    logActivity('task', Number(result.lastInsertRowid), 'created', 'New task: ' + text.substring(0, 60));
     return { success: true };
   },
 

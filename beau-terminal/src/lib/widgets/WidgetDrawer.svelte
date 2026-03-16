@@ -2,6 +2,7 @@
 	import { WIDGET_CATEGORIES, getWidgetsByCategory } from './registry.js';
 	import type { WidgetMeta } from './registry.js';
 	import { PAGE_TEMPLATES, instantiateTemplate } from './templates.js';
+	import type { GridPosition } from '$lib/stores/layout.svelte.js';
 
 	let {
 		onAdd,
@@ -13,7 +14,7 @@
 	}: {
 		onAdd: (widgetId: string) => void;
 		onClose: () => void;
-		onApplyTemplate?: (panels: Record<string, unknown>) => void;
+		onApplyTemplate?: (panels: Record<string, GridPosition>) => void;
 		widgetCount: number;
 		maxWidgets?: number;
 		existingWidgetIds?: string[];

@@ -5,7 +5,7 @@
   import WidgetDrawer from '$lib/widgets/WidgetDrawer.svelte';
   import WidgetConfigModal from '$lib/widgets/WidgetConfigModal.svelte';
   import { editModeState } from '$lib/stores/editMode.svelte.js';
-  import { getPageLayout, savePageLayout } from '$lib/stores/layout.svelte.js';
+  import { type GridPosition, getPageLayout, savePageLayout } from '$lib/stores/layout.svelte.js';
   import { getWidgetMeta } from '$lib/widgets/registry.js';
   import { nanoid } from 'nanoid';
   import { applyMove, compact } from '$lib/stores/gridEngine.js';
@@ -76,7 +76,7 @@
     savePageLayout(pageId, { ...currentLayout, panels: compact(rest) });
   }
 
-  function handleApplyTemplate(templatePanels: Record<string, unknown>) {
+  function handleApplyTemplate(templatePanels: Record<string, GridPosition>) {
     savePageLayout(pageId, { panels: templatePanels });
   }
 

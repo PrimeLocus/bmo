@@ -137,7 +137,9 @@ bmo/
     │       │   ├── search/           # GET global search — pages, widgets, entities
     │       │   ├── workshop-stats/   # GET workshop progress aggregates
     │       │   └── widgets/[widgetId]/data/  # GET widget data (for custom page rendering)
-    │       └── ws/                   # WebSocket stub (upgrade in hooks.server.ts)
+    │       └── api/
+    │           ├── ...
+    │           └── sse/              # SSE endpoint for real-time BeauState streaming
     └── build/                        # Production output (adapter-node)
 ```
 
@@ -146,7 +148,7 @@ bmo/
 - **Framework**: SvelteKit 2.50+ / Svelte 5 (runes: `$state`, `$derived`, `$props`, `$effect`)
 - **Styling**: Tailwind CSS 4 via `@tailwindcss/vite` + CSS custom properties
 - **Database**: better-sqlite3 + Drizzle ORM (WAL mode, auto-migration on startup)
-- **Real-time**: MQTT.js → server-side BeauState → ws (WebSocket) → `$state` on client
+- **Real-time**: MQTT.js → server-side BeauState → SSE (`/api/sse`) → `$state` on client
 - **Build**: Vite 7, adapter-node, port 4242
 
 ## Design System
@@ -222,8 +224,8 @@ Database auto-seeds on first run. Seed is idempotent (skips if parts table has d
 When working on Beau's Terminal, read these first:
 
 - `src/lib/server/db/schema.ts` — all 25 table definitions
-- `src/lib/server/mqtt/bridge.ts` — MQTT state + WebSocket broadcast
-- `src/lib/stores/beau.svelte.ts` — client-side live state (BeauState type)
+- `src/lib/server/mqtt/bridge.ts` — MQTT state + subscriber broadcast (consumed by SSE)
+- `src/lib/stores/beau.svelte.ts` — client-side live state (BeauState via SSE EventSource)
 - `src/lib/stores/layout.svelte.ts` — per-page panel grid layouts + dual persistence
 - `src/lib/stores/editMode.svelte.ts` — edit mode global state (Ctrl+E toggle)
 - `src/lib/stores/navConfig.svelte.ts` — nav items/groups config + CRUD
