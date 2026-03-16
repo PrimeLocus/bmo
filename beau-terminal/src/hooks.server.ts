@@ -12,7 +12,28 @@ let mqttStarted = false;
 function getWSS(server: Server): WebSocketServer {
   if (!wss) {
     wss = new WebSocketServer({ noServer: true });
+
+    // Heartbeat: ping every 30s, terminate unresponsive clients
+    const PING_INTERVAL = 30_000;
+    const pingTimer = setInterval(() => {
+      for (const client of wss!.clients) {
+        const ws = client as WebSocket & { isAlive?: boolean };
+        if (ws.isAlive === false) {
+          ws.terminate();
+          continue;
+        }
+        ws.isAlive = false;
+        ws.ping();
+      }
+    }, PING_INTERVAL);
+
+    wss.on('close', () => clearInterval(pingTimer));
+
     wss.on('connection', (ws: WebSocket) => {
+      const wsExt = ws as WebSocket & { isAlive?: boolean };
+      wsExt.isAlive = true;
+      ws.on('pong', () => { wsExt.isAlive = true; });
+
       const unsub = subscribeToState((state) => {
         if (ws.readyState === ws.OPEN) {
           ws.send(JSON.stringify(state));

@@ -28,8 +28,10 @@ export const beauState = $state<BeauState>({ ...defaultState });
 
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-let reconnectDelay = 3000;
-const MAX_DELAY = 60000;
+let reconnectDelay = 1000;
+const MAX_DELAY = 10000;
+let intentionalClose = false;
+let visibilityBound = false;
 
 export function connectBeauWS() {
   if (reconnectTimer) {
@@ -39,11 +41,13 @@ export function connectBeauWS() {
   if (typeof window === 'undefined') return;
   if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) return;
 
+  intentionalClose = false;
+
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${window.location.host}/ws`);
 
   ws.onopen = () => {
-    reconnectDelay = 3000; // reset on successful connect
+    reconnectDelay = 1000; // reset on successful connect
   };
 
   ws.onmessage = (event) => {
@@ -57,16 +61,33 @@ export function connectBeauWS() {
 
   ws.onclose = () => {
     ws = null;
-    reconnectTimer = setTimeout(connectBeauWS, reconnectDelay);
-    reconnectDelay = Math.min(reconnectDelay * 2, MAX_DELAY); // backoff: 3s → 6s → 12s → … → 60s
+    if (!intentionalClose) {
+      reconnectTimer = setTimeout(connectBeauWS, reconnectDelay);
+      reconnectDelay = Math.min(reconnectDelay * 1.5, MAX_DELAY);
+    }
   };
 
   ws.onerror = () => {
     ws?.close();
   };
+
+  // Re-check connection when tab becomes visible again
+  if (!visibilityBound) {
+    visibilityBound = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        // If the socket is gone or closing, reconnect immediately
+        if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+          reconnectDelay = 1000;
+          connectBeauWS();
+        }
+      }
+    });
+  }
 }
 
 export function disconnectBeauWS() {
+  intentionalClose = true;
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
