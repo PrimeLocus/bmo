@@ -1,6 +1,20 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { beauState } from '$lib/stores/beau.svelte.js';
   import { editModeState, toggleEditMode } from '$lib/stores/editMode.svelte.js';
+  import SitrepModal from './SitrepModal.svelte';
+
+  let sitrepOpen = $state(false);
+
+  function openSitrep() {
+    sitrepOpen = true;
+  }
+
+  onMount(() => {
+    const handler = () => { sitrepOpen = true; };
+    window.addEventListener('bmo:sitrep', handler);
+    return () => window.removeEventListener('bmo:sitrep', handler);
+  });
 </script>
 
 <div class="flex items-center gap-6 px-4 py-2 text-xs border-b"
@@ -54,9 +68,25 @@
     {editModeState.active ? 'EDIT MODE' : 'EDIT'}
   </button>
 
+  <button
+    onclick={openSitrep}
+    title="Export situation report"
+    class="text-xs tracking-widest px-3 py-1 border transition-all hover:opacity-80"
+    style="
+      border-color: var(--bmo-border);
+      background: transparent;
+      color: var(--bmo-muted);
+      cursor: pointer;
+    "
+  >
+    SITREP
+  </button>
+
   {#if beauState.lastHaiku}
     <div class="italic truncate max-w-xs" style="color: var(--bmo-muted)">
       "{beauState.lastHaiku.split('\n')[0]}..."
     </div>
   {/if}
 </div>
+
+<SitrepModal bind:open={sitrepOpen} />

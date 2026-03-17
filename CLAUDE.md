@@ -57,8 +57,9 @@ bmo/
     │   │   │   ├── Nav.svelte          # Data-driven sidebar nav (TODAY/WORKSHOP/BEAU/SYSTEM groups, CRUD in edit mode)
     │   │   │   ├── Panel.svelte        # Grid panel — drag/resize handles, edit mode controls
     │   │   │   ├── PanelCanvas.svelte  # 12-column CSS grid container, layout persistence
+    │   │   │   ├── SitrepModal.svelte  # Sitrep export modal — preview, copy, download markdown
     │   │   │   ├── SpeechBubble.svelte # Speech bubble overlay for BmoFace dialog
-    │   │   │   └── StatusBar.svelte    # Top bar — online/offline, mode, emotion, last haiku
+    │   │   │   └── StatusBar.svelte    # Top bar — online/offline, mode, emotion, sitrep button, last haiku
     │   │   ├── stores/
     │   │   │   ├── beau.svelte.ts      # WebSocket client → live BeauState ($state)
     │   │   │   ├── editMode.svelte.ts  # Edit mode toggle (Ctrl+E) — global $state
@@ -79,6 +80,7 @@ bmo/
     │   │   │   └── content/              # 11 content widgets (clock, markdown, image, etc.)
     │   │   │       │                     # New: QuickCaptureWidget, IntegrationsStatusWidget
     │   │   └── server/
+    │   │       ├── sitrep.ts       # Sitrep markdown assembler — queries all tables, snapshots state
     │   │       ├── db/
     │   │       │   ├── activity.ts   # Activity log queries — recent events, entity activity feed
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
@@ -135,6 +137,7 @@ bmo/
     │       │   ├── layouts/          # GET/PUT per-page panel grid layouts
     │       │   ├── custom-pages/     # CRUD for custom page definitions
     │       │   ├── search/           # GET global search — pages, widgets, entities
+    │       │   ├── sitrep/           # GET sitrep — full markdown situation report export
     │       │   ├── workshop-stats/   # GET workshop progress aggregates
     │       │   └── widgets/[widgetId]/data/  # GET widget data (for custom page rendering)
     │       └── api/
@@ -239,6 +242,7 @@ When working on Beau's Terminal, read these first:
 - `src/hooks.server.ts` — startup orchestration
 - `src/lib/server/mqtt/topics.ts` — MQTT topic constants and mode types
 - `src/lib/server/prompt/assembler.ts` — prompt section parser + mode injection
+- `src/lib/server/sitrep.ts` — sitrep markdown assembler (queries all tables + live state)
 
 ## Deep Reference
 

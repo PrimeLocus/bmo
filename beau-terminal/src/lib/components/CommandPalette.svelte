@@ -18,6 +18,12 @@
     },
     {
       type: 'command',
+      id: 'sitrep',
+      label: 'Export Sitrep',
+      action: () => { window.dispatchEvent(new CustomEvent('bmo:sitrep')); open = false; }
+    },
+    {
+      type: 'command',
       id: 'capture',
       label: 'Quick Capture',
       action: () => { goto('/'); open = false; }
