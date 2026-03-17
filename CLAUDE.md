@@ -9,7 +9,7 @@ Physical BMO robot build — Raspberry Pi 5 + Hailo NPU + custom AI personality 
 - **Voice**: Korean-Cajun blend, custom Piper TTS trained via TextyMcSpeechy on Legion RTX 4090.
 - **Brain routing**: Hailo NPU (reflex/vision) → Pi CPU Ollama (philosophy/poetry) → ThinkStation via Tailscale (heavy reasoning). See `docs/reference.md` for full routing details.
 - **RAG**: ChromaDB + nomic-embed-text from journals, VJ logs, project docs.
-- **Integrations**: Home Assistant, Resolume VJ witness mode, Tailscale, MQTT (Mosquitto on Proxmox).
+- **Integrations**: Home Assistant, Resolume VJ witness mode, Tailscale, MQTT (Mosquitto on Proxmox), BLE wellness devices (Volcano Hybrid, Puffco Peak Pro).
 
 ## Architecture Decisions (resolved)
 
@@ -68,15 +68,16 @@ bmo/
     │   │   │   ├── navConfig.svelte.ts # Nav items/groups — dual persist, CRUD ops
     │   │   │   └── settings.svelte.ts  # Display settings ($state + localStorage)
     │   │   ├── widgets/
-    │   │   │   ├── registry.ts           # Widget registry — 41 widgets, metadata, data kinds
+    │   │   │   ├── registry.ts           # Widget registry — 43 widgets, metadata, data kinds
     │   │   │   ├── templates.ts          # Page template definitions — pre-built widget layouts
     │   │   │   ├── WidgetRenderer.svelte # Dynamic widget loader (renders by widgetId)
     │   │   │   ├── WidgetDrawer.svelte   # Side drawer — browse/add widgets in edit mode (shows descriptions)
     │   │   │   ├── WidgetConfigModal.svelte # Per-widget config editor
-    │   │   │   ├── terminal/             # 30 terminal widgets (data-bound to Beau systems)
+    │   │   │   ├── terminal/             # 32 terminal widgets (data-bound to Beau systems)
     │   │   │   │   │                     # New: BmoFaceWidget, WorkshopProgressWidget,
     │   │   │   │   │                     #      BlockedWaitingWidget, RecentActivityWidget,
     │   │   │   │   │                     #      BeauVitalsWidget, NextStepsWidget
+    │   │   │   │   │                     # Wellness: WellnessSessionWidget, WellnessLogWidget
     │   │   │   └── content/              # 11 content widgets (clock, markdown, image, etc.)
     │   │   │       │                     # New: QuickCaptureWidget, IntegrationsStatusWidget
     │   │   └── server/
@@ -84,11 +85,11 @@ bmo/
     │   │       ├── db/
     │   │       │   ├── activity.ts   # Activity log queries — recent events, entity activity feed
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
-    │   │       │   ├── schema.ts     # 25 tables — source of truth for DB schema
+    │   │       │   ├── schema.ts     # 27 tables — source of truth for DB schema
     │   │       │   └── seed.ts       # 16 parts, 10 phases, 44 steps, 11 ideas
     │   │       ├── mqtt/
-    │   │       │   ├── bridge.ts     # MQTT → BeauState → WebSocket broadcast
-    │   │       │   └── topics.ts     # MQTT topic constants + mode types
+    │   │       │   ├── bridge.ts     # MQTT → BeauState → SSE broadcast
+    │   │       │   └── topics.ts     # MQTT topic constants + type unions (modes, devices, heating states)
     │   │       ├── identity/
     │   │       │   ├── emergence.ts   # Soul code query + empty state
     │   │       │   ├── natal.ts       # Active natal profile query
@@ -103,6 +104,8 @@ bmo/
     │   │       │   ├── witness.ts      # Witness mode controller
     │   │       │   ├── debrief.ts      # Post-session reflection scheduler
     │   │       │   └── photography.ts  # Photo validation + naming
+    │   │       ├── wellness/
+    │   │       │   └── sessions.ts     # WellnessDeviceCoordinator + WellnessSessionManager + parsers
     │   │       ├── reflective/
     │   │       │   ├── journal.ts      # Journal entry management + consent
     │   │       │   ├── noticings.ts    # Noticing lifecycle + anti-creep guardrails
@@ -183,7 +186,7 @@ Ctrl+E toggles edit mode globally. Ctrl+K opens the command palette (search page
 ### Widget System
 
 41 widgets in two categories:
-- **Terminal widgets** (30) — data-bound to Beau systems (beauState, DB queries). Examples: SleepWidget, ModeWidget, PartsTrackerWidget, HaikuArchiveWidget, BmoFaceWidget, WorkshopProgressWidget, BlockedWaitingWidget, RecentActivityWidget, BeauVitalsWidget, NextStepsWidget
+- **Terminal widgets** (32) — data-bound to Beau systems (beauState, DB queries). Examples: SleepWidget, ModeWidget, PartsTrackerWidget, HaikuArchiveWidget, BmoFaceWidget, WorkshopProgressWidget, BlockedWaitingWidget, RecentActivityWidget, BeauVitalsWidget, NextStepsWidget, WellnessSessionWidget, WellnessLogWidget
 - **Content widgets** (11) — standalone content blocks (Clock, Markdown, Image, Embed, LinkCard, Countdown, Divider, QuickCaptureWidget, IntegrationsStatusWidget)
 
 Widget data kinds:
@@ -226,23 +229,24 @@ Database auto-seeds on first run. Seed is idempotent (skips if parts table has d
 
 When working on Beau's Terminal, read these first:
 
-- `src/lib/server/db/schema.ts` — all 25 table definitions
+- `src/lib/server/db/schema.ts` — all 27 table definitions
 - `src/lib/server/mqtt/bridge.ts` — MQTT state + subscriber broadcast (consumed by SSE)
 - `src/lib/stores/beau.svelte.ts` — client-side live state (BeauState via SSE EventSource)
 - `src/lib/stores/layout.svelte.ts` — per-page panel grid layouts + dual persistence
 - `src/lib/stores/editMode.svelte.ts` — edit mode global state (Ctrl+E toggle)
 - `src/lib/stores/navConfig.svelte.ts` — nav items/groups config + CRUD
 - `src/lib/stores/gridEngine.ts` — grid collision detection + push/compact algorithm
-- `src/lib/widgets/registry.ts` — widget registry (41 widgets, metadata, categories)
+- `src/lib/widgets/registry.ts` — widget registry (43 widgets, metadata, categories)
 - `src/lib/widgets/templates.ts` — page template definitions for custom page creation
 - `src/lib/server/db/activity.ts` — activity log queries (recent events, entity activity feed)
 - `src/lib/components/Panel.svelte` — panel component (drag, resize, edit controls)
 - `src/lib/components/PanelCanvas.svelte` — 12-column grid container + layout engine
 - `src/app.css` — design tokens
 - `src/hooks.server.ts` — startup orchestration
-- `src/lib/server/mqtt/topics.ts` — MQTT topic constants and mode types
+- `src/lib/server/mqtt/topics.ts` — MQTT topic constants and type unions (modes, device types, heating states)
 - `src/lib/server/prompt/assembler.ts` — prompt section parser + mode injection
 - `src/lib/server/sitrep.ts` — sitrep markdown assembler (queries all tables + live state)
+- `src/lib/server/wellness/sessions.ts` — wellness session lifecycle (coordinator, manager, parsers)
 
 ## Deep Reference
 

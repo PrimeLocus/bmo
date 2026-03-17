@@ -32,7 +32,59 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 | `beau/creative/resolume/live` | BMO → Terminal | Real-time clip and BPM data from Resolume OSC |
 | `beau/creative/resolume/debrief` | BMO → Terminal | Post-session reflection trigger (debriefAt timestamp payload) |
 
-**BeauState** (server-side, broadcast via WebSocket):
+### Wellness
+
+Published by the `ble-bridge/` service. Beau-terminal subscribes to all three; it never publishes to the wellness namespace.
+
+| Topic | Direction | Purpose |
+|---|---|---|
+| `beau/wellness/device/status` | BLE Bridge → Terminal | Device connect/disconnect events |
+| `beau/wellness/device/telemetry` | BLE Bridge → Terminal | Periodic temp, battery, heating state (every 3s active, 30s idle) |
+| `beau/wellness/session` | BLE Bridge → Terminal | Explicit session start/end from the bridge (optional; terminal infers sessions from telemetry if not present) |
+
+#### Wellness MQTT payload schemas
+
+**`beau/wellness/device/status`**
+```json
+{
+  "deviceId": "AA:BB:CC:DD:EE:FF",
+  "deviceType": "volcano-hybrid",
+  "displayName": "Volcano Hybrid",
+  "event": "connected",
+  "batteryPercent": 87,
+  "firmwareVersion": "3.1.2"
+}
+```
+`event` must be one of `"connected" | "disconnected" | "error"`. `batteryPercent` and `firmwareVersion` are optional.
+
+**`beau/wellness/device/telemetry`**
+```json
+{
+  "deviceId": "AA:BB:CC:DD:EE:FF",
+  "deviceType": "volcano-hybrid",
+  "displayName": "Volcano Hybrid",
+  "targetTemp": 385,
+  "actualTemp": 372,
+  "heatingState": "active",
+  "batteryPercent": 85,
+  "profile": "Evening"
+}
+```
+`heatingState` must be one of `"idle" | "heating" | "ready" | "active" | "cooling"`. All temperatures in **Fahrenheit** (bridge normalizes). `batteryPercent` and `profile` are optional.
+
+**`beau/wellness/session`** (optional — bridge may omit this; terminal infers from telemetry)
+```json
+{
+  "event": "start",
+  "deviceId": "AA:BB:CC:DD:EE:FF",
+  "deviceType": "volcano-hybrid",
+  "displayName": "Volcano Hybrid",
+  "targetTemp": 385
+}
+```
+`event` must be one of `"start" | "end" | "heartbeat"`.
+
+**BeauState** (server-side, broadcast via SSE):
 
 ```typescript
 {
@@ -57,6 +109,16 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
   currentSessionId: number | null;
   currentClip: string | null;
   currentBpm: number | null;
+  // Phase 5 — Wellness
+  wellnessSessionActive: boolean;       // true while a session is in progress
+  wellnessDeviceType: string | null;    // 'volcano-hybrid' | 'puffco-peak-pro' | etc.
+  wellnessDeviceName: string | null;    // human-readable display name
+  wellnessTargetTemp: number | null;    // target temp in °F
+  wellnessActualTemp: number | null;    // current actual temp in °F
+  wellnessHeatingState: string | null;  // idle | heating | ready | active | cooling
+  wellnessSessionId: number | null;     // FK into wellness_sessions table
+  wellnessBattery: number | null;       // battery % (null for devices without battery)
+  wellnessProfile: string | null;       // named heat profile, if any
 }
 ```
 
@@ -65,6 +127,8 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 ## Database Schema
 
 20 tables in `beau-terminal/data/beau.db` (defined in `src/lib/server/db/schema.ts`):
+
+27 tables in `beau-terminal/data/beau.db` (defined in `src/lib/server/db/schema.ts`):
 
 | Table | Purpose | Key Columns |
 |---|---|---|
@@ -88,6 +152,9 @@ Beau's Terminal subscribes/publishes via the bridge (`src/lib/server/mqtt/bridge
 | **journal_entries** | Beau's journal entries (private by default) | id (auto), createdAt, entryAt, title, body, mood, tagsJson, visibility, surfacedAt, filePath |
 | **noticings** | Pattern observations with lifecycle | id (auto), createdAt, patternText, basisSummary, observationWindow, surfacedAt, status, category |
 | **consent_events** | Audit trail for journal/noticing access | id (auto), timestamp, eventType, targetId, targetType, sessionToken, notes |
+
+| **wellness_sessions** | Cannabis device session records | id (auto), createdAt, startedAt, endedAt, status, deviceId, deviceType, displayName, targetTemp, peakTemp, avgTemp, profile, durationSeconds, batteryStart, batteryEnd, contextMode |
+| **wellness_events** | Per-telemetry-frame data within a wellness session | id (auto), sessionId (FK→wellness_sessions), timestamp, sequence, eventType, payloadJson |
 
 Note: `haikus.session_id` is a nullable FK to `resolume_sessions.id` — haikus generated during a VJ session are automatically linked.
 
@@ -174,6 +241,192 @@ Server-side modules under `src/lib/server/reflective/` that implement Phase 4 jo
 - **Journal:** private by default, session-scoped consent (HTTP-only cookie, expires on browser close), all views audited in `consent_events`, entries deletable (logged)
 - **Noticings:** 90-day minimum observation window, allowed categories only (timing/creative/seasonal — NOT behavioral), surface once then archive
 - **API:** `/api/journal/entries` POST returns metadata only via GET (no body text over API)
+
+---
+
+## Wellness Domain
+
+Ambient awareness of cannabis device sessions. Beau-terminal is a **passive consumer** — it reads MQTT data published by the `ble-bridge/` service and records session history. It never controls devices.
+
+### Supported Devices
+
+| Device | BLE Protocol | Notes |
+|---|---|---|
+| Volcano Hybrid (Storz & Bickel) | Documented GATT UUIDs | Best-supported; existing HA integration. GATT UUIDs in `ble-bridge/src/devices/volcano-hybrid.ts` |
+| Puffco Peak Pro | Reverse-engineered (PuffcoPC / Fr0st3h writeup) | Auth handshake required for firmware X+. See `ble-bridge/src/devices/puffco-peak-pro.ts` |
+| Dr Dabber Switch 2 | No public protocol | Schema supports it; adapter TBD when protocol is reverse-engineered |
+| Puffco Pivot | No Bluetooth | Excluded permanently — device has no wireless connectivity |
+
+### Session Lifecycle (server-side)
+
+Implemented in `src/lib/server/wellness/sessions.ts`.
+
+```
+idle ──► heating ──► active ──► cooling ──► idle
+                      │                      ▲
+                      └──────────────────────┘
+                         (device back to active)
+```
+
+**`WellnessSessionManager`** — one instance per connected device, keyed by `deviceId`:
+- Transitions on `heatingState` changes from incoming telemetry
+- Silence-based end detection: 3-minute timeout while in `cooling` state
+- Early end: if `actualTemp` drops below 100°F during cooling, session ends immediately without waiting for the timeout
+- Callbacks: `onSessionStart(info)` and `onSessionEnd(stats)` fire when transitions occur
+- `cleanup()` ends any active session and clears timers (called on device disconnect or server shutdown)
+
+**`WellnessDeviceCoordinator`** — top-level orchestrator, instantiated once in `bridge.ts`:
+- Maintains `Map<deviceId, WellnessSessionManager>`
+- Creates a new manager on first telemetry from an unknown device
+- Calls `manager.onDisconnect()` and removes from map on device disconnect events
+- Handles explicit `beau/wellness/session` start/end events as authoritative overrides (bridge may publish these directly instead of letting the terminal infer)
+
+### Bridge Wiring (`bridge.ts`)
+
+The wellness coordinator is wired in `connectMQTT()` alongside the Resolume session manager:
+
+```typescript
+// Instantiated once
+const wellnessCoordinator = new WellnessDeviceCoordinator({
+  onSessionStart: (info) => {
+    // 1. Update BeauState with device/temp/heating fields
+    // 2. INSERT into wellness_sessions → captures wellnessDbSessionId
+    // 3. logActivity('wellness_session', ...)
+    // 4. broadcast()
+  },
+  onSessionEnd: (stats) => {
+    // 1. SELECT startedAt from DB, compute durationSeconds
+    // 2. UPDATE wellness_sessions with endedAt, status, peakTemp, avgTemp, durationSeconds, batteryEnd
+    // 3. logActivity('wellness_session', ...)
+    // 4. Clear all wellness BeauState fields back to null/false
+    // 5. broadcast()
+  },
+});
+```
+
+Three MQTT switch cases handle incoming messages:
+
+| Topic | Handler behavior |
+|---|---|
+| `beau/wellness/device/status` | Calls `coordinator.onDeviceStatus()` → creates/removes managers; logs to `environmentEvents` |
+| `beau/wellness/device/telemetry` | Calls `coordinator.onTelemetry()` (may trigger session start/end callbacks); updates live temp/state fields in BeauState; inserts a `wellness_events` row if session active |
+| `beau/wellness/session` | Calls `coordinator.onSessionEvent()` for explicit start/end overrides from the bridge |
+
+### Parsers
+
+Three defensive parse functions in `sessions.ts`:
+
+```typescript
+parseDeviceStatus(msg: string): DeviceStatusEvent | null
+parseDeviceTelemetry(msg: string): TelemetryEvent | null
+parseSessionEvent(msg: string): SessionEvent | null
+```
+
+All follow the same pattern: `JSON.parse` in a try/catch, validate required fields and allowed enum values, return `null` on any failure. The bridge ignores `null` returns silently.
+
+### Database Persistence
+
+Two tables — `wellness_sessions` (one row per session) and `wellness_events` (one row per telemetry frame while a session is active, indexed on `session_id`).
+
+**`wellness_sessions` columns:**
+
+| Column | Type | Notes |
+|---|---|---|
+| `device_id` | TEXT | BLE MAC address or device serial |
+| `device_type` | TEXT | `volcano-hybrid` / `puffco-peak-pro` / etc. |
+| `display_name` | TEXT | Human-readable name from the bridge config |
+| `target_temp` | REAL | °F. Null if device doesn't report target |
+| `peak_temp` | REAL | Highest `actualTemp` seen during session |
+| `avg_temp` | REAL | Mean `actualTemp` over all telemetry frames |
+| `profile` | TEXT | Named heat profile (Volcano presets, Puffco profiles) |
+| `duration_seconds` | INTEGER | Computed on session end: `endedAt - startedAt` |
+| `battery_start` | INTEGER | Battery % at session open |
+| `battery_end` | INTEGER | Battery % at session close |
+| `context_mode` | TEXT | Beau's mode at the time the session started |
+
+### UI Widgets
+
+| Widget ID | Type | Data Kind | Description |
+|---|---|---|---|
+| `wellness-session` | Terminal | `websocket` | Live session dashboard — device name, target/actual temp with color gradient, heating state badge, duration counter, battery, profile. Shows "no active session" when idle. |
+| `wellness-log` | Terminal | `database` | Session history table — date, device, target temp, peak temp, duration, battery delta. Configurable row limit (default 20). |
+
+Both are in the `environment` category in the widget drawer. A "Session Lounge" page template seeds a custom page with both widgets plus beau-vitals, last-haiku, bmo-face, and weather.
+
+### BLE Bridge (`ble-bridge/`)
+
+A separate Node.js process that runs on any BLE-capable machine on the same network as the MQTT broker (typically the Pi). Beau-terminal has no BLE code — it only consumes MQTT.
+
+```
+ble-bridge/
+  package.json
+  config.json          ← device list, MQTT URL, polling intervals
+  src/
+    index.ts           ← entry point, config loading, MQTT connection
+    mqtt.ts            ← typed MQTT publisher wrapper
+    devices/
+      types.ts         ← DeviceAdapter interface all adapters implement
+      volcano-hybrid.ts
+      puffco-peak-pro.ts
+```
+
+**Device adapter interface:**
+```typescript
+interface DeviceAdapter {
+  deviceType: string;
+  displayName: string;
+  connect(peripheral: noble.Peripheral): Promise<void>;
+  disconnect(): Promise<void>;
+  onTelemetry(callback: (data: TelemetryData) => void): void;
+  getStatus(): { connected: boolean; batteryPercent?: number };
+}
+```
+
+Each adapter normalizes device-specific BLE GATT characteristics to the shared MQTT payload format before publishing. The bridge is the only code that knows about BLE — `beau-terminal/` treats the devices as opaque MQTT sources.
+
+**`config.json` structure:**
+```json
+{
+  "mqtt": { "url": "mqtt://192.168.1.X:1883", "clientId": "bmo-ble-bridge" },
+  "telemetryIntervalMs": 3000,
+  "idleHeartbeatMs": 30000,
+  "devices": [
+    { "type": "volcano-hybrid", "name": "Volcano Hybrid", "bleAddress": "AA:BB:CC:DD:EE:FF", "enabled": true },
+    { "type": "puffco-peak-pro", "name": "Peak Pro", "bleAddress": "11:22:33:44:55:66", "enabled": true }
+  ]
+}
+```
+
+### Sitrep Integration
+
+`src/lib/server/sitrep.ts` includes wellness in two places:
+
+1. **Current State section** — adds a line like `- **Wellness:** Volcano Hybrid at 372°F (active)` when a session is active.
+2. **Wellness Sessions section** — last 5 sessions from the DB, with device, temps, duration, and timestamps.
+
+### Testing Without a BLE Bridge
+
+Publish test MQTT messages manually using `mosquitto_pub`:
+
+```bash
+# Device connects
+mosquitto_pub -t 'beau/wellness/device/status' -m '{"deviceId":"test-01","deviceType":"volcano-hybrid","displayName":"Volcano Hybrid","event":"connected","batteryPercent":90}'
+
+# Heating begins
+mosquitto_pub -t 'beau/wellness/device/telemetry' -m '{"deviceId":"test-01","deviceType":"volcano-hybrid","displayName":"Volcano Hybrid","targetTemp":385,"actualTemp":95,"heatingState":"heating","batteryPercent":90}'
+
+# Ready (session becomes active in DB)
+mosquitto_pub -t 'beau/wellness/device/telemetry' -m '{"deviceId":"test-01","deviceType":"volcano-hybrid","displayName":"Volcano Hybrid","targetTemp":385,"actualTemp":385,"heatingState":"ready","batteryPercent":88}'
+
+# In use
+mosquitto_pub -t 'beau/wellness/device/telemetry' -m '{"deviceId":"test-01","deviceType":"volcano-hybrid","displayName":"Volcano Hybrid","targetTemp":385,"actualTemp":390,"heatingState":"active","batteryPercent":87}'
+
+# Cooling (3-min timer starts)
+mosquitto_pub -t 'beau/wellness/device/telemetry' -m '{"deviceId":"test-01","deviceType":"volcano-hybrid","displayName":"Volcano Hybrid","targetTemp":null,"actualTemp":120,"heatingState":"cooling","batteryPercent":85}'
+
+# Or force an immediate end:
+mosquitto_pub -t 'beau/wellness/session' -m '{"event":"end","deviceId":"test-01","deviceType":"volcano-hybrid","displayName":"Volcano Hybrid"}'
+```
 
 ---
 
