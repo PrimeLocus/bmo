@@ -388,3 +388,41 @@ try {
 
 // Phase 3 — entity_links unique index
 try { sqlite.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_entity_links_unique ON entity_links(source_type, source_id, target_type, target_id, relationship)").run(); } catch { /* already exists */ }
+
+// Phase 5 — wellness tables
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS wellness_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    started_at TEXT NOT NULL,
+    ended_at TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    device_id TEXT NOT NULL,
+    device_type TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    target_temp REAL,
+    peak_temp REAL,
+    avg_temp REAL,
+    profile TEXT,
+    duration_seconds INTEGER,
+    battery_start INTEGER,
+    battery_end INTEGER,
+    context_mode TEXT
+  )`).run();
+} catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS wellness_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL REFERENCES wellness_sessions(id) ON DELETE CASCADE,
+    timestamp TEXT NOT NULL,
+    sequence INTEGER NOT NULL,
+    event_type TEXT NOT NULL,
+    payload_json TEXT
+  )`).run();
+} catch { /* already exists */ }
+
+// Phase 5 — wellness indexes
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_wellness_sessions_started ON wellness_sessions(started_at DESC)").run(); } catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_wellness_events_session ON wellness_events(session_id)").run(); } catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_wellness_events_ts ON wellness_events(timestamp)").run(); } catch { /* already exists */ }

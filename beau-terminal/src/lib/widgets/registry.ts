@@ -137,6 +137,37 @@ const REGISTRY: Record<string, WidgetMeta> = {
 		dataKind: 'database'
 	},
 
+	'wellness-session': {
+		id: 'wellness-session',
+		label: 'Session Monitor',
+		description: 'live cannabis device session — temp, device, duration',
+		icon: '\u{1F321}',
+		category: 'environment',
+		component: () => import('./terminal/WellnessSessionWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 3 },
+		configSchema: [],
+		dataKind: 'websocket'
+	},
+
+	'wellness-log': {
+		id: 'wellness-log',
+		label: 'Session Log',
+		description: 'cannabis device session history and stats',
+		icon: '\u{1F4CA}',
+		category: 'environment',
+		component: () => import('./terminal/WellnessLogWidget.svelte'),
+		defaultPosition: { colSpan: 12, rowSpan: 4 },
+		configSchema: [
+			{
+				key: 'limit',
+				label: 'Limit',
+				type: 'number',
+				default: 20
+			}
+		],
+		dataKind: 'database'
+	},
+
 	'beau-vitals': {
 		id: 'beau-vitals',
 		label: 'Beau Vitals',

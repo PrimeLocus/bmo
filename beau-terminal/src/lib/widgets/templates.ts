@@ -38,6 +38,19 @@ export const PAGE_TEMPLATES: Record<string, PageTemplate> = {
       tpl('next-steps', 8, 4, 4, 3),
     ]
   },
+  'session-lounge': {
+    label: 'Session Lounge',
+    icon: '~',
+    description: 'Device session monitor + vitals + haiku for ambient sessions',
+    layout: [
+      tpl('wellness-session', 0, 0, 6, 3),
+      tpl('beau-vitals', 6, 0, 6, 2),
+      tpl('last-haiku', 6, 2, 6, 2),
+      tpl('bmo-face', 0, 3, 3, 1),
+      tpl('weather', 3, 3, 3, 1),
+      tpl('wellness-log', 0, 4, 12, 4),
+    ]
+  },
   'daily-review': {
     label: 'Daily Review',
     icon: '◈',

@@ -36,6 +36,13 @@ export const TOPICS = {
       debrief: 'beau/creative/resolume/debrief',
     },
   },
+  wellness: {
+    device: {
+      status: 'beau/wellness/device/status',
+      telemetry: 'beau/wellness/device/telemetry',
+    },
+    session: 'beau/wellness/session',
+  },
 } as const;
 
 // Topics the terminal subscribes to (inbound from BMO)
@@ -58,6 +65,10 @@ export const SUBSCRIBE_TOPICS: string[] = [
   TOPICS.creative.resolume.session,
   TOPICS.creative.resolume.live,
   TOPICS.creative.resolume.debrief,
+  // Phase 5 — wellness
+  TOPICS.wellness.device.status,
+  TOPICS.wellness.device.telemetry,
+  TOPICS.wellness.session,
 ];
 
 // ─── Type unions ───
@@ -76,3 +87,9 @@ export type HaikuType = (typeof HAIKU_TYPES)[number];
 
 export const DISPATCH_TIERS = ['reflex', 'philosopher', 'heavy'] as const;
 export type DispatchTier = (typeof DISPATCH_TIERS)[number];
+
+export const DEVICE_TYPES = ['volcano-hybrid', 'puffco-peak-pro', 'dr-dabber-switch2'] as const;
+export type DeviceType = (typeof DEVICE_TYPES)[number];
+
+export const HEATING_STATES = ['idle', 'heating', 'ready', 'active', 'cooling'] as const;
+export type HeatingState = (typeof HEATING_STATES)[number];

@@ -13,7 +13,8 @@ import type { WeatherData } from '../environment/weather.js';
 import { ResolumeSessionManager, parseResolumeLiveMessage } from '../creative/resolume.js';
 import { WitnessController } from '../creative/witness.js';
 import { DebriefScheduler, formatDebriefPrompt } from '../creative/debrief.js';
-import { resolumeSessions, resolumeEvents } from '../db/schema.js';
+import { resolumeSessions, resolumeEvents, wellnessSessions, wellnessEvents } from '../db/schema.js';
+import { WellnessDeviceCoordinator, parseDeviceStatus, parseDeviceTelemetry, parseSessionEvent } from '../wellness/sessions.js';
 
 export type BeauState = {
   mode: string;
@@ -37,6 +38,16 @@ export type BeauState = {
   currentSessionId: number | null;
   currentClip: string | null;
   currentBpm: number | null;
+  // Phase 5 — wellness
+  wellnessSessionActive: boolean;
+  wellnessDeviceType: string | null;
+  wellnessDeviceName: string | null;
+  wellnessTargetTemp: number | null;
+  wellnessActualTemp: number | null;
+  wellnessHeatingState: string | null;
+  wellnessSessionId: number | null;
+  wellnessBattery: number | null;
+  wellnessProfile: string | null;
 };
 
 const DEFAULT_STATE: BeauState = {
@@ -61,6 +72,16 @@ const DEFAULT_STATE: BeauState = {
   currentSessionId: null,
   currentClip: null,
   currentBpm: null,
+  // Phase 5 — wellness
+  wellnessSessionActive: false,
+  wellnessDeviceType: null,
+  wellnessDeviceName: null,
+  wellnessTargetTemp: null,
+  wellnessActualTemp: null,
+  wellnessHeatingState: null,
+  wellnessSessionId: null,
+  wellnessBattery: null,
+  wellnessProfile: null,
 };
 
 let state: BeauState = { ...DEFAULT_STATE };
@@ -223,6 +244,82 @@ export function connectMQTT() {
     onModeChange: (mode) => {
       state = { ...state, mode };
       _publish?.(TOPICS.state.mode, mode);
+      broadcast();
+    },
+  });
+
+  // Phase 5 — Wellness device session lifecycle
+  let wellnessDbSessionId: number | null = null;
+  let wellnessEventSequence = 0;
+
+  const wellnessCoordinator = new WellnessDeviceCoordinator({
+    onSessionStart: (info) => {
+      state = {
+        ...state,
+        wellnessSessionActive: true,
+        wellnessDeviceType: info.deviceType,
+        wellnessDeviceName: info.displayName,
+        wellnessTargetTemp: info.targetTemp,
+        wellnessHeatingState: 'heating',
+        wellnessBattery: info.batteryPercent ?? null,
+        wellnessProfile: info.profile ?? null,
+      };
+      wellnessEventSequence = 0;
+      try {
+        const result = db.insert(wellnessSessions).values({
+          startedAt: new Date().toISOString(),
+          deviceId: info.deviceId,
+          deviceType: info.deviceType,
+          displayName: info.displayName,
+          targetTemp: info.targetTemp,
+          batteryStart: info.batteryPercent ?? null,
+          contextMode: state.mode,
+        }).run();
+        wellnessDbSessionId = Number(result.lastInsertRowid);
+        state = { ...state, wellnessSessionId: wellnessDbSessionId };
+      } catch (e) {
+        console.warn('[bridge] wellness session DB insert failed:', e);
+      }
+      logActivity('wellness_session', null, 'started',
+        `${info.displayName} session started at ${info.targetTemp ?? '?'}°F`);
+      broadcast();
+    },
+    onSessionEnd: (stats) => {
+      if (wellnessDbSessionId && stats) {
+        const avgTemp = stats.tempReadings > 0 ? Math.round(stats.tempSum / stats.tempReadings) : null;
+        try {
+          const endedAt = new Date().toISOString();
+          const startRow = db.select({ startedAt: wellnessSessions.startedAt })
+            .from(wellnessSessions).where(eq(wellnessSessions.id, wellnessDbSessionId)).get();
+          const durationSeconds = startRow
+            ? Math.round((new Date(endedAt).getTime() - new Date(startRow.startedAt).getTime()) / 1000)
+            : null;
+          db.update(wellnessSessions).set({
+            endedAt,
+            status: 'completed',
+            peakTemp: stats.peakTemp,
+            avgTemp,
+            profile: stats.profile,
+            batteryEnd: stats.batteryPercent ?? null,
+            durationSeconds,
+          }).where(eq(wellnessSessions.id, wellnessDbSessionId)).run();
+        } catch { /* non-fatal */ }
+      }
+      logActivity('wellness_session', null, 'ended',
+        `${stats?.displayName ?? 'Device'} session ended — ${stats?.peakTemp ?? '?'}°F peak`);
+      state = {
+        ...state,
+        wellnessSessionActive: false,
+        wellnessDeviceType: null,
+        wellnessDeviceName: null,
+        wellnessTargetTemp: null,
+        wellnessActualTemp: null,
+        wellnessHeatingState: null,
+        wellnessSessionId: null,
+        wellnessBattery: null,
+        wellnessProfile: null,
+      };
+      wellnessDbSessionId = null;
       broadcast();
     },
   });
@@ -402,6 +499,49 @@ export function connectMQTT() {
           }
         } catch { /* ignore malformed */ }
         break;
+      // Phase 5 — wellness
+      case TOPICS.wellness.device.status: {
+        const statusEvent = parseDeviceStatus(msg);
+        if (statusEvent) {
+          wellnessCoordinator.onDeviceStatus(statusEvent);
+          logEnvironmentEvent('wellness_device_' + statusEvent.event,
+            { deviceId: statusEvent.deviceId, deviceType: statusEvent.deviceType },
+            'ble_bridge');
+        }
+        break;
+      }
+      case TOPICS.wellness.device.telemetry: {
+        const telemetry = parseDeviceTelemetry(msg);
+        if (telemetry) {
+          wellnessCoordinator.onTelemetry(telemetry);
+          state = {
+            ...state,
+            wellnessActualTemp: telemetry.actualTemp,
+            wellnessTargetTemp: telemetry.targetTemp ?? state.wellnessTargetTemp,
+            wellnessHeatingState: telemetry.heatingState,
+            wellnessBattery: telemetry.batteryPercent ?? state.wellnessBattery,
+          };
+          if (wellnessDbSessionId) {
+            try {
+              db.insert(wellnessEvents).values({
+                sessionId: wellnessDbSessionId,
+                timestamp: new Date().toISOString(),
+                sequence: wellnessEventSequence++,
+                eventType: 'telemetry',
+                payloadJson: JSON.stringify(telemetry),
+              }).run();
+            } catch { /* non-fatal */ }
+          }
+        }
+        break;
+      }
+      case TOPICS.wellness.session: {
+        const sessionEvent = parseSessionEvent(msg);
+        if (sessionEvent) {
+          wellnessCoordinator.onSessionEvent(sessionEvent);
+        }
+        break;
+      }
     }
     broadcast();
   });

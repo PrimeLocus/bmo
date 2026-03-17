@@ -302,6 +302,36 @@ export const entityLinks = sqliteTable('entity_links', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
 
+// ─── Wellness Domain (Phase 5) ───────────────────────────────────────────────
+
+export const wellnessSessions = sqliteTable('wellness_sessions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  startedAt: text('started_at').notNull(),
+  endedAt: text('ended_at'),
+  status: text('status').notNull().default('active'),
+  deviceId: text('device_id').notNull(),
+  deviceType: text('device_type').notNull(),
+  displayName: text('display_name').notNull(),
+  targetTemp: real('target_temp'),
+  peakTemp: real('peak_temp'),
+  avgTemp: real('avg_temp'),
+  profile: text('profile'),
+  durationSeconds: integer('duration_seconds'),
+  batteryStart: integer('battery_start'),
+  batteryEnd: integer('battery_end'),
+  contextMode: text('context_mode'),
+});
+
+export const wellnessEvents = sqliteTable('wellness_events', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sessionId: integer('session_id').notNull().references(() => wellnessSessions.id, { onDelete: 'cascade' }),
+  timestamp: text('timestamp').notNull(),
+  sequence: integer('sequence').notNull(),
+  eventType: text('event_type').notNull(),
+  payloadJson: text('payload_json'),
+});
+
 // ─── Integrations (Phase 3) ──────────────────────────────────────────────────
 
 export const integrations = sqliteTable('integrations', {

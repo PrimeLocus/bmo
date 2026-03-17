@@ -113,6 +113,9 @@ function buildCurrentStateSection(): string | null {
 	lines.push(`- **Resolume:** ${state.resolumeActive ? 'LIVE' : 'off'}`);
 	if (state.currentBpm) lines.push(`- **BPM:** ${state.currentBpm}`);
 	if (state.currentClip) lines.push(`- **Clip:** ${state.currentClip}`);
+	if (state.wellnessSessionActive) {
+		lines.push(`- **Wellness:** ${state.wellnessDeviceName} at ${state.wellnessActualTemp ?? '?'}°F (${state.wellnessHeatingState})`);
+	}
 	if (state.lastHaiku) lines.push(`- **Last Haiku:** ${state.lastHaiku}`);
 
 	return `## Current State (Live)\n\n${lines.join('\n')}`;
@@ -299,6 +302,38 @@ function buildCreativeSection(): string | null {
 	return `## Creative Sessions (Resolume)\n\n${lines.join('\n')}`;
 }
 
+function buildWellnessSection(): string | null {
+	const state = getState();
+	const sessions = db
+		.select()
+		.from(schema.wellnessSessions)
+		.orderBy(desc(schema.wellnessSessions.id))
+		.limit(5)
+		.all();
+
+	if (!sessions.length && !state.wellnessSessionActive) return null;
+
+	const lines: string[] = [];
+
+	if (state.wellnessSessionActive) {
+		lines.push(`- **Active Session:** ${state.wellnessDeviceName} at ${state.wellnessTargetTemp ?? '?'}°F (actual: ${state.wellnessActualTemp ?? '?'}°F)`);
+		lines.push(`- **Heating State:** ${state.wellnessHeatingState}`);
+	}
+
+	for (const s of sessions) {
+		const parts: string[] = [];
+		parts.push(`**${s.displayName}**`);
+		parts.push(`started ${s.startedAt}`);
+		if (s.endedAt) parts.push(`ended ${s.endedAt}`);
+		if (s.targetTemp) parts.push(`target: ${s.targetTemp}°F`);
+		if (s.peakTemp) parts.push(`peak: ${s.peakTemp}°F`);
+		if (s.durationSeconds) parts.push(`${Math.round(s.durationSeconds / 60)}min`);
+		lines.push(`- ${parts.join(' | ')}`);
+	}
+
+	return `## Wellness Sessions\n\n${lines.join('\n')}`;
+}
+
 function buildIntegrationsSection(): string | null {
 	const integs = db.select().from(schema.integrations).all();
 	if (!integs.length) return null;
@@ -334,6 +369,7 @@ export function generateSitrep(): { markdown: string; generatedAt: string } {
 		buildDispatchesSection(),
 		buildEnvironmentSection(),
 		buildCreativeSection(),
+		buildWellnessSection(),
 		buildIntegrationsSection(),
 		buildEntityLinksSection(),
 	].filter(Boolean) as string[];

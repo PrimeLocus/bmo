@@ -46,6 +46,12 @@ export async function loadWidgetData(
         .orderBy(desc(schema.resolumeSessions.startedAt))
         .limit(limit).all();
     }
+    case 'wellness-log': {
+      const limit = typeof config.limit === 'number' ? config.limit : 20;
+      return db.select().from(schema.wellnessSessions)
+        .orderBy(desc(schema.wellnessSessions.startedAt))
+        .limit(limit).all();
+    }
     case 'photography': {
       return db.select().from(schema.photos)
         .orderBy(desc(schema.photos.createdAt)).all();

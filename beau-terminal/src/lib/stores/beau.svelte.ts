@@ -22,6 +22,16 @@ const defaultState: BeauState = {
   currentSessionId: null,
   currentClip: null,
   currentBpm: null,
+  // Phase 5 — wellness
+  wellnessSessionActive: false,
+  wellnessDeviceType: null,
+  wellnessDeviceName: null,
+  wellnessTargetTemp: null,
+  wellnessActualTemp: null,
+  wellnessHeatingState: null,
+  wellnessSessionId: null,
+  wellnessBattery: null,
+  wellnessProfile: null,
 };
 
 export const beauState = $state<BeauState>({ ...defaultState });
