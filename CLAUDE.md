@@ -59,7 +59,7 @@ bmo/
     │   │   │   ├── PanelCanvas.svelte  # 12-column CSS grid container, layout persistence
     │   │   │   ├── SitrepModal.svelte  # Sitrep export modal — preview, copy, download markdown
     │   │   │   ├── SpeechBubble.svelte # Speech bubble overlay for BmoFace dialog
-    │   │   │   └── StatusBar.svelte    # Top bar — online/offline, mode, emotion, sitrep button, last haiku
+    │   │   │   └── StatusBar.svelte    # Top bar — online/offline, mode, emotion, sitrep button, last haiku, bmo:react reactions
     │   │   ├── stores/
     │   │   │   ├── beau.svelte.ts      # WebSocket client → live BeauState ($state)
     │   │   │   ├── editMode.svelte.ts  # Edit mode toggle (Ctrl+E) — global $state
@@ -230,7 +230,7 @@ Database auto-seeds on first run. Seed is idempotent (skips if parts table has d
 When working on Beau's Terminal, read these first:
 
 - `src/lib/server/db/schema.ts` — all 27 table definitions
-- `src/lib/server/mqtt/bridge.ts` — MQTT state + subscriber broadcast (consumed by SSE)
+- `src/lib/server/mqtt/bridge.ts` — MQTT state + subscriber broadcast (consumed by SSE); per-device wellness session Maps; interactionAge tracking; startup orphan recovery
 - `src/lib/stores/beau.svelte.ts` — client-side live state (BeauState via SSE EventSource)
 - `src/lib/stores/layout.svelte.ts` — per-page panel grid layouts + dual persistence
 - `src/lib/stores/editMode.svelte.ts` — edit mode global state (Ctrl+E toggle)

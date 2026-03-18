@@ -1,5 +1,7 @@
 # BMO Terminal UX Redesign — Implementation Plan
 
+> **STATUS: COMPLETE** — All 4 phases shipped as of 2026-03-18. Council audit fixes and Beau reactions also landed. Checkboxes reflect pre-implementation state; see git log for actual delivery history.
+
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Transform Beau's Terminal from a generic dashboard into a coherent BMO companion with a daily landing page, unified build workflow, visible BMO identity, and flexible integrations hub.
