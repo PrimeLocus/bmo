@@ -6,15 +6,26 @@ import { logActivity } from '$lib/server/db/activity.js';
 import { nanoid } from 'nanoid';
 
 export const POST: RequestHandler = async ({ request }) => {
-  const { text, type } = await request.json();
+  let body: { text?: unknown; type?: unknown };
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'invalid JSON' }, { status: 400 });
+  }
 
-  if (!text || !type) {
+  const { text, type } = body;
+
+  if (typeof text !== 'string' || typeof type !== 'string') {
     return json({ error: 'text and type required' }, { status: 400 });
   }
 
   const trimmed = text.trim();
   if (!trimmed) {
     return json({ error: 'text cannot be empty' }, { status: 400 });
+  }
+
+  if (trimmed.length > 2000) {
+    return json({ error: 'text too long (max 2000 chars)' }, { status: 400 });
   }
 
   switch (type) {

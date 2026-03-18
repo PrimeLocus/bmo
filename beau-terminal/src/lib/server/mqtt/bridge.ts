@@ -1,5 +1,5 @@
 import mqtt from 'mqtt';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { haikus, dispatches } from '../db/schema.js';
 import { logActivity } from '../db/activity.js';
@@ -159,6 +159,14 @@ function maybeWriteSnapshot() {
 export function connectMQTT() {
   backfillDispatcherLog();
 
+  // T088: Close any wellness sessions left open by a previous server instance
+  try {
+    db.update(wellnessSessions).set({
+      endedAt: new Date().toISOString(),
+      status: 'interrupted',
+    }).where(isNull(wellnessSessions.endedAt)).run();
+  } catch { /* non-fatal */ }
+
   const presenceMachine = new PresenceMachine();
   const sleepMachine = new SleepMachine();
 
@@ -175,6 +183,9 @@ export function connectMQTT() {
     logEnvironmentEvent(ss === 'asleep' ? 'sleep_entered' : ss === 'waking' ? 'wake_triggered' : 'sleep_state_changed', { state: ss }, 'system');
     broadcast();
   });
+
+  // T087: Track last user interaction time for sleep machine
+  let lastInteractionAt = Date.now();
 
   // Phase 3 — Resolume session lifecycle
   let dbSessionId: number | null = null;
@@ -248,12 +259,13 @@ export function connectMQTT() {
     },
   });
 
-  // Phase 5 — Wellness device session lifecycle
-  let wellnessDbSessionId: number | null = null;
-  let wellnessEventSequence = 0;
+  // T085: Per-device wellness session tracking (supports concurrent devices)
+  const wellnessDbSessionIds = new Map<string, number>();
+  const wellnessEventSequences = new Map<string, number>();
 
   const wellnessCoordinator = new WellnessDeviceCoordinator({
     onSessionStart: (info) => {
+      // Update live state to the most recently started device
       state = {
         ...state,
         wellnessSessionActive: true,
@@ -264,7 +276,7 @@ export function connectMQTT() {
         wellnessBattery: info.batteryPercent ?? null,
         wellnessProfile: info.profile ?? null,
       };
-      wellnessEventSequence = 0;
+      wellnessEventSequences.set(info.deviceId, 0);
       try {
         const result = db.insert(wellnessSessions).values({
           startedAt: new Date().toISOString(),
@@ -275,8 +287,9 @@ export function connectMQTT() {
           batteryStart: info.batteryPercent ?? null,
           contextMode: state.mode,
         }).run();
-        wellnessDbSessionId = Number(result.lastInsertRowid);
-        state = { ...state, wellnessSessionId: wellnessDbSessionId };
+        const newId = Number(result.lastInsertRowid);
+        wellnessDbSessionIds.set(info.deviceId, newId);
+        state = { ...state, wellnessSessionId: newId };
       } catch (e) {
         console.warn('[bridge] wellness session DB insert failed:', e);
       }
@@ -285,41 +298,48 @@ export function connectMQTT() {
       broadcast();
     },
     onSessionEnd: (stats) => {
-      if (wellnessDbSessionId && stats) {
-        const avgTemp = stats.tempReadings > 0 ? Math.round(stats.tempSum / stats.tempReadings) : null;
-        try {
-          const endedAt = new Date().toISOString();
-          const startRow = db.select({ startedAt: wellnessSessions.startedAt })
-            .from(wellnessSessions).where(eq(wellnessSessions.id, wellnessDbSessionId)).get();
-          const durationSeconds = startRow
-            ? Math.round((new Date(endedAt).getTime() - new Date(startRow.startedAt).getTime()) / 1000)
-            : null;
-          db.update(wellnessSessions).set({
-            endedAt,
-            status: 'completed',
-            peakTemp: stats.peakTemp,
-            avgTemp,
-            profile: stats.profile,
-            batteryEnd: stats.batteryPercent ?? null,
-            durationSeconds,
-          }).where(eq(wellnessSessions.id, wellnessDbSessionId)).run();
-        } catch { /* non-fatal */ }
+      if (stats) {
+        const sessionId = wellnessDbSessionIds.get(stats.deviceId);
+        if (sessionId) {
+          const avgTemp = stats.tempReadings > 0 ? Math.round(stats.tempSum / stats.tempReadings) : null;
+          try {
+            const endedAt = new Date().toISOString();
+            const startRow = db.select({ startedAt: wellnessSessions.startedAt })
+              .from(wellnessSessions).where(eq(wellnessSessions.id, sessionId)).get();
+            const durationSeconds = startRow
+              ? Math.round((new Date(endedAt).getTime() - new Date(startRow.startedAt).getTime()) / 1000)
+              : null;
+            db.update(wellnessSessions).set({
+              endedAt,
+              status: 'completed',
+              peakTemp: stats.peakTemp,
+              avgTemp,
+              profile: stats.profile,
+              batteryEnd: stats.batteryPercent ?? null,
+              durationSeconds,
+            }).where(eq(wellnessSessions.id, sessionId)).run();
+          } catch { /* non-fatal */ }
+          wellnessDbSessionIds.delete(stats.deviceId);
+          wellnessEventSequences.delete(stats.deviceId);
+        }
       }
       logActivity('wellness_session', null, 'ended',
         `${stats?.displayName ?? 'Device'} session ended — ${stats?.peakTemp ?? '?'}°F peak`);
-      state = {
-        ...state,
-        wellnessSessionActive: false,
-        wellnessDeviceType: null,
-        wellnessDeviceName: null,
-        wellnessTargetTemp: null,
-        wellnessActualTemp: null,
-        wellnessHeatingState: null,
-        wellnessSessionId: null,
-        wellnessBattery: null,
-        wellnessProfile: null,
-      };
-      wellnessDbSessionId = null;
+      // Only clear wellness state if no other device sessions remain active
+      if (wellnessDbSessionIds.size === 0) {
+        state = {
+          ...state,
+          wellnessSessionActive: false,
+          wellnessDeviceType: null,
+          wellnessDeviceName: null,
+          wellnessTargetTemp: null,
+          wellnessActualTemp: null,
+          wellnessHeatingState: null,
+          wellnessSessionId: null,
+          wellnessBattery: null,
+          wellnessProfile: null,
+        };
+      }
       broadcast();
     },
   });
@@ -378,6 +398,7 @@ export function connectMQTT() {
         break;
       case TOPICS.intent.wake:
         state = { ...state, wakeWord: msg };
+        lastInteractionAt = Date.now(); // T087: wake word = explicit user interaction
         break;
       case TOPICS.sensors.environment:
         state = { ...state, environment: msg };
@@ -401,6 +422,7 @@ export function connectMQTT() {
           ...state,
           dispatcherLog: [...state.dispatcherLog.slice(-99), msg],
         };
+        lastInteractionAt = Date.now(); // T087: any dispatch = active conversation
         // Persist JSON dispatcher messages to dispatches table
         try {
           const parsed = JSON.parse(msg);
@@ -438,7 +460,7 @@ export function connectMQTT() {
           sleepMachine.update({
             presenceState: presenceMachine.state,
             lux: state.lux,
-            interactionAge: 0, // TODO: track actual interaction age
+            interactionAge: Math.floor((Date.now() - lastInteractionAt) / 1000),
           });
           maybeWriteSnapshot();
           witnessController.onPresenceChange(presenceMachine.state, resolumeManager.isActive);
@@ -521,15 +543,18 @@ export function connectMQTT() {
             wellnessHeatingState: telemetry.heatingState,
             wellnessBattery: telemetry.batteryPercent ?? state.wellnessBattery,
           };
-          if (wellnessDbSessionId) {
+          const wellnessSessionId = wellnessDbSessionIds.get(telemetry.deviceId);
+          if (wellnessSessionId) {
+            const seq = wellnessEventSequences.get(telemetry.deviceId) ?? 0;
             try {
               db.insert(wellnessEvents).values({
-                sessionId: wellnessDbSessionId,
+                sessionId: wellnessSessionId,
                 timestamp: new Date().toISOString(),
-                sequence: wellnessEventSequence++,
+                sequence: seq,
                 eventType: 'telemetry',
                 payloadJson: JSON.stringify(telemetry),
               }).run();
+              wellnessEventSequences.set(telemetry.deviceId, seq + 1);
             } catch { /* non-fatal */ }
           }
         }
