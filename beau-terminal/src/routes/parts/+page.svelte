@@ -309,7 +309,13 @@
                 <input type="hidden" name="id" value={part.id} />
                 <label class="text-sm tracking-widest block mb-1" for="status-{part.id}" style="color: var(--bmo-muted)">STATUS</label>
                 <select id="status-{part.id}" name="status"
-                  onchange={(e) => (e.currentTarget as HTMLSelectElement).closest('form')?.requestSubmit()}
+                  onchange={(e) => {
+                    const sel = e.currentTarget as HTMLSelectElement;
+                    sel.closest('form')?.requestSubmit();
+                    if (sel.value === 'delivered' || sel.value === 'installed') {
+                      window.dispatchEvent(new CustomEvent('bmo:react', { detail: 'a package arrived.' }));
+                    }
+                  }}
                   class="text-sm px-2 py-1.5 border"
                   style="background: var(--bmo-bg); color: var(--bmo-text); border-color: var(--bmo-border)">
                   {#each STATUSES as s}

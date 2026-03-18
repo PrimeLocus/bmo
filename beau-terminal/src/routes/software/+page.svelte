@@ -24,6 +24,15 @@
   const totalDone = $derived(allSteps.filter(s => s.done).length);
   const totalPct = $derived(allSteps.length > 0 ? Math.round((totalDone / allSteps.length) * 100) : 0);
 
+  function stepEnhance(currentlyDone: boolean) {
+    return () => async ({ update }: { update: () => Promise<void> }) => {
+      await update();
+      if (!currentlyDone) {
+        window.dispatchEvent(new CustomEvent('bmo:react', { detail: 'one more step done.' }));
+      }
+    };
+  }
+
   let collapsed = $state<Set<number>>(new Set());
   function togglePhase(id: number) {
     const next = new Set(collapsed);
@@ -92,7 +101,7 @@
               {@const isBlocked = blockedStepIds.has(step.id)}
               <div class="border-b group" style="border-color: var(--bmo-border)">
                 <div class="flex items-start gap-3 px-4 py-2">
-                  <form method="POST" action="?/toggle" use:enhance class="flex items-start gap-3 flex-1">
+                  <form method="POST" action="?/toggle" use:enhance={stepEnhance(step.done)} class="flex items-start gap-3 flex-1">
                     <input type="hidden" name="id" value={step.id} />
                     <input type="hidden" name="done" value={String(step.done)} />
                     <button type="submit" class="mt-0.5 shrink-0 w-4 h-4 border flex items-center justify-center text-xs hover:opacity-70 transition-opacity"
