@@ -29,7 +29,10 @@
       if (idleHours > 4) {
         bubbleMessage = 'welcome back.';
       } else {
-        const newEvents = data.recentActivity.filter(e => e.createdAt > lastVisit);
+        // Normalize lastVisit to SQLite datetime format ('2026-03-18 21:10:36')
+        // since SQLite datetime('now') uses space separator, not ISO 'T'
+        const normalizedLastVisit = lastVisit.replace('T', ' ').substring(0, 19);
+        const newEvents = data.recentActivity.filter(e => e.createdAt > normalizedLastVisit);
         if (newEvents.length > 0) {
           const delivered = newEvents.find(e => e.entityType === 'part' && e.action === 'updated');
           const step = newEvents.find(e => e.entityType === 'step' && e.action === 'completed');
@@ -96,6 +99,8 @@
       captureText = '';
       captureStatus = 'ok';
       setTimeout(() => { captureStatus = 'idle'; }, 1500);
+      const msg = captureType === 'idea' ? 'idea captured.' : captureType === 'task' ? 'task added.' : 'note saved.';
+      window.dispatchEvent(new CustomEvent('bmo:react', { detail: msg }));
     } else {
       captureStatus = 'err';
     }

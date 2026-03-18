@@ -5,15 +5,31 @@
   import SitrepModal from './SitrepModal.svelte';
 
   let sitrepOpen = $state(false);
+  let reaction = $state<string | null>(null);
+  let reactionTimer: ReturnType<typeof setTimeout> | null = null;
 
   function openSitrep() {
     sitrepOpen = true;
   }
 
+  function showReaction(msg: string) {
+    reaction = msg;
+    if (reactionTimer) clearTimeout(reactionTimer);
+    reactionTimer = setTimeout(() => { reaction = null; }, 3500);
+  }
+
   onMount(() => {
-    const handler = () => { sitrepOpen = true; };
-    window.addEventListener('bmo:sitrep', handler);
-    return () => window.removeEventListener('bmo:sitrep', handler);
+    const handleSitrep = () => { sitrepOpen = true; };
+    const handleReact = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      if (detail) showReaction(detail);
+    };
+    window.addEventListener('bmo:sitrep', handleSitrep);
+    window.addEventListener('bmo:react', handleReact);
+    return () => {
+      window.removeEventListener('bmo:sitrep', handleSitrep);
+      window.removeEventListener('bmo:react', handleReact);
+    };
   });
 </script>
 
@@ -82,7 +98,11 @@
     SITREP
   </button>
 
-  {#if beauState.lastHaiku}
+  {#if reaction}
+    <div class="italic truncate max-w-xs reaction-flash" style="color: var(--bmo-green)">
+      {reaction}
+    </div>
+  {:else if beauState.lastHaiku}
     <div class="italic truncate max-w-xs" style="color: var(--bmo-muted)">
       "{beauState.lastHaiku.split('\n')[0]}..."
     </div>
@@ -90,3 +110,13 @@
 </div>
 
 <SitrepModal bind:open={sitrepOpen} />
+
+<style>
+  .reaction-flash {
+    animation: reaction-in 0.2s ease-out;
+  }
+  @keyframes reaction-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
