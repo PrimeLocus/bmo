@@ -158,7 +158,7 @@ Published by the `ble-bridge/` service. Beau-terminal subscribes to all three; i
 
 Note: `haikus.session_id` is a nullable FK to `resolume_sessions.id` — haikus generated during a VJ session are automatically linked.
 
-Seed data: 16 parts, 10 phases, 44 steps, 11 ideas + 116 link mappings. Idempotent — skips if parts table already has data.
+Seed data: 18 parts, 10 phases, 52 steps, 11 ideas + 116 link mappings. Startup seed is additive: it inserts missing rows and syncs canonical reference text/status without overwriting more-advanced local states such as installed parts.
 
 ---
 

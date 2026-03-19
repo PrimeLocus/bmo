@@ -37,19 +37,19 @@
       {/if}
       <div class="space-y-3">
         <div>
-          <label class="text-xs tracking-widest block mb-1" style="color: var(--bmo-muted)">FILE</label>
-          <input type="file" name="photo" accept="image/*" required
+          <label for="photo-upload-file" class="text-xs tracking-widest block mb-1" style="color: var(--bmo-muted)">FILE</label>
+          <input id="photo-upload-file" type="file" name="photo" accept="image/*" required
                  class="text-xs w-full" style="color: var(--bmo-text)" />
         </div>
         <div>
-          <label class="text-xs tracking-widest block mb-1" style="color: var(--bmo-muted)">NOTES</label>
-          <input type="text" name="notes" placeholder="optional notes"
+          <label for="photo-upload-notes" class="text-xs tracking-widest block mb-1" style="color: var(--bmo-muted)">NOTES</label>
+          <input id="photo-upload-notes" type="text" name="notes" placeholder="optional notes"
                  class="text-xs w-full p-2 border bg-transparent"
                  style="border-color: var(--bmo-border); color: var(--bmo-text)" />
         </div>
         <div>
-          <label class="text-xs tracking-widest block mb-1" style="color: var(--bmo-muted)">SOURCE</label>
-          <select name="sourceType" class="text-xs p-2 border bg-transparent"
+          <label for="photo-upload-source" class="text-xs tracking-widest block mb-1" style="color: var(--bmo-muted)">SOURCE</label>
+          <select id="photo-upload-source" name="sourceType" class="text-xs p-2 border bg-transparent"
                   style="border-color: var(--bmo-border); color: var(--bmo-text); background: var(--bmo-bg)">
             <option value="instant_scan">Instant Scan</option>
             <option value="digital">Digital</option>

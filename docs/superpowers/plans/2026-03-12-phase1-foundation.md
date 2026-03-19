@@ -541,7 +541,7 @@ to:
 'VJ witness mode — BMO detects Resolume running via OSC, goes quiet, occasionally whispers one sentence about what it sees.'
 ```
 
-Note: The seed function is idempotent (skips if parts >= 16 rows). These changes only affect fresh databases. Existing databases retain old text — this is acceptable since seed data is reference material, not user data.
+Note: This plan was written when seed only touched fresh databases. Current `seed.ts` behavior is additive: it inserts missing reference rows and can sync canonical reference text/status on startup without downgrading more-complete local states.
 
 - [ ] **Step 2: Update seed.ts — step s39 text and links**
 

@@ -19,7 +19,7 @@
 
 	// Draft state — deep clone so edits don't mutate the original config.
 	// Re-initialize when the modal opens with a new config.
-	let draft: Record<string, unknown> = $state(structuredClone(config));
+	let draft: Record<string, unknown> = $state({});
 	$effect(() => {
 		draft = structuredClone(config);
 	});

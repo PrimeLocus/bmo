@@ -221,129 +221,261 @@ const IDEA_LINKS: Record<string, Link[]> = {
   ],
 };
 
-export function seed() {
-  const existingParts = db.select().from(parts).all();
-  if (existingParts.length >= 16) return;
+type PartRow = typeof parts.$inferSelect;
+type PartSeed = typeof parts.$inferInsert;
+type IdeaSeed = typeof ideas.$inferInsert;
 
-  // PARTS
-  db.insert(parts).values([
-    { id: 1, name: 'Raspberry Pi 5 16GB', category: 'Core', price: 226.91, source: 'PiShop.us', tracking: '', status: 'ordered', eta: 'Mar 13', role: 'The brain. Quad-core ARM Cortex-A76 @ 2.4GHz. 16GB RAM gives headroom for Ollama + RAG + HA integration + face display all running simultaneously.', notes: '' },
-    { id: 2, name: 'Raspberry Pi AI HAT+ 2', category: 'AI', price: 130.00, source: 'CanaKit', tracking: '', status: 'ordered', eta: 'Mar 13–14', role: 'Reflex brain. Hailo-10H NPU with 8GB onboard RAM. Handles vision tagging, fast banter, wake word logic at 2.5W. Note: mixed mode has segfault bugs in current firmware.', notes: '' },
-    { id: 3, name: 'Raspberry Pi Active Cooler', category: 'Core', price: 0, source: 'PiShop.us (bundled)', tracking: '', status: 'ordered', eta: 'Mar 13', role: 'Mandatory under LLM load. Keeps the Pi 5 from throttling during sustained inference.', notes: '' },
-    { id: 4, name: 'Raspberry Pi Camera Module 3', category: 'Sensors', price: 27.50, source: 'PiShop.us', tracking: '', status: 'ordered', eta: 'Mar 13', role: "BMO's eyes. 12MP, 76° FOV, autofocus. Feeds the HAT+ 2's vision pipeline.", notes: '' },
-    { id: 5, name: '27W USB-C Power Supply', category: 'Core', price: 12.95, source: 'PiShop.us', tracking: '', status: 'ordered', eta: 'Mar 13', role: 'Official Pi 5 PSU. 5.1V 5A. Required — underpowered supplies cause instability under AI load.', notes: '' },
-    { id: 6, name: 'Micro-HDMI to HDMI Cable', category: 'Setup', price: 7.45, source: 'PiShop.us', tracking: '', status: 'ordered', eta: 'Mar 13', role: 'Setup only. Pi 5 uses micro-HDMI. Needed for initial OS flash and debug.', notes: '' },
-    { id: 7, name: 'USB-C PD PiSwitch', category: 'Setup', price: 12.95, source: 'CanaKit', tracking: '', status: 'ordered', eta: 'Mar 13–14', role: 'Inline power switch. Lets you cut/restore power without unplugging during build and debug.', notes: '' },
-    { id: 8, name: 'ReSpeaker 2-Mics HAT v2.0', category: 'Audio', price: 13.99, source: 'Seeed Studio', tracking: '', status: 'ordered', eta: 'Mar 19–26', role: "BMO's ears. Dual far-field microphones, TLV320AIC3104 codec. Handles wake word detection and Whisper STT.", notes: 'Must be v2.0 — v1 has Pi 5 compatibility issues' },
-    { id: 9, name: 'Mono Enclosed Speaker 4R 5W', category: 'Audio', price: 2.00, source: 'Seeed Studio', tracking: '', status: 'ordered', eta: 'Mar 19–26', role: "Beau's voice. Plugs into ReSpeaker HAT's JST 2.0 connector. 4Ω 5W.", notes: '' },
-    { id: 10, name: 'Geekworm X1200 UPS HAT', category: 'Power', price: 43.00, source: 'Amazon', tracking: '', status: 'ordered', eta: 'Mar 13', role: 'Battery backup for Pi 5. 2× 18650 cells, auto power-on, safe shutdown on power loss.', notes: '' },
-    { id: 11, name: 'Samsung 30Q 18650 Batteries ×2', category: 'Power', price: 21.72, source: 'Illumn', tracking: '', status: 'ordered', eta: 'TBD', role: '3000mAh flat-top 18650 cells for X1200 UPS HAT.', notes: 'Flat top only' },
-    { id: 12, name: 'Freenove 5" DSI Touchscreen', category: 'Display', price: 35.95, source: 'Amazon', tracking: '', status: 'ordered', eta: 'Mar 14', role: "BMO's face. 800×480 IPS, 5-point capacitive touch, driver-free MIPI DSI.", notes: '' },
-    { id: 13, name: 'Sabrent NVMe Enclosure (USB 3.2)', category: 'Storage', price: 19.99, source: 'Amazon', tracking: '', status: 'ordered', eta: 'Mar 12–13', role: 'External NVMe housing. HAT+ 2 occupies the Pi PCIe slot, so NVMe must connect via USB 3.2.', notes: 'NVMe Only variant (EC-PNVO)' },
-    { id: 14, name: 'Team Group MP33 256GB NVMe', category: 'Storage', price: 67.57, source: 'Walmart', tracking: '', status: 'ordered', eta: 'TBD', role: 'Primary storage. OS, Ollama models, ChromaDB RAG, custom Piper voice model.', notes: '' },
-    { id: 15, name: 'SanDisk 64GB High Endurance microSD', category: 'Storage', price: 29.42, source: 'Walmart', tracking: '', status: 'ordered', eta: 'TBD', role: 'OS boot drive. High Endurance rated for 24/7 operation.', notes: '' },
-    { id: 16, name: 'SB Components GPIO Stacking Header', category: 'Hardware', price: 7.99, source: 'Amazon', tracking: '', status: 'ordered', eta: 'Mar 12–13', role: 'Extra-tall 2×20 female stacking header. Solves HAT layering so ReSpeaker stacks on AI HAT+ 2.', notes: 'Pack of 5' },
-  ]).run();
+const PART_SEEDS: PartSeed[] = [
+  { id: 1, name: 'Raspberry Pi 5 16GB', category: 'Core', price: 226.91, source: 'PiShop.us', tracking: '', status: 'delivered', eta: 'Delivered', role: 'The brain. Quad-core ARM Cortex-A76 @ 2.4GHz. 16GB RAM gives headroom for Ollama + RAG + HA integration + face display all running simultaneously.', notes: '', expectedDelivery: 'Delivered' },
+  { id: 2, name: 'Raspberry Pi AI HAT+ 2', category: 'AI', price: 130.00, source: 'CanaKit', tracking: '', status: 'delivered', eta: 'Delivered', role: 'Reflex brain. Hailo-10H NPU with 8GB onboard RAM. Handles vision tagging, fast banter, wake word logic at 2.5W. Note: mixed mode has segfault bugs in current firmware.', notes: '', expectedDelivery: 'Delivered' },
+  { id: 3, name: 'Raspberry Pi Active Cooler', category: 'Core', price: 0, source: 'PiShop.us (bundled)', tracking: '', status: 'delivered', eta: 'Delivered', role: 'Mandatory under LLM load. Keeps the Pi 5 from throttling during sustained inference.', notes: '', expectedDelivery: 'Delivered' },
+  { id: 4, name: 'Raspberry Pi Camera Module 3', category: 'Sensors', price: 27.50, source: 'PiShop.us', tracking: '', status: 'delivered', eta: 'Delivered', role: "BMO's eyes. 12MP, 76° FOV, autofocus. Feeds the HAT+ 2's vision pipeline.", notes: '', expectedDelivery: 'Delivered' },
+  { id: 5, name: '27W USB-C Power Supply', category: 'Core', price: 12.95, source: 'PiShop.us', tracking: '', status: 'delivered', eta: 'Delivered', role: 'Official Pi 5 PSU. 5.1V 5A. Required — underpowered supplies cause instability under AI load.', notes: '', expectedDelivery: 'Delivered' },
+  { id: 6, name: 'Micro-HDMI to HDMI Cable', category: 'Setup', price: 7.45, source: 'PiShop.us', tracking: '', status: 'delivered', eta: 'Delivered', role: 'Setup only. Pi 5 uses micro-HDMI. Needed for initial OS flash and debug.', notes: '', expectedDelivery: 'Delivered' },
+  { id: 7, name: 'USB-C PD PiSwitch', category: 'Setup', price: 12.95, source: 'CanaKit', tracking: '', status: 'delivered', eta: 'Delivered', role: 'Inline power switch. Lets you cut/restore power without unplugging during build and debug.', notes: '', expectedDelivery: 'Delivered' },
+  { id: 8, name: 'ReSpeaker 2-Mics HAT v2.0', category: 'Audio', price: 13.99, source: 'Seeed Studio', tracking: '', status: 'shipped', eta: 'Apr 2', role: "BMO's ears. Dual far-field microphones, TLV320AIC3104 codec. Handles wake word detection and Whisper STT.", notes: 'Must be v2.0 — v1 has Pi 5 compatibility issues', expectedDelivery: 'Apr 2' },
+  { id: 9, name: 'Mono Enclosed Speaker 4R 5W', category: 'Audio', price: 2.00, source: 'Seeed Studio', tracking: '', status: 'shipped', eta: 'Apr 2', role: "Beau's voice. Plugs into ReSpeaker HAT's JST 2.0 connector. 4Ω 5W.", notes: '', expectedDelivery: 'Apr 2' },
+  { id: 10, name: 'Geekworm X1200 UPS HAT', category: 'Power', price: 43.00, source: 'Amazon', tracking: '', status: 'delivered', eta: 'Delivered', role: 'Battery backup for Pi 5. 2× 18650 cells, auto power-on, safe shutdown on power loss.', notes: '', expectedDelivery: 'Delivered' },
+  { id: 11, name: 'Samsung 30Q 18650 Batteries ×2', category: 'Power', price: 21.72, source: 'Illumn', tracking: '', status: 'delivered', eta: 'Delivered', role: '3000mAh flat-top 18650 cells for X1200 UPS HAT.', notes: 'Flat top only', expectedDelivery: 'Delivered' },
+  { id: 12, name: 'Freenove 5" DSI Touchscreen', category: 'Display', price: 35.95, source: 'Amazon', tracking: '', status: 'delivered', eta: 'Delivered', role: "BMO's face. 800×480 IPS, 5-point capacitive touch, driver-free MIPI DSI.", notes: '', expectedDelivery: 'Delivered' },
+  { id: 13, name: 'Sabrent NVMe Enclosure (USB 3.2)', category: 'Storage', price: 19.99, source: 'Amazon', tracking: '', status: 'delivered', eta: 'Delivered', role: 'External NVMe housing. HAT+ 2 occupies the Pi PCIe slot, so NVMe must connect via USB 3.2.', notes: 'NVMe Only variant (EC-PNVO)', expectedDelivery: 'Delivered' },
+  { id: 14, name: 'Team Group MP33 256GB NVMe', category: 'Storage', price: 67.57, source: 'Walmart', tracking: '', status: 'delivered', eta: 'Delivered', role: 'Primary storage. OS, Ollama models, ChromaDB RAG, custom Piper voice model.', notes: '', expectedDelivery: 'Delivered' },
+  { id: 15, name: 'SanDisk 64GB High Endurance microSD', category: 'Storage', price: 29.42, source: 'Walmart', tracking: '', status: 'delivered', eta: 'Delivered', role: 'OS boot drive. High Endurance rated for 24/7 operation.', notes: '', expectedDelivery: 'Delivered' },
+  { id: 16, name: 'SB Components GPIO Stacking Header', category: 'Hardware', price: 7.99, source: 'Amazon', tracking: '', status: 'delivered', eta: 'Delivered', role: 'Extra-tall 2×20 female stacking header. Solves HAT layering so ReSpeaker stacks on AI HAT+ 2.', notes: 'Pack of 5', expectedDelivery: 'Delivered' },
+  { id: 17, name: 'Hilitchi 6x6mm Tactile Switch Assortment (200-pack)', category: 'Hardware', price: 9.99, source: 'Amazon', tracking: '', status: 'ordered', eta: '', role: 'Front-panel input hardware for button prototyping. 10 switch heights from 4.3mm to 13mm.', notes: 'v1 button perfboard prototype supply', expectedDelivery: '' },
+  { id: 18, name: 'TRYMAG 5x2mm Neodymium Disc Magnets (200-pack)', category: 'Hardware', price: 7.99, source: 'Amazon', tracking: '', status: 'ordered', eta: '', role: 'Retention and alignment magnets for enclosure panels and button module experiments.', notes: '200-pack', expectedDelivery: '' },
+];
 
-  // SOFTWARE PHASES + STEPS
-  const phaseData = [
-    { phase: 'Phase 1 — OS & Boot', order: 1, steps: [
-      { id: 's1', text: 'Flash Raspberry Pi OS Trixie 64-bit to microSD', order: 1 },
-      { id: 's2', text: 'Boot Pi 5, run sudo apt update && sudo apt upgrade', order: 2 },
-      { id: 's3', text: "Enable SSH, set hostname to 'bmo'", order: 3 },
-      { id: 's4', text: 'Install NVMe SSD in Sabrent enclosure, format as ext4, mount at /mnt/bmo', order: 4 },
-      { id: 's5', text: 'Move /home to NVMe for fast storage', order: 5 },
-    ]},
-    { phase: 'Phase 2 — HAT+ 2 & Vision', order: 2, steps: [
-      { id: 's6', text: 'Assemble HAT+ 2 on Pi 5 with Active Cooler + stacking header', order: 1 },
-      { id: 's7', text: 'Install HailoRT drivers: sudo apt install hailo-all', order: 2 },
-      { id: 's8', text: 'Verify HAT detected: hailortcli fw-control identify', order: 3 },
-      { id: 's9', text: 'Test camera: rpicam-hello with YOLOv8 object detection', order: 4 },
-      { id: 's10', text: 'Install hailo-ollama for HAT LLM inference', order: 5 },
-    ]},
-    { phase: 'Phase 3 — Ollama (Pi CPU Brain)', order: 3, steps: [
-      { id: 's11', text: 'Install Ollama: curl -fsSL https://ollama.com/install.sh | sh', order: 1 },
-      { id: 's12', text: 'Pull philosopher brain: ollama pull gemma3:4b', order: 2 },
-      { id: 's13', text: 'Pull reflex brain: ollama pull qwen2.5:1.5b', order: 3 },
-      { id: 's14', text: 'Pull vision model: ollama pull moondream', order: 4 },
-      { id: 's15', text: 'Test Ollama: curl http://localhost:11434/api/generate', order: 5 },
-    ]},
-    { phase: 'Phase 4 — Audio', order: 4, steps: [
-      { id: 's16', text: 'Stack ReSpeaker HAT v2.0 on GPIO stacking header', order: 1 },
-      { id: 's17', text: 'Build DTS overlay for seeed-2mic-voicecard', order: 2 },
-      { id: 's18', text: 'Add dtoverlay to /boot/firmware/config.txt, reboot', order: 3 },
-      { id: 's19', text: 'Verify: arecord -l (should show seeed-2mic-voicecard)', order: 4 },
-      { id: 's20', text: 'Install Piper TTS: pip install piper-tts', order: 5 },
-      { id: 's21', text: 'Install Whisper STT: pip install openai-whisper', order: 6 },
-      { id: 's22', text: 'Test full audio loop: speak → Whisper → Ollama → Piper → speaker', order: 7 },
-    ]},
-    { phase: "Phase 4.5 — Voice Training (Beau's Voice)", order: 5, steps: [
-      { id: 'v1', text: 'Goal: Korean-Cajun blend voice. TextyMcSpeechy on Legion RTX 4090.', order: 1 },
-      { id: 'v2', text: 'Source: KSS Korean Single Speaker + LibriSpeech Southern English subset', order: 2 },
-      { id: 'v3', text: 'Train blend: ~70% Korean phoneme / 30% Louisiana rhythm', order: 3 },
-      { id: 'v4', text: 'Fine-tune on 30–50 hand-recorded phrases', order: 4 },
-      { id: 'v5', text: 'Export .onnx model + config.json to /mnt/bmo/voice/beau/', order: 5 },
-      { id: 'v6', text: "Test: echo 'humidity holds everything' | piper --model beau.onnx | aplay", order: 6 },
-    ]},
-    { phase: 'Phase 5 — Wake Word', order: 6, steps: [
-      { id: 's23', text: 'Install openWakeWord: pip install openwakeword', order: 1 },
-      { id: 's24', text: "Train 'Hey BMO' (public) wake word", order: 2 },
-      { id: 's24b', text: "Train 'Hey Beau' (private) wake word", order: 3 },
-      { id: 's25', text: 'Integrate wake word → Whisper → routing dispatcher → Ollama', order: 4 },
-    ]},
-    { phase: 'Phase 6 — Face Display', order: 7, steps: [
-      { id: 's26', text: 'Configure Freenove DSI display in /boot/firmware/config.txt', order: 1 },
-      { id: 's27', text: 'Install pygame: pip install pygame', order: 2 },
-      { id: 's28', text: 'Clone brenpoly/be-more-agent for reference face animation code', order: 3 },
-      { id: 's29', text: 'Build BMO face states: idle / listening / thinking / speaking / delighted', order: 4 },
-      { id: 's30', text: 'Sync mouth animation to Piper TTS audio waveform output', order: 5 },
-    ]},
-    { phase: 'Phase 7 — Personality & RAG', order: 8, steps: [
-      { id: 's31', text: 'Build routing dispatcher: reflex → HAT, philosophy → Pi CPU, heavy → ThinkStation', order: 1 },
-      { id: 's32', text: 'Inject personality system prompt — see bmo-system-prompt.md', order: 2 },
-      { id: 's33', text: 'Install ChromaDB + nomic-embed-text for RAG vector store', order: 3 },
-      { id: 's34', text: 'Set up folder watcher to auto-index journals, VJ logs, project READMEs', order: 4 },
-      { id: 's35', text: 'Build emotional state model: curious / contemplative / playful / sleepy', order: 5 },
-      { id: 's35b', text: 'Implement context modes: Witness / Collaborator / Archivist / Ambient / Social', order: 6 },
-    ]},
-    { phase: 'Phase 8 — Home Assistant', order: 9, steps: [
-      { id: 's36', text: 'Install Home Assistant on ThinkStation or separate Pi', order: 1 },
-      { id: 's37', text: 'Connect BMO to HA via Ollama integration', order: 2 },
-      { id: 's38', text: 'Configure BMO to greet on arrival, announce sensor states', order: 3 },
-      { id: 's39', text: 'Resolume VJ integration — OSC session detection, witness mode, debrief scheduler, photography pipeline', order: 4 },
-    ]},
-    { phase: 'Phase 9 — Enclosure', order: 10, steps: [
-      { id: 's40', text: "Download brenpoly's BMO STL files from Printables", order: 1 },
-      { id: 's41', text: 'Print body in teal PLA/PETG, sand and prime', order: 2 },
-      { id: 's42', text: 'Paint BMO teal — reference Adventure Time Art of Ooo for color match', order: 3 },
-      { id: 's43', text: 'Design custom PCB in KiCad for front panel buttons (optional)', order: 4 },
-      { id: 's44', text: 'Final assembly: mount Pi stack, route cables, install face display', order: 5 },
-    ]},
-  ];
+const PHASE_DATA = [
+  { phase: 'Phase 1 — OS & Boot', order: 1, steps: [
+    { id: 's1', text: 'Flash Raspberry Pi OS Trixie 64-bit to microSD', order: 1 },
+    { id: 's2', text: 'Boot Pi 5, run sudo apt update && sudo apt upgrade', order: 2 },
+    { id: 's3', text: "Enable SSH, set hostname to 'bmo'", order: 3 },
+    { id: 's4', text: 'Install NVMe SSD in Sabrent enclosure, format as ext4, mount at /mnt/bmo', order: 4 },
+    { id: 's5', text: 'Move /home to NVMe for fast storage', order: 5 },
+  ]},
+  { phase: 'Phase 2 — HAT+ 2 & Vision', order: 2, steps: [
+    { id: 's6', text: 'Assemble HAT+ 2 on Pi 5 with Active Cooler + stacking header', order: 1 },
+    { id: 's7', text: 'Install HailoRT drivers: sudo apt install hailo-all', order: 2 },
+    { id: 's8', text: 'Verify HAT detected: hailortcli fw-control identify', order: 3 },
+    { id: 's9', text: 'Test camera: rpicam-hello with YOLOv8 object detection', order: 4 },
+    { id: 's10', text: 'Install hailo-ollama for HAT LLM inference', order: 5 },
+  ]},
+  { phase: 'Phase 3 — Ollama (Pi CPU Brain)', order: 3, steps: [
+    { id: 's11', text: 'Install Ollama: curl -fsSL https://ollama.com/install.sh | sh', order: 1 },
+    { id: 's12', text: 'Pull philosopher brain: ollama pull gemma3:4b', order: 2 },
+    { id: 's13', text: 'Pull reflex brain: ollama pull qwen2.5:1.5b', order: 3 },
+    { id: 's14', text: 'Pull vision model: ollama pull moondream', order: 4 },
+    { id: 's15', text: 'Test Ollama: curl http://localhost:11434/api/generate', order: 5 },
+  ]},
+  { phase: 'Phase 4 — Audio', order: 4, steps: [
+    { id: 's16', text: 'Stack ReSpeaker HAT v2.0 on GPIO stacking header', order: 1 },
+    { id: 's17', text: 'Build DTS overlay for seeed-2mic-voicecard', order: 2 },
+    { id: 's18', text: 'Add dtoverlay to /boot/firmware/config.txt, reboot', order: 3 },
+    { id: 's19', text: 'Verify: arecord -l (should show seeed-2mic-voicecard)', order: 4 },
+    { id: 's20', text: 'Install Piper TTS: pip install piper-tts', order: 5 },
+    { id: 's21', text: 'Install Whisper STT: pip install openai-whisper', order: 6 },
+    { id: 's22', text: 'Test full audio loop: speak → Whisper → Ollama → Piper → speaker', order: 7 },
+  ]},
+  { phase: "Phase 4.5 — Voice Training (Beau's Voice)", order: 5, steps: [
+    { id: 'v1', text: 'Goal: Korean-Cajun blend voice. TextyMcSpeechy on Legion RTX 4090.', order: 1 },
+    { id: 'v2', text: 'Source: KSS Korean Single Speaker + LibriSpeech Southern English subset', order: 2 },
+    { id: 'v3', text: 'Train blend: ~70% Korean phoneme / 30% Louisiana rhythm', order: 3 },
+    { id: 'v4', text: 'Fine-tune on 30–50 hand-recorded phrases', order: 4 },
+    { id: 'v5', text: 'Export .onnx model + config.json to /mnt/bmo/voice/beau/', order: 5 },
+    { id: 'v6', text: "Test: echo 'humidity holds everything' | piper --model beau.onnx | aplay", order: 6 },
+  ]},
+  { phase: 'Phase 5 — Wake Word', order: 6, steps: [
+    { id: 's23', text: 'Install openWakeWord: pip install openwakeword', order: 1 },
+    { id: 's24', text: "Train 'Hey BMO' (public) wake word", order: 2 },
+    { id: 's24b', text: "Train 'Hey Beau' (private) wake word", order: 3 },
+    { id: 's25', text: 'Integrate wake word → Whisper → routing dispatcher → Ollama', order: 4 },
+  ]},
+  { phase: 'Phase 6 — Face Display', order: 7, steps: [
+    { id: 's26', text: 'Configure Freenove DSI display in /boot/firmware/config.txt', order: 1 },
+    { id: 's27', text: 'Install pygame: pip install pygame', order: 2 },
+    { id: 's28', text: 'Clone brenpoly/be-more-agent for reference face animation code', order: 3 },
+    { id: 's29', text: 'Build BMO face states: idle / listening / thinking / speaking / delighted', order: 4 },
+    { id: 's30', text: 'Sync mouth animation to Piper TTS audio waveform output', order: 5 },
+  ]},
+  { phase: 'Phase 7 — Personality & RAG', order: 8, steps: [
+    { id: 's31', text: 'Build routing dispatcher: reflex → HAT, philosophy → Pi CPU, heavy → ThinkStation', order: 1 },
+    { id: 's32', text: 'Inject personality system prompt — see bmo-system-prompt.md', order: 2 },
+    { id: 's33', text: 'Install ChromaDB + nomic-embed-text for RAG vector store', order: 3 },
+    { id: 's34', text: 'Set up folder watcher to auto-index journals, VJ logs, project READMEs', order: 4 },
+    { id: 's35', text: 'Build emotional state model: curious / contemplative / playful / sleepy', order: 5 },
+    { id: 's35b', text: 'Implement context modes: Witness / Collaborator / Archivist / Ambient / Social', order: 6 },
+  ]},
+  { phase: 'Phase 8 — Home Assistant', order: 9, steps: [
+    { id: 's36', text: 'Install Home Assistant on ThinkStation or separate Pi', order: 1 },
+    { id: 's37', text: 'Connect BMO to HA via Ollama integration', order: 2 },
+    { id: 's38', text: 'Configure BMO to greet on arrival, announce sensor states', order: 3 },
+    { id: 's39', text: 'Resolume VJ integration — OSC session detection, witness mode, debrief scheduler, photography pipeline', order: 4 },
+  ]},
+  { phase: 'Phase 9 — Enclosure', order: 10, steps: [
+    { id: 's40', text: "Use Bren's Printables STLs as reference and verify interior cavity in Bambu Studio before printing", order: 1 },
+    { id: 's41', text: 'Print body in teal PLA/PETG, sand and prime', order: 2 },
+    { id: 's42', text: 'Paint BMO teal — reference Adventure Time Art of Ooo for color match', order: 3 },
+    { id: 's43', text: 'Prototype v1 front buttons on perfboard; defer custom KiCad PCB until enclosure fit is confirmed', order: 4 },
+    { id: 's44', text: 'Final assembly: mount Pi stack, route cables, install face display', order: 5 },
+  ]},
+] as const;
 
-  for (const p of phaseData) {
-    const inserted = db.insert(softwarePhases).values({ phase: p.phase, order: p.order }).returning().get();
-    for (const s of p.steps) {
-      db.insert(softwareSteps).values({ id: s.id, phaseId: inserted.id, text: s.text, done: false, order: s.order }).run();
+const IDEA_SEEDS: IdeaSeed[] = [
+  { id: 'i1', priority: 'high', text: "Beau's voice — Korean-Cajun blend. Musical vowels + Louisiana rhythm. TextyMcSpeechy on Legion RTX 4090.", done: false },
+  { id: 'i2', priority: 'high', text: 'Proactive haiku dispatch — 1–3 haikus/day unprompted. Triggers: time of day, lux/weather, camera, end of work session, significant project moment.', done: false },
+  { id: 'i3', priority: 'high', text: 'Brain routing dispatcher — reflex/vision → HAT Qwen2.5 1.5B, poetry/philosophy → Pi CPU Gemma 3 4B, heavy → ThinkStation via Tailscale.', done: false },
+  { id: 'i3b', priority: 'high', text: "Dual wake word — 'Hey BMO' = public/performative. 'Hey Beau' = private/warmer. Different system prompt tone injection.", done: false },
+  { id: 'i4', priority: 'medium', text: 'VJ witness mode — Resolume OSC session detection, witness mode controller, post-session debrief reflection, photo pipeline with vision captions.', done: false },
+  { id: 'i5', priority: 'medium', text: 'Physical button mapping — A/GPIO 17: cycle emotion, B/GPIO 27: room survey, Select/GPIO 22: witness mode, Start/GPIO 23: wake/text adventure. Clear of ReSpeaker v2.0; gpiozero pull-ups.', done: false },
+  { id: 'i6', priority: 'medium', text: 'Emotional state model — curious/contemplative/playful/sleepy probabilistically influences system prompt tone.', done: false },
+  { id: 'i7', priority: 'medium', text: 'RAG from creative + reflective life — ChromaDB + nomic-embed-text indexes journals, VJ logs, noticings, project READMEs. Folder watcher auto-indexes.', done: false },
+  { id: 'i8', priority: 'low', text: 'ThinkStation backbone — heavy queries via Tailscale to Qwen3-30B. Auto-fallback when offline.', done: false },
+  { id: 'i9', priority: 'low', text: 'HAT+ 2 mixed mode — once Hailo fixes segfault bugs, enable simultaneous vision+LLM.', done: false },
+  { id: 'i10', priority: 'low', text: 'Anbernic RG353V as creative video source — retro game visuals into BMO camera for VJ set material.', done: false },
+];
+
+const TOTAL_STEPS = PHASE_DATA.reduce((sum, phase) => sum + phase.steps.length, 0);
+
+function shouldAdvancePartStatus(currentStatus: string, desiredStatus: string) {
+  if (currentStatus === desiredStatus) return false;
+  if (currentStatus === 'ordered' && (desiredStatus === 'shipped' || desiredStatus === 'delivered' || desiredStatus === 'installed')) return true;
+  if (currentStatus === 'shipped' && (desiredStatus === 'delivered' || desiredStatus === 'installed')) return true;
+  if (currentStatus === 'delivered' && desiredStatus === 'installed') return true;
+  return false;
+}
+
+function buildPartSyncPatch(existing: PartRow, desired: PartSeed): Partial<PartSeed> | null {
+  const patch: Partial<PartSeed> = {};
+
+  if (shouldAdvancePartStatus(existing.status, desired.status ?? 'ordered')) {
+    patch.status = desired.status;
+    patch.eta = desired.eta;
+    patch.expectedDelivery = desired.expectedDelivery;
+  }
+
+  const wantsDeliveredMarker = desired.expectedDelivery === 'Delivered' &&
+    (existing.status === 'delivered' || existing.status === 'installed');
+  if (wantsDeliveredMarker) {
+    if (!existing.expectedDelivery) patch.expectedDelivery = 'Delivered';
+    if (!existing.eta) patch.eta = desired.eta;
+  }
+
+  if (existing.status === 'shipped' && desired.status === 'shipped') {
+    if (desired.expectedDelivery && !existing.expectedDelivery) {
+      patch.expectedDelivery = desired.expectedDelivery;
+    }
+    if (desired.eta && !existing.eta) {
+      patch.eta = desired.eta;
     }
   }
 
-  // IDEAS
-  db.insert(ideas).values([
-    { id: 'i1', priority: 'high', text: "Beau's voice — Korean-Cajun blend. Musical vowels + Louisiana rhythm. TextyMcSpeechy on Legion RTX 4090.", done: false },
-    { id: 'i2', priority: 'high', text: 'Proactive haiku dispatch — 1–3 haikus/day unprompted. Triggers: time of day, lux/weather, camera, end of work session, significant project moment.', done: false },
-    { id: 'i3', priority: 'high', text: 'Brain routing dispatcher — reflex/vision → HAT Qwen2.5 1.5B, poetry/philosophy → Pi CPU Gemma 3 4B, heavy → ThinkStation via Tailscale.', done: false },
-    { id: 'i3b', priority: 'high', text: "Dual wake word — 'Hey BMO' = public/performative. 'Hey Beau' = private/warmer. Different system prompt tone injection.", done: false },
-    { id: 'i4', priority: 'medium', text: 'VJ witness mode — Resolume OSC session detection, witness mode controller, post-session debrief reflection, photo pipeline with vision captions.', done: false },
-    { id: 'i5', priority: 'medium', text: 'Physical button mapping — A: cycle emotional state, B: camera look, Select: witness mode, Start: wake/text adventure.', done: false },
-    { id: 'i6', priority: 'medium', text: 'Emotional state model — curious/contemplative/playful/sleepy probabilistically influences system prompt tone.', done: false },
-    { id: 'i7', priority: 'medium', text: 'RAG from creative + reflective life — ChromaDB + nomic-embed-text indexes journals, VJ logs, noticings, project READMEs. Folder watcher auto-indexes.', done: false },
-    { id: 'i8', priority: 'low', text: 'ThinkStation backbone — heavy queries via Tailscale to Qwen3-30B. Auto-fallback when offline.', done: false },
-    { id: 'i9', priority: 'low', text: 'HAT+ 2 mixed mode — once Hailo fixes segfault bugs, enable simultaneous vision+LLM.', done: false },
-    { id: 'i10', priority: 'low', text: 'Anbernic RG353V as creative video source — retro game visuals into BMO camera for VJ set material.', done: false },
-  ]).run();
+  return Object.keys(patch).length ? patch : null;
+}
 
-  console.log('[seed] Complete — 16 parts, 10 phases, 44 steps, 11 ideas');
+function syncParts() {
+  const existingParts = new Map(db.select().from(parts).all().map((part) => [part.id, part]));
+  let inserted = 0;
+  let updated = 0;
+
+  for (const part of PART_SEEDS) {
+    const existing = existingParts.get(part.id ?? -1);
+    if (!existing) {
+      db.insert(parts).values(part).run();
+      inserted++;
+      continue;
+    }
+
+    const patch = buildPartSyncPatch(existing, part);
+    if (!patch) continue;
+
+    db.update(parts).set(patch).where(eq(parts.id, existing.id)).run();
+    updated++;
+  }
+
+  return { inserted, updated };
+}
+
+function syncSoftware() {
+  const existingPhases = db.select().from(softwarePhases).all();
+  const phaseIds = new Map(existingPhases.map((phase) => [phase.phase, phase.id]));
+  let insertedPhases = 0;
+  let insertedSteps = 0;
+  let updatedSteps = 0;
+
+  for (const phase of PHASE_DATA) {
+    let phaseId = phaseIds.get(phase.phase);
+    if (phaseId === undefined) {
+      phaseId = db.insert(softwarePhases)
+        .values({ phase: phase.phase, order: phase.order })
+        .returning()
+        .get().id;
+      phaseIds.set(phase.phase, phaseId);
+      insertedPhases++;
+    }
+
+    const resolvedPhaseId = phaseId;
+    for (const step of phase.steps) {
+      const existingStep = db.select().from(softwareSteps).where(eq(softwareSteps.id, step.id)).get();
+      if (!existingStep) {
+        db.insert(softwareSteps)
+          .values({ id: step.id, phaseId: resolvedPhaseId, text: step.text, done: false, order: step.order })
+          .run();
+        insertedSteps++;
+        continue;
+      }
+
+      if (existingStep.phaseId === resolvedPhaseId && existingStep.text === step.text && existingStep.order === step.order) {
+        continue;
+      }
+
+      db.update(softwareSteps)
+        .set({ phaseId: resolvedPhaseId, text: step.text, order: step.order })
+        .where(eq(softwareSteps.id, step.id))
+        .run();
+      updatedSteps++;
+    }
+  }
+
+  return { insertedPhases, insertedSteps, updatedSteps };
+}
+
+function syncIdeas() {
+  const existingIdeas = new Map(db.select().from(ideas).all().map((idea) => [idea.id, idea]));
+  let inserted = 0;
+  let updated = 0;
+
+  for (const idea of IDEA_SEEDS) {
+    const existing = existingIdeas.get(idea.id ?? '');
+    if (!existing) {
+      db.insert(ideas).values(idea).run();
+      inserted++;
+      continue;
+    }
+
+    if (existing.priority === idea.priority && existing.text === idea.text) continue;
+
+    db.update(ideas)
+      .set({ priority: idea.priority, text: idea.text })
+      .where(eq(ideas.id, existing.id))
+      .run();
+    updated++;
+  }
+
+  return { inserted, updated };
+}
+
+export function seed() {
+  const partStats = syncParts();
+  const softwareStats = syncSoftware();
+  const ideaStats = syncIdeas();
+  const appliedChanges = partStats.inserted + partStats.updated + softwareStats.insertedPhases +
+    softwareStats.insertedSteps + softwareStats.updatedSteps + ideaStats.inserted + ideaStats.updated;
+
+  console.log(
+    `[seed] Synced — ${PART_SEEDS.length} parts, ${PHASE_DATA.length} phases, ${TOTAL_STEPS} steps, ${IDEA_SEEDS.length} ideas` +
+    (appliedChanges ? ` (${appliedChanges} changes applied)` : '')
+  );
 }
 
 export function seedIntegrations() {

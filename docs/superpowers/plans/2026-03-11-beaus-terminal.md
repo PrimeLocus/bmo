@@ -8,6 +8,14 @@
 
 **Tech Stack:** SvelteKit 2 + Svelte 5, TypeScript, Tailwind CSS v4, `@sveltejs/adapter-node`, `mqtt`, `better-sqlite3`, `drizzle-orm`, `ws`
 
+## Session Sync — 2026-03-18
+
+- Hardware status: every original part except the ReSpeaker 2-Mics HAT v2.0 and Mono Enclosed Speaker 4R 5W is now delivered. Those two audio parts just shipped with ETA `Apr 2`, so Phase 1 and Phase 2 are unblocked while Phase 4 stays waiting on audio.
+- New ordered parts: Hilitchi `6x6mm` tactile switch assortment (`200-pack`, 10 heights) and TRYMAG `5x2mm` neodymium disc magnets (`200-pack`).
+- Button wiring is locked for both the v1 perfboard build and the deferred v2 KiCad board: A=`GPIO 17`, B=`GPIO 27`, Select=`GPIO 22`, Start=`GPIO 23`. These stay clear of ReSpeaker v2.0, with pull-ups handled in `gpiozero`.
+- Enclosure plan: use Bren's Printables STLs as reference only, verify cavity height in Bambu Studio against the taller Pi 5 + AI HAT+ 2 + stacking header + ReSpeaker stack before printing on the Bambu Lab P1S.
+- Button PCB plan: v1 uses perfboard (Perma-Proto half-size or equivalent, still to be ordered); v2 custom KiCad PCB stays deferred until enclosure fit is confirmed. Feather 32u4 Basic Proto is explicitly out for v1.
+
 ---
 
 ## Chunk 1: Project Scaffold + Database

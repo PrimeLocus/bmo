@@ -86,7 +86,7 @@ bmo/
     │   │       │   ├── activity.ts   # Activity log queries — recent events, entity activity feed
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
     │   │       │   ├── schema.ts     # 27 tables — source of truth for DB schema
-    │   │       │   └── seed.ts       # 16 parts, 10 phases, 44 steps, 11 ideas
+    │   │       │   └── seed.ts       # 18 parts, 10 phases, 52 steps, 11 ideas
     │   │       ├── mqtt/
     │   │       │   ├── bridge.ts     # MQTT → BeauState → SSE broadcast
     │   │       │   └── topics.ts     # MQTT topic constants + type unions (modes, devices, heating states)
@@ -223,7 +223,7 @@ cd beau-terminal && npm run dev   # http://localhost:4242
 
 MQTT broker defaults to `mqtt://localhost:1883` (set `MQTT_URL` env to override). Terminal works offline — MQTT bridge reconnects silently.
 
-Database auto-seeds on first run. Seed is idempotent (skips if parts table has data).
+Database auto-seeds on startup. Seed is additive: it inserts missing reference rows and advances canonical shipping state without downgrading more-complete local data such as installed parts.
 
 ## Key Files
 
