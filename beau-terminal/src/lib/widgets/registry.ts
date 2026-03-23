@@ -238,6 +238,84 @@ const REGISTRY: Record<string, WidgetMeta> = {
 		mutationRoute: '/journal'
 	},
 
+	'inner-weather': {
+		id: 'inner-weather',
+		label: 'Inner Weather',
+		description: "beau's self-narration — interpretation, mode, and vector whisper",
+		icon: '\u{1F30A}',
+		category: 'identity',
+		component: () => import('./terminal/InnerWeatherWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 2 },
+		configSchema: [],
+		dataKind: 'websocket',
+	},
+
+	'vector-gauge': {
+		id: 'vector-gauge',
+		label: 'Vector Gauge',
+		description: 'live personality vector bars with signal/momentum layer toggle',
+		icon: '\u{1F4CA}',
+		category: 'identity',
+		component: () => import('./terminal/VectorGaugeWidget.svelte'),
+		defaultPosition: { colSpan: 3, rowSpan: 2 },
+		configSchema: [
+			{
+				key: 'showLayers',
+				label: 'Show Layers',
+				type: 'boolean',
+				default: false,
+			},
+		],
+		dataKind: 'websocket',
+	},
+
+	'signal-sources': {
+		id: 'signal-sources',
+		label: 'Signal Sources',
+		description: 'which of the 21 signal rules are currently firing and why',
+		icon: '\u{1F50D}',
+		category: 'identity',
+		component: () => import('./terminal/SignalSourcesWidget.svelte'),
+		defaultPosition: { colSpan: 3, rowSpan: 3 },
+		configSchema: [],
+		dataKind: 'websocket',
+	},
+
+	'personality-timeline': {
+		id: 'personality-timeline',
+		label: 'Personality Timeline',
+		description: 'historical vector chart with ambient/detail modes and mode bands',
+		icon: '\u{1F4C8}',
+		category: 'identity',
+		component: () => import('./terminal/PersonalityTimelineWidget.svelte'),
+		defaultPosition: { colSpan: 12, rowSpan: 3 },
+		configSchema: [
+			{
+				key: 'timeRange',
+				label: 'Time Range',
+				type: 'select',
+				default: '24h',
+				options: [
+					{ label: '6 hours', value: '6h' },
+					{ label: '24 hours', value: '24h' },
+					{ label: '7 days', value: '7d' },
+					{ label: '30 days', value: '30d' },
+				],
+			},
+			{
+				key: 'defaultMode',
+				label: 'Default View',
+				type: 'select',
+				default: 'ambient',
+				options: [
+					{ label: 'Ambient', value: 'ambient' },
+					{ label: 'Detailed', value: 'detail' },
+				],
+			},
+		],
+		dataKind: 'database',
+	},
+
 	// ── Creative ───────────────────────────────────────────────────────────
 
 	resolume: {

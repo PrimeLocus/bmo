@@ -70,6 +70,8 @@ bmo/
     │   │   │   └── StatusBar.svelte    # Top bar — online/offline, mode, faceState, sitrep button, last haiku, bmo:react reactions
     │   │   ├── face/
     │   │   │   └── frames.ts           # Pixel-art rect data for all 10 face states (FaceRect arrays, timing, animation config)
+    │   │   ├── personality/
+    │   │   │   └── rule-meta.ts        # Client-safe signal rule name→delta map (21 rules, no server deps)
     │   │   ├── stores/
     │   │   │   ├── beau.svelte.ts      # WebSocket client → live BeauState ($state)
     │   │   │   ├── editMode.svelte.ts  # Edit mode toggle (Ctrl+E) — global $state
@@ -78,16 +80,18 @@ bmo/
     │   │   │   ├── navConfig.svelte.ts # Nav items/groups — dual persist, CRUD ops
     │   │   │   └── settings.svelte.ts  # Display settings ($state + localStorage)
     │   │   ├── widgets/
-    │   │   │   ├── registry.ts           # Widget registry — 43 widgets, metadata, data kinds
+    │   │   │   ├── registry.ts           # Widget registry — 47 widgets, metadata, data kinds
     │   │   │   ├── templates.ts          # Page template definitions — pre-built widget layouts
     │   │   │   ├── WidgetRenderer.svelte # Dynamic widget loader (renders by widgetId)
     │   │   │   ├── WidgetDrawer.svelte   # Side drawer — browse/add widgets in edit mode (shows descriptions)
     │   │   │   ├── WidgetConfigModal.svelte # Per-widget config editor
-    │   │   │   ├── terminal/             # 32 terminal widgets (data-bound to Beau systems)
+    │   │   │   ├── terminal/             # 36 terminal widgets (data-bound to Beau systems)
     │   │   │   │   │                     # New: BmoFaceWidget, WorkshopProgressWidget,
     │   │   │   │   │                     #      BlockedWaitingWidget, RecentActivityWidget,
     │   │   │   │   │                     #      BeauVitalsWidget, NextStepsWidget
     │   │   │   │   │                     # Wellness: WellnessSessionWidget, WellnessLogWidget
+    │   │   │   │   │                     # Personality: InnerWeatherWidget, VectorGaugeWidget,
+    │   │   │   │   │                     #      SignalSourcesWidget, PersonalityTimelineWidget
     │   │   │   └── content/              # 11 content widgets (clock, markdown, image, etc.)
     │   │   │       │                     # New: QuickCaptureWidget, IntegrationsStatusWidget
     │   │   └── server/
@@ -190,13 +194,13 @@ Ctrl+E toggles edit mode globally. Ctrl+K opens the command palette (search page
 - **Panels** can be dragged (title bar) and resized (edge handles) on a 12-column CSS grid
 - **EditBar** shows font size +/− controls, panel visibility toggles, and reset layout button
 - **Nav sidebar** becomes editable — rename groups, reorder/hide/show items, add custom pages. Nav is organized into four fixed groups: TODAY, WORKSHOP, BEAU, SYSTEM
-- **Widget drawer** lets users browse 41 widgets (with descriptions) and add them to custom pages
+- **Widget drawer** lets users browse 47 widgets (with descriptions) and add them to custom pages
 - **Page templates** — when creating a custom page, users can pick a pre-built template from `templates.ts` to seed the layout with a curated widget set
 
 ### Widget System
 
-41 widgets in two categories:
-- **Terminal widgets** (32) — data-bound to Beau systems (beauState, DB queries). Examples: SleepWidget, ModeWidget, PartsTrackerWidget, HaikuArchiveWidget, BmoFaceWidget, WorkshopProgressWidget, BlockedWaitingWidget, RecentActivityWidget, BeauVitalsWidget, NextStepsWidget, WellnessSessionWidget, WellnessLogWidget
+47 widgets in two categories:
+- **Terminal widgets** (36) — data-bound to Beau systems (beauState, DB queries). Examples: SleepWidget, ModeWidget, PartsTrackerWidget, HaikuArchiveWidget, BmoFaceWidget, WorkshopProgressWidget, BlockedWaitingWidget, RecentActivityWidget, BeauVitalsWidget, NextStepsWidget, WellnessSessionWidget, WellnessLogWidget, InnerWeatherWidget, VectorGaugeWidget, SignalSourcesWidget, PersonalityTimelineWidget
 - **Content widgets** (11) — standalone content blocks (Clock, Markdown, Image, Embed, LinkCard, Countdown, Divider, QuickCaptureWidget, IntegrationsStatusWidget)
 
 Widget data kinds:
@@ -246,7 +250,7 @@ When working on Beau's Terminal, read these first:
 - `src/lib/stores/editMode.svelte.ts` — edit mode global state (Ctrl+E toggle)
 - `src/lib/stores/navConfig.svelte.ts` — nav items/groups config + CRUD
 - `src/lib/stores/gridEngine.ts` — grid collision detection + push/compact algorithm
-- `src/lib/widgets/registry.ts` — widget registry (43 widgets, metadata, categories)
+- `src/lib/widgets/registry.ts` — widget registry (47 widgets, metadata, categories)
 - `src/lib/widgets/templates.ts` — page template definitions for custom page creation
 - `src/lib/server/db/activity.ts` — activity log queries (recent events, entity activity feed)
 - `src/lib/components/Panel.svelte` — panel component (drag, resize, edit controls)
@@ -259,6 +263,8 @@ When working on Beau's Terminal, read these first:
 - `src/lib/server/prompt/assembler.ts` — prompt section parser + mode injection
 - `src/lib/server/sitrep.ts` — sitrep markdown assembler (queries all tables + live state)
 - `src/lib/server/wellness/sessions.ts` — wellness session lifecycle (coordinator, manager, parsers)
+- `src/lib/personality/rule-meta.ts` — client-safe signal rule name→delta map (21 rules)
+- `src/lib/widgets/terminal/personality-chart.ts` — SVG scale/path utilities for personality timeline
 
 ## Deep Reference
 

@@ -62,6 +62,17 @@ export const PAGE_TEMPLATES: Record<string, PageTemplate> = {
       tpl('last-haiku', 0, 3, 6, 2),
       tpl('workshop-progress', 6, 3, 6, 2),
     ]
+  },
+  'beaus-mind': {
+    label: "Beau's Mind",
+    icon: '◉',
+    description: "Personality vector, active signals, mood timeline — Beau's inner world",
+    layout: [
+      tpl('inner-weather', 0, 0, 6, 2),
+      tpl('vector-gauge', 6, 0, 3, 2),
+      tpl('signal-sources', 9, 0, 3, 3),
+      tpl('personality-timeline', 0, 3, 12, 3),
+    ]
   }
 };
 
