@@ -12,17 +12,21 @@
     sitrepOpen = true;
   }
 
-  function showReaction(msg: string) {
+  function showReaction(msg: string, duration = 3500) {
     reaction = msg;
     if (reactionTimer) clearTimeout(reactionTimer);
-    reactionTimer = setTimeout(() => { reaction = null; }, 3500);
+    reactionTimer = setTimeout(() => { reaction = null; }, duration);
   }
 
   onMount(() => {
     const handleSitrep = () => { sitrepOpen = true; };
     const handleReact = (e: Event) => {
-      const detail = (e as CustomEvent<string>).detail;
-      if (detail) showReaction(detail);
+      const detail = (e as CustomEvent).detail;
+      if (!detail) return;
+      // Support both string (existing callers) and object (thought system)
+      const text = typeof detail === 'string' ? detail : detail.text;
+      const duration = typeof detail === 'object' ? (detail.duration ?? 3500) : 3500;
+      if (text) showReaction(text, duration);
     };
     window.addEventListener('bmo:sitrep', handleSitrep);
     window.addEventListener('bmo:react', handleReact);
