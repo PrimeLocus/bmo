@@ -281,6 +281,41 @@ const REGISTRY: Record<string, WidgetMeta> = {
 		dataKind: 'websocket',
 	},
 
+	'personality-timeline': {
+		id: 'personality-timeline',
+		label: 'Personality Timeline',
+		description: 'historical vector chart with ambient/detail modes and mode bands',
+		icon: '\u{1F4C8}',
+		category: 'identity',
+		component: () => import('./terminal/PersonalityTimelineWidget.svelte'),
+		defaultPosition: { colSpan: 12, rowSpan: 3 },
+		configSchema: [
+			{
+				key: 'timeRange',
+				label: 'Time Range',
+				type: 'select',
+				default: '24h',
+				options: [
+					{ label: '6 hours', value: '6h' },
+					{ label: '24 hours', value: '24h' },
+					{ label: '7 days', value: '7d' },
+					{ label: '30 days', value: '30d' },
+				],
+			},
+			{
+				key: 'defaultMode',
+				label: 'Default View',
+				type: 'select',
+				default: 'ambient',
+				options: [
+					{ label: 'Ambient', value: 'ambient' },
+					{ label: 'Detailed', value: 'detail' },
+				],
+			},
+		],
+		dataKind: 'database',
+	},
+
 	// ── Creative ───────────────────────────────────────────────────────────
 
 	resolume: {

@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db/index.js';
 import * as schema from '$lib/server/db/schema.js';
-import { asc, desc, eq } from 'drizzle-orm';
+import { asc, desc, eq, sql } from 'drizzle-orm';
 
 /**
  * Load data for a database-backed widget.
@@ -144,6 +144,50 @@ export async function loadWidgetData(
         items.push({ icon: '◫', text: t.text, detail: t.priority ?? '', link: '/todo' });
       }
       return items.slice(0, 5);
+    }
+    case 'personality-timeline': {
+      const range = typeof config.timeRange === 'string' ? config.timeRange : '24h';
+      const rangeMs: Record<string, number> = {
+        '6h': 6 * 60 * 60 * 1000,
+        '24h': 24 * 60 * 60 * 1000,
+        '7d': 7 * 24 * 60 * 60 * 1000,
+        '30d': 30 * 24 * 60 * 60 * 1000,
+      };
+      const ms = rangeMs[range] ?? rangeMs['24h'];
+      const cutoff = new Date(Date.now() - ms).toISOString().replace('T', ' ').slice(0, 19);
+
+      const rows = db.select().from(schema.personalitySnapshots)
+        .where(sql`${schema.personalitySnapshots.timestamp} >= ${cutoff}`)
+        .orderBy(asc(schema.personalitySnapshots.timestamp))
+        .limit(500)
+        .all();
+
+      const snapshots = rows.map(r => ({
+        timestamp: r.timestamp,
+        wonder: r.wonder,
+        reflection: r.reflection,
+        mischief: r.mischief,
+        signalWonder: r.signalWonder,
+        signalReflection: r.signalReflection,
+        signalMischief: r.signalMischief,
+        momentumWonder: r.momentumWonder,
+        momentumReflection: r.momentumReflection,
+        momentumMischief: r.momentumMischief,
+        derivedMode: r.derivedMode,
+        interpretation: r.interpretation ?? '',
+        sources: (() => { try { return JSON.parse(r.sources ?? '[]'); } catch { return []; } })(),
+        isNotable: r.isNotable === 1,
+      }));
+
+      // Derive mode transitions
+      const modeTransitions: Array<{ timestamp: string; mode: string }> = [];
+      for (let i = 0; i < snapshots.length; i++) {
+        if (i === 0 || snapshots[i].derivedMode !== snapshots[i - 1].derivedMode) {
+          modeTransitions.push({ timestamp: snapshots[i].timestamp, mode: snapshots[i].derivedMode });
+        }
+      }
+
+      return { snapshots, modeTransitions };
     }
     default:
       return null;
