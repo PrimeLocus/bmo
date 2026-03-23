@@ -1,0 +1,8 @@
+{
+  "name": "bmo-ollama-listener",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "mqtt": "^5.0.0"
+  }
+}
