@@ -42,6 +42,16 @@ Published by the `ble-bridge/` service. Beau-terminal subscribes to all three; i
 | `beau/wellness/device/telemetry` | BLE Bridge → Terminal | Periodic temp, battery, heating state (every 3s active, 30s idle) |
 | `beau/wellness/session` | BLE Bridge → Terminal | Explicit session start/end from the bridge (optional; terminal infers sessions from telemetry if not present) |
 
+### Thoughts (Phase 7)
+
+| Topic | Direction | Description |
+|---|---|---|
+| `beau/thoughts/request` | Terminal → Listener | Thought generation request (ThoughtRequest JSON) |
+| `beau/thoughts/result` | Listener → Terminal | Generated thought text (ThoughtResult JSON, text=null for SILENCE) |
+| `beau/thoughts/pending` | Terminal → subscribers | Current queue state summary |
+| `beau/thoughts/surfaced` | Terminal → subscribers | Thought that was just shown to user |
+| `beau/thoughts/pressure` | Terminal → subscribers | Current pressure value (diagnostic) |
+
 #### Wellness MQTT payload schemas
 
 **`beau/wellness/device/status`**

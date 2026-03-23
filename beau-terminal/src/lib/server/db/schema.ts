@@ -349,6 +349,24 @@ export const integrations = sqliteTable('integrations', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
 
+// ── Pending Thoughts (SP4) ──────────────────────────────
+export const pendingThoughts = sqliteTable('pending_thoughts', {
+  id:            text('id').primaryKey(),
+  type:          text('type').notNull(),
+  trigger:       text('trigger').notNull(),
+  text:          text('text'),
+  status:        text('status').notNull(),
+  priority:      integer('priority').notNull(),
+  contextJson:   text('context_json').notNull(),
+  createdAt:     text('created_at').notNull().default(sql`(datetime('now'))`),
+  generatedAt:   text('generated_at'),
+  surfacedAt:    text('surfaced_at'),
+  expiresAt:     text('expires_at').notNull(),
+  novelty:       integer('novelty').notNull().default(0),
+  model:         text('model'),
+  generationMs:  integer('generation_ms'),
+});
+
 // ── Personality Engine ──────────────────────────────────
 export const personalitySnapshots = sqliteTable('personality_snapshots', {
   id: integer('id').primaryKey({ autoIncrement: true }),

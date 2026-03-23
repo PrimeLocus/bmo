@@ -58,6 +58,13 @@ export const TOPICS = {
   security: {
     stranger: 'beau/security/stranger',
   },
+  thoughts: {
+    request: 'beau/thoughts/request',
+    result: 'beau/thoughts/result',
+    pending: 'beau/thoughts/pending',
+    surfaced: 'beau/thoughts/surfaced',
+    pressure: 'beau/thoughts/pressure',
+  },
 } as const;
 
 // Topics the terminal subscribes to (inbound from BMO)
@@ -89,6 +96,8 @@ export const SUBSCRIBE_TOPICS: string[] = [
   TOPICS.voice.speaking,
   TOPICS.voice.thinking,
   TOPICS.security.stranger,
+  // Phase 7 — thoughts
+  TOPICS.thoughts.result,
 ];
 
 // ─── Type unions ───

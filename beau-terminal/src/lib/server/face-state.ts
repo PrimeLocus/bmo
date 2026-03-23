@@ -58,3 +58,21 @@ export const GLOW_CONFIG: Record<FaceState, { color: string; animation: string; 
 export function resolveGlow(faceState: FaceState): { color: string; animation: string; duration: string } {
   return GLOW_CONFIG[faceState];
 }
+
+// Thought overlay glow configs (additive, independent of face state)
+export const THOUGHT_OVERLAY_CONFIG: Record<string, { color: string; animation: string; duration: string }> = {
+  observation: { color: 'rgba(0, 229, 160, 0.15)',   animation: 'thoughtsteady',  duration: '3s' },
+  reaction:    { color: 'rgba(255, 215, 0, 0.12)',    animation: 'thoughtpulse',   duration: '2.5s' },
+  haiku:       { color: 'rgba(110, 198, 255, 0.15)',  animation: 'thoughtrhythm',  duration: '4s' },
+};
+
+export function resolveGlowWithOverlay(
+  faceState: FaceState,
+  thoughtType: string | null,
+): { color: string; animation: string; duration: string; overlay?: { color: string; animation: string; duration: string } } {
+  const base = GLOW_CONFIG[faceState];
+  if (!thoughtType || !(thoughtType in THOUGHT_OVERLAY_CONFIG)) {
+    return base;
+  }
+  return { ...base, overlay: THOUGHT_OVERLAY_CONFIG[thoughtType] };
+}

@@ -43,7 +43,32 @@
     (window as any).__BMO_READY = true;
     applyCurrentSettings();
     connectBeauStream();
-    return () => disconnectBeauStream();
+
+    const handleThoughtSurface = async () => {
+      try {
+        const res = await fetch('/api/thoughts/surface', { method: 'POST' });
+        if (!res.ok) return;
+        const thought = await res.json();
+        if (!thought.text) return;
+
+        // Duration by type
+        const durations: Record<string, number> = { observation: 3500, reaction: 5000, haiku: 8000 };
+        const duration = durations[thought.type] ?? 5000;
+
+        // Show via StatusBar
+        window.dispatchEvent(new CustomEvent('bmo:react', {
+          detail: { text: thought.text, duration },
+        }));
+      } catch {
+        // silently fail — thought may have decayed
+      }
+    };
+
+    window.addEventListener('bmo:thought-surface', handleThoughtSurface);
+    return () => {
+      disconnectBeauStream();
+      window.removeEventListener('bmo:thought-surface', handleThoughtSurface);
+    };
   });
 </script>
 

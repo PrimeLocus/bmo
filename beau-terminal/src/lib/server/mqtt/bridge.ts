@@ -18,8 +18,14 @@ import { WellnessDeviceCoordinator, parseDeviceStatus, parseDeviceTelemetry, par
 import { PersonalityEngine, DEFAULT_CONFIG } from '../personality/engine.js';
 import type { ActivitySignals, PersonalityVector } from '../personality/types.js';
 import { runCompaction, scheduleBackup, isNotable } from '../personality/compaction.js';
-import { resolveFaceState, resolveGlow } from '../face-state.js';
+import { resolveFaceState, resolveGlow, resolveGlowWithOverlay } from '../face-state.js';
 import type { InteractionSignals } from '../face-state.js';
+import { PressureEngine } from '../thoughts/pressure.js';
+import { ThoughtDispatcher } from '../thoughts/dispatcher.js';
+import { ThoughtQueue } from '../thoughts/queue.js';
+import { registerThoughtSystem } from '../thoughts/index.js';
+import { PRESSURE_TICK_MS } from '../thoughts/types.js';
+import type { ThoughtResult } from '../thoughts/types.js';
 
 export type BeauState = {
   mode: string;
@@ -61,7 +67,13 @@ export type BeauState = {
   signalSources: string[];
   // ── Face State ──
   faceState: string;
-  glow: { color: string; animation: string; duration: string };
+  glow: { color: string; animation: string; duration: string; overlay?: { color: string; animation: string; duration: string } };
+  // ── Thought System ──
+  thoughtPressure: number;
+  pendingThoughtCount: number;
+  pendingThoughtType: string | null;
+  lastThoughtText: string | null;
+  lastThoughtAt: string | null;
 };
 
 const DEFAULT_STATE: BeauState = {
@@ -105,6 +117,12 @@ const DEFAULT_STATE: BeauState = {
   // ── Face State ──
   faceState: 'idle',
   glow: { color: 'rgba(0, 229, 160, 0.25)', animation: 'slowpulse', duration: '4s' },
+  // ── Thought System ──
+  thoughtPressure: 0,
+  pendingThoughtCount: 0,
+  pendingThoughtType: null,
+  lastThoughtText: null,
+  lastThoughtAt: null,
 };
 
 let state: BeauState = { ...DEFAULT_STATE };
@@ -394,7 +412,7 @@ export function connectMQTT() {
 
   function updateFaceState() {
     const faceState = resolveFaceState(state, interactionSignals);
-    const glow = resolveGlow(faceState);
+    const glow = resolveGlowWithOverlay(faceState, thoughtQueue.getReadyThoughtType());
     state = { ...state, faceState, glow };
     // Note: do NOT call broadcast() here — the MQTT message handler's
     // existing broadcast() at the end of the switch handles it.
@@ -455,7 +473,7 @@ export function connectMQTT() {
       { ...state, mode: derivedMode, personalityVector: vector },
       interactionSignals
     );
-    const glow = resolveGlow(faceState);
+    const glow = resolveGlowWithOverlay(faceState, thoughtQueue.getReadyThoughtType());
 
     state = {
       ...state,
@@ -570,6 +588,50 @@ export function connectMQTT() {
 
   console.log('[personality] Engine running in SvelteKit host (TODO-B: extract to Pi)');
 
+  // ── Thought System ────────────────────────────────────────────────────────
+  const thoughtQueue = new ThoughtQueue(db);
+  const pressureEngine = new PressureEngine();
+  const thoughtDispatcher = new ThoughtDispatcher(() => personalityEngine.getInterpretation());
+
+  // ── Thought pressure tick (independent interval) ──
+  setInterval(() => {
+    const budget = thoughtQueue.getDailyBudgetStatus();
+    pressureEngine.tick(state, state.sleepState, budget);
+
+    if (pressureEngine.shouldDispatch(budget)) {
+      const trigger = pressureEngine.getLastTrigger();
+      const isNovelty = pressureEngine.wasNoveltySpike();
+      const thoughtType = thoughtDispatcher.selectType(state, budget, trigger, isNovelty);
+      if (thoughtType) {
+        const request = thoughtDispatcher.assembleRequest(thoughtType, state, trigger, isNovelty);
+        thoughtQueue.enqueue({
+          id: request.id,
+          type: request.type,
+          trigger: request.trigger,
+          contextJson: JSON.stringify(request),
+          expiresAt: thoughtDispatcher.computeExpiresAt(request.type),
+          novelty: request.novelty,
+        });
+        if (_publish) {
+          _publish(TOPICS.thoughts.request, JSON.stringify(request));
+        }
+        pressureEngine.resetAfterDispatch();
+      }
+    }
+
+    // Run decay + generation timeout checks
+    thoughtQueue.runDecay();
+
+    // Update state with thought system info
+    state = {
+      ...state,
+      thoughtPressure: pressureEngine.getValue(),
+      pendingThoughtCount: thoughtQueue.pendingCount(),
+      pendingThoughtType: thoughtQueue.getReadyThoughtType(),
+    };
+    // Don't broadcast on every tick — let personality engine broadcasts carry the state
+  }, PRESSURE_TICK_MS);
+
   const brokerUrl = process.env.MQTT_URL || 'mqtt://localhost:1883';
 
   const client = mqtt.connect(brokerUrl, {
@@ -583,6 +645,9 @@ export function connectMQTT() {
       client.publish(topic, message);
     }
   };
+
+  // Register thought system singleton for API routes
+  registerThoughtSystem(thoughtQueue, _publish, TOPICS);
 
   client.on('connect', () => {
     state = { ...state, online: true };
@@ -804,6 +869,22 @@ export function connectMQTT() {
         interactionSignals.securityStranger = msg === '1';
         updateFaceState();
         break;
+      case TOPICS.thoughts.result: {
+        try {
+          const result = JSON.parse(msg) as ThoughtResult;
+          thoughtQueue.receiveResult(result);
+          const readyType = thoughtQueue.getReadyThoughtType();
+          state = {
+            ...state,
+            pendingThoughtCount: thoughtQueue.pendingCount(),
+            pendingThoughtType: readyType,
+          };
+          broadcast();
+        } catch (e) {
+          console.error('[thoughts] failed to parse result:', e);
+        }
+        break;
+      }
     }
     broadcast();
   });

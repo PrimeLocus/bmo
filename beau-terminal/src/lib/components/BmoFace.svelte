@@ -219,7 +219,20 @@
       : ''};
     background: {bgColor};
   "
+  style:cursor={beauState.pendingThoughtType ? 'pointer' : 'default'}
+  onclick={() => {
+    if (beauState.pendingThoughtType) {
+      window.dispatchEvent(new CustomEvent('bmo:thought-surface'));
+    }
+  }}
 >
+  {#if beauState.pendingThoughtType && beauState.glow?.overlay}
+    <div
+      class="glow-thought-overlay"
+      style="box-shadow: 0 0 20px 6px {beauState.glow.overlay.color};
+             animation: {beauState.glow.overlay.animation} {beauState.glow.overlay.duration} ease-in-out infinite;"
+    ></div>
+  {/if}
   <svg viewBox="0 0 48 40" width={px} height={py} style="image-rendering: pixelated;">
     {#each currentRects as rect}
       <rect
@@ -248,6 +261,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
     clip-path: polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%);
     font-family: 'Courier New', Courier, monospace;
     flex-shrink: 0;
@@ -284,5 +298,25 @@
   @keyframes listeningpulse {
     0%, 100% { opacity: 0.3; }
     50% { opacity: 0.6; }
+  }
+  @keyframes thoughtsteady {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+  @keyframes thoughtpulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+  @keyframes thoughtrhythm {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    33% { opacity: 0.9; transform: scale(1.02); }
+    66% { opacity: 0.6; transform: scale(0.99); }
+  }
+  .glow-thought-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1;
   }
 </style>

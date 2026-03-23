@@ -145,6 +145,30 @@ export async function loadWidgetData(
       }
       return items.slice(0, 5);
     }
+    case 'pending-thoughts': {
+      const pending = db.select().from(schema.pendingThoughts)
+        .where(sql`status IN ('requested','generating','pending','ready')`)
+        .orderBy(desc(schema.pendingThoughts.priority))
+        .all();
+      const recent = db.select().from(schema.pendingThoughts)
+        .where(sql`status IN ('surfaced','decayed','dropped')`)
+        .orderBy(desc(schema.pendingThoughts.createdAt))
+        .limit(10).all();
+      const todaySurfaced = db.select({ count: sql<number>`count(*)` })
+        .from(schema.pendingThoughts)
+        .where(sql`status = 'surfaced' AND date(datetime(surfaced_at, 'localtime')) = date('now', 'localtime')`)
+        .get();
+      const todayHaiku = db.select({ count: sql<number>`count(*)` })
+        .from(schema.pendingThoughts)
+        .where(sql`status = 'surfaced' AND type = 'haiku' AND date(datetime(surfaced_at, 'localtime')) = date('now', 'localtime')`)
+        .get();
+      return {
+        pending,
+        recent,
+        surfacedToday: todaySurfaced?.count ?? 0,
+        haikuToday: todayHaiku?.count ?? 0,
+      };
+    }
     case 'personality-timeline': {
       const range = typeof config.timeRange === 'string' ? config.timeRange : '24h';
       const rangeMs: Record<string, number> = {

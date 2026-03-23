@@ -41,6 +41,12 @@ const defaultState: BeauState = {
   // ── Face State ──
   faceState: 'idle',
   glow: { color: 'rgba(0, 229, 160, 0.25)', animation: 'slowpulse', duration: '4s' },
+  // ── Thought System ──
+  thoughtPressure: 0,
+  pendingThoughtCount: 0,
+  pendingThoughtType: null,
+  lastThoughtText: null,
+  lastThoughtAt: null,
 };
 
 export const beauState = $state<BeauState>({ ...defaultState });
