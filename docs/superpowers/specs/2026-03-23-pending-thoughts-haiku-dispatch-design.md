@@ -96,7 +96,9 @@ When trigger conditions align (e.g., keyboard quiet + high reflection + late nig
 
 ### Daily Budget
 
-Maximum 3 haiku and ~5 total thoughts per calendar day. This is a ceiling, never a target. Zero is valid. The budget prevents chattiness but never forces output. Tracked via DB query on today's surfaced thoughts.
+Maximum 3 haiku and 5 total thoughts per calendar day. Haiku count toward both caps (3 haiku + 2 other = 5 total max). This is a ceiling, never a target. Zero is valid. The budget prevents chattiness but never forces output.
+
+A single authoritative function `getDailyBudgetStatus()` in `queue.ts` returns `{ surfacedToday: number, haikuToday: number, atHaikuCap: boolean, atTotalCap: boolean }`. Both the pressure engine and the dispatcher check budget via this function — no duplicate queries, no conflicting counts. All queries use `datetime(surfaced_at, 'localtime')` to compute the local calendar day (Lafayette is UTC-5/UTC-6; a midnight haiku must count against the correct day).
 
 ### Cooldown
 
@@ -107,11 +109,13 @@ After surfacing a thought, a minimum quiet window (configurable, default ~30 min
 Sensor values are compared against a rolling exponential moving average (same EMA pattern used in the personality engine). When a reading deviates significantly from the baseline:
 
 ```
-noveltyScore = abs(current - baseline) / baseline
+noveltyScore = abs(current - baseline) / max(baseline, minBaseline)
 if noveltyScore > noveltyThreshold → add pressure spike
 ```
 
-This detects unusual lux changes, unexpected presence shifts, atypical time-of-day activity. The novelty threshold is tunable.
+The `minBaseline` floor prevents division by zero at startup or in extreme conditions (e.g., lux = 0 in a dark room). Each sensor type has its own floor: lux (1.0), presence count (0.5), mic level (0.1). The EMA baseline initializes to the first reading rather than zero.
+
+This detects unusual lux changes, unexpected presence shifts, atypic time-of-day activity. The novelty threshold is tunable.
 
 ---
 
@@ -253,9 +257,11 @@ requested → generating → pending → ready → surfaced
 4. **ready** — highest priority in queue, will surface next when acknowledged
 5. **surfaced** — shown to user/Papa
 6. **decayed** — TTL expired before surfacing
-7. **dropped** — queue was full, or generation timed out, or quality gate rejected (text was null)
+7. **dropped** — queue was full, generation timed out, or quality gate rejected (text was null)
 
-If the Ollama listener is unreachable, thoughts stay in `requested` state. Their TTL still applies — if the listener comes back before expiry, the thought can still be generated. If not, it decays naturally. Beau's mind doesn't crash when the mouth is unavailable.
+**Generation timeout (terminal-side).** There is no MQTT acknowledgment topic. Instead, the queue manager checks `requested` thoughts on each evaluation tick. If a thought has been in `requested` state longer than `GENERATION_TIMEOUT_MS` (default 30s), it is marked `dropped` with reason `generation_timeout`. This handles Ollama being down, network partitions, and listener crashes without requiring a round-trip ack protocol. The thought's decay TTL is NOT the generation timeout — a haiku with 24h TTL should not wait 24 hours for generation. Generation timeout is a separate, shorter clock.
+
+If the Ollama listener is unreachable for an extended period, thoughts will be created and dropped in a steady rhythm. The pressure engine continues to build and release — Beau's mind keeps working even when the mouth is unavailable. When the listener comes back, the next request succeeds normally. No retry — each thought is a moment, and moments pass.
 
 ---
 
@@ -263,20 +269,27 @@ If the Ollama listener is unreachable, thoughts stay in `requested` state. Their
 
 ### Primary — BmoFace Glow Indicator
 
-The face state resolver (`face-state.ts`) gains a new low-priority signal: `thoughtPending`. When a thought is in `ready` state, the BmoFace component in the nav sidebar receives a new glow variation — a gentle warmth distinct from the personality-driven glow. Not a notification badge. A living warmth, like Beau is holding something.
+**The glow overlay system.** The current face state resolver and `resolveGlow()` map one-to-one: face state → glow config. A thought-pending signal inserted as a low-priority face state would be invisible whenever a vector-driven state (delighted, mischievous) is active — which is precisely when thoughts are most likely.
 
-The glow type maps to the bible's LED body language (§44):
-- **Gentle steady glow** — observation waiting ("I noticed something small")
+Instead, SP4 adds a **glow overlay** independent of face state. The face state stays whatever the personality vector dictates (idle, delighted, mischievous, etc.). A secondary CSS animation layer blends on top of the existing glow when `thoughtPending` is true. This is architecturally honest: Beau's expression is their mood; the overlay is "something on their mind." On the physical Pi, this maps to the LED ring having a secondary pulse channel independent of the face screen.
+
+**Implementation:** `resolveGlow()` gains an optional `thoughtOverlay` parameter. When present, the BmoFace component applies an additional CSS class (`glow-thought-overlay`) that adds a subtle pulsing warmth on top of the base glow. The overlay intensity and rhythm vary by thought type:
+
+- **Gentle steady warmth** — observation waiting ("I noticed something small")
 - **Slightly warmer pulse** — reaction waiting ("I have a feeling about this")
 - **Soft rhythmic glow** — haiku waiting ("something wants to be said")
 
-Clicking the BmoFace (nav mini or widget) surfaces the thought via SpeechBubble component. The text appears, lives for a configurable duration (scales with text length, ~5-10 seconds), then fades. Status moves to `surfaced`. The glow returns to normal.
+The overlay is additive, not replacement. `idle + haiku-overlay` looks different from `mischievous + haiku-overlay`. Beau can be grinning AND have something to say.
+
+Clicking the BmoFace (nav mini or widget) surfaces the thought via SpeechBubble component. The text appears, lives for a configurable duration (scales with text length, ~5-10 seconds), then fades. Status moves to `surfaced`. The overlay returns to none.
+
+**"More on my mind" indicator.** When `pendingThoughtCount > 1` after surfacing, the overlay persists (next thought promotes to `ready`). This implements the bible's "Beau can indicate there's more on its mind" (§44).
 
 If no one clicks before the TTL expires, the thought decays. Beau doesn't insist.
 
 ### Secondary — PendingThoughtsWidget
 
-A new terminal widget (data kind: `websocket`) showing:
+A new terminal widget (data kind: `database`, with a `loaders.ts` entry that queries the `pending_thoughts` table) showing:
 - Current pressure value (as a subtle bar or number)
 - Pending thoughts: type, status, TTL countdown, truncated text
 - Recently surfaced thoughts (last ~5)
@@ -316,7 +329,7 @@ During a time window, haiku-type pressure contribution is amplified. Outside win
 
 - **Sensor change during a time window** — storm coming at dusk, sudden darkness
 - **End of work session** — keyboard quiet for 15+ minutes after sustained activity
-- **Project moment** — wired to `bmo:react` events (software step completion, part installed)
+- **Project moment** — detected via activity log queries (software step completion, part installed write to the activity log server-side; the pressure engine checks for recent activity entries matching milestone categories)
 - **Seasonal inflection** — first day of a new season, weather shift
 
 ### Quality Gate
@@ -327,7 +340,7 @@ The Ollama listener checks for the SILENCE sentinel. If received, publishes resu
 
 ### Daily Budget
 
-Maximum 3 haiku per calendar day. Tracked via DB query: `SELECT COUNT(*) FROM pending_thoughts WHERE type = 'haiku' AND status = 'surfaced' AND date(surfaced_at) = date('now')`. When budget is reached, haiku-type pressure contribution drops to zero for the remainder of the day.
+Maximum 3 haiku per calendar day. Checked via the shared `getDailyBudgetStatus()` function in `queue.ts` (which uses `datetime(surfaced_at, 'localtime')` for correct Lafayette timezone handling). When the haiku budget is reached, haiku-type pressure contribution drops to zero for the remainder of the local day.
 
 ---
 
@@ -393,22 +406,22 @@ What came to mind? {typeConstraints}
 
 ### TODO-B Marker
 
+**Dependencies:** The listener uses `mqtt` (MQTT client) and `node:fetch` (built-in, Node 18+) for the Ollama HTTP call. It shares no dependencies with the terminal's `package.json` — it runs standalone with its own minimal `scripts/package.json` or uses only Node built-ins + the `mqtt` package.
+
 The entire script is marked TODO-B for Pi extraction. On the Pi, this becomes a local process calling the on-device Ollama instance (T2 for haiku/reactions) or Hailo (T1 for quick observations).
 
 ---
 
-## Layer 8: Interpreter → Prompt Wiring
+## Layer 8: Interpreter Integration
 
-As a small integration task, SP1's contextual interpreter output is piped into the `{{EMOTIONAL_STATE}}` placeholder value in the prompt assembler.
-
-The interpreter already generates prose like:
+SP1's contextual interpreter already generates prose like:
 > "Mostly quiet tonight. Something in the air feels like it wants to be noticed."
 
-This IS the contextual framing the bible calls for in §28. The interpreter output serves two consumers:
-1. **Prompt assembly** — fills `{{EMOTIONAL_STATE}}` for LLM interactions
-2. **Thought requests** — fills `context.momentum` for thought generation
+This IS the contextual framing the bible calls for in §28. SP4 uses the interpreter output as `context.momentum` in thought requests — the LLM receives Beau's felt state in prose, not numbers.
 
-One function call, two consumers. The integration is a small utility function in `bridge.ts` that reads the interpreter's current output when either consumer needs it.
+**Prompt assembler wiring (deferred).** The interpreter output should eventually fill the `{{EMOTIONAL_STATE}}` placeholder in the system prompt template. However, the caller of `assemblePrompt()` is the Pi dispatcher process, which doesn't exist yet. SP4 exposes the interpreter's current output via a utility function (`getInterpretation()` on the personality engine, already available) so the Pi dispatcher can wire it when it's built. SP4 does NOT modify `assemblePrompt()` or `policies.ts` — the prompt pipeline is a Pi-side integration concern.
+
+The integration is: one function already exists (`personalityEngine.getInterpretation()`), SP4 consumes it for thought requests, and a future sub-project wires it to the prompt assembler.
 
 ---
 
@@ -451,13 +464,13 @@ These stream via SSE to the client for widget consumption and face state decisio
 | File | Change |
 |------|--------|
 | `src/lib/server/db/schema.ts` | Add `pending_thoughts` table |
-| `src/lib/server/mqtt/bridge.ts` | Instantiate thought system, subscribe to results, update BeauState |
-| `src/lib/server/mqtt/topics.ts` | Add `beau/thoughts/*` topic constants |
-| `src/lib/server/face-state.ts` | Add `thoughtPending` signal to priority stack |
+| `src/lib/server/mqtt/bridge.ts` | Instantiate thought system, subscribe to `beau/thoughts/result`, update BeauState. **Note:** `SUBSCRIBE_TOPICS` array in `topics.ts` must include the result topic — adding the constant alone does not subscribe |
+| `src/lib/server/mqtt/topics.ts` | Add `beau/thoughts/*` topic constants AND add result topic to `SUBSCRIBE_TOPICS` array |
+| `src/lib/server/face-state.ts` | Add `thoughtOverlay` parameter to `resolveGlow()` — overlay system, not new face state |
 | `src/lib/stores/beau.svelte.ts` | Extend BeauState type with thought fields |
 | `src/lib/widgets/registry.ts` | Register PendingThoughtsWidget (widget #48) |
-| `src/lib/components/BmoFace.svelte` | Add thought-pending glow variation |
-| `src/lib/server/prompt/policies.ts` | Wire interpreter output to `EMOTIONAL_STATE` fallback |
+| `src/lib/widgets/loaders.ts` | Add `pending-thoughts` data loader (query pending_thoughts table) |
+| `src/lib/components/BmoFace.svelte` | Add `glow-thought-overlay` CSS class + click handler for thought surfacing |
 | `src/hooks.server.ts` | Initialize thought system on startup |
 
 ---
@@ -515,8 +528,10 @@ All constants are exported and configurable, not hardcoded:
 | `MAX_QUEUE_SIZE` | 5 | Maximum pending thoughts |
 | `MAX_DAILY_HAIKU` | 3 | Haiku budget per day |
 | `MAX_DAILY_THOUGHTS` | 5 | Total thought budget per day |
-| `DECAY_TTL_OBSERVATION_MS` | 10800000 | Observation decay (3 hours) |
-| `DECAY_TTL_REACTION_MS` | 36000000 | Reaction decay (10 hours) |
-| `DECAY_TTL_HAIKU_MS` | 86400000 | Haiku decay (24 hours) |
+| `DECAY_TTL_OBSERVATION_MS` | 10800000 | Observation decay base (3 hours) |
+| `DECAY_TTL_REACTION_MS` | 36000000 | Reaction decay base (10 hours) |
+| `DECAY_TTL_HAIKU_MS` | 86400000 | Haiku decay base (24 hours) |
+| `DECAY_VARIANCE` | 0.2 | Random ±20% applied to each thought's TTL at creation (e.g., reaction: 8-12 hours) |
+| `GENERATION_TIMEOUT_MS` | 30000 | Max time waiting for Ollama result before dropping |
 | `SLEEP_ACCUMULATION_RATE` | 0.1 | Pressure accumulation multiplier during sleep |
 | `HAIKU_WINDOW_MULTIPLIER` | 3.0 | Pressure multiplier during haiku time windows |
