@@ -438,6 +438,20 @@ export function connectMQTT() {
     };
     broadcast();
 
+    // Publish personality state via MQTT
+    if (_publish) {
+      const { personality } = TOPICS;
+      _publish(personality.vector, JSON.stringify(personalityEngine.getVector()));
+      _publish(personality.mode, derivedMode);
+      _publish(personality.interpret, personalityEngine.getInterpretation());
+      _publish(TOPICS.state.mode, derivedMode);
+
+      if (DEFAULT_CONFIG.diagnosticMode) {
+        _publish(personality.signal, JSON.stringify(personalityEngine.getSignalLayer()));
+        _publish(personality.momentum, JSON.stringify(personalityEngine.getMomentumLayer()));
+      }
+    }
+
     // Persist snapshot if engine produced one
     if (snap) {
       const hasCreativeActivity = activityCache.haikuRecent || activityCache.journalRecent || activityCache.ideaRecent;
@@ -507,6 +521,21 @@ export function connectMQTT() {
   // Start activity cache refresh interval
   setInterval(refreshActivityCache, 30_000);
   refreshActivityCache();
+
+  // ── Compaction & Backup ───────────────────────────────────────────────────
+  // Run compaction on startup
+  try { runCompaction(db); } catch (e) { console.error('[personality] compaction failed:', e); }
+
+  // Schedule daily compaction
+  setInterval(() => {
+    try { runCompaction(db); } catch (e) { console.error('[personality] compaction failed:', e); }
+  }, 24 * 60 * 60 * 1000);
+
+  // Schedule DB backup every 6 hours
+  const backupPath = process.env.DB_BACKUP_PATH || 'data/backups';
+  scheduleBackup(sqlite, backupPath, 6 * 60 * 60 * 1000);
+
+  console.log('[personality] Engine running in SvelteKit host (TODO-B: extract to Pi)');
 
   const brokerUrl = process.env.MQTT_URL || 'mqtt://localhost:1883';
 
