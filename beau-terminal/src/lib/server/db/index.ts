@@ -426,3 +426,28 @@ try {
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_wellness_sessions_started ON wellness_sessions(started_at DESC)").run(); } catch { /* already exists */ }
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_wellness_events_session ON wellness_events(session_id)").run(); } catch { /* already exists */ }
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_wellness_events_ts ON wellness_events(timestamp)").run(); } catch { /* already exists */ }
+
+// Personality Engine — snapshots table
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS personality_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+    wonder REAL NOT NULL,
+    reflection REAL NOT NULL,
+    mischief REAL NOT NULL,
+    signal_wonder REAL NOT NULL,
+    signal_reflection REAL NOT NULL,
+    signal_mischief REAL NOT NULL,
+    momentum_wonder REAL NOT NULL,
+    momentum_reflection REAL NOT NULL,
+    momentum_mischief REAL NOT NULL,
+    derived_mode TEXT NOT NULL,
+    interpretation TEXT,
+    sources TEXT NOT NULL DEFAULT '[]',
+    snapshot_reason TEXT NOT NULL DEFAULT 'interval',
+    is_notable INTEGER NOT NULL DEFAULT 0
+  )`).run();
+} catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_personality_snapshots_ts ON personality_snapshots(timestamp)").run(); } catch { /* already exists */ }
+
+export { sqlite };

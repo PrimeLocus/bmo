@@ -348,3 +348,23 @@ export const integrations = sqliteTable('integrations', {
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
+
+// ── Personality Engine ──────────────────────────────────
+export const personalitySnapshots = sqliteTable('personality_snapshots', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  timestamp: text('timestamp').notNull().default(sql`(datetime('now'))`),
+  wonder: real('wonder').notNull(),
+  reflection: real('reflection').notNull(),
+  mischief: real('mischief').notNull(),
+  signalWonder: real('signal_wonder').notNull(),
+  signalReflection: real('signal_reflection').notNull(),
+  signalMischief: real('signal_mischief').notNull(),
+  momentumWonder: real('momentum_wonder').notNull(),
+  momentumReflection: real('momentum_reflection').notNull(),
+  momentumMischief: real('momentum_mischief').notNull(),
+  derivedMode: text('derived_mode').notNull(),
+  interpretation: text('interpretation'),
+  sources: text('sources').notNull().default('[]'),
+  snapshotReason: text('snapshot_reason').notNull().default('interval'),
+  isNotable: integer('is_notable').notNull().default(0),
+});
