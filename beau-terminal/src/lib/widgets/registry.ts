@@ -874,7 +874,19 @@ const REGISTRY: Record<string, WidgetMeta> = {
 		defaultPosition: { colSpan: 6, rowSpan: 3 },
 		configSchema: [],
 		dataKind: 'none'
-	}
+	},
+
+	'pending-thoughts': {
+		id: 'pending-thoughts',
+		label: 'Pending Thoughts',
+		description: 'Diagnostic view of Beau\'s thought queue — pressure, pending, surfaced, and decayed thoughts',
+		icon: '\u{1F4AD}',
+		category: 'system',
+		component: () => import('./terminal/PendingThoughtsWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 3 },
+		configSchema: [],
+		dataKind: 'database',
+	},
 };
 
 // ---------------------------------------------------------------------------
