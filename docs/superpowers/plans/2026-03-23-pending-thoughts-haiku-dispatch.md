@@ -1199,8 +1199,10 @@ git commit -m "feat(thoughts): startup wiring + final integration — SP4 task 1
 
 ## Post-Implementation
 
-- [ ] Update `CLAUDE.md` repo structure section with new files
-- [ ] Update `CLAUDE.md` widget count to 48
-- [ ] Update `MEMORY.md` with SP4 completion notes
-- [ ] Run `npx vitest run` one final time to verify all tests pass
-- [ ] Consider merging to master or creating a PR
+- [x] Update `CLAUDE.md` repo structure section with new files
+- [x] Update `CLAUDE.md` widget count to 48
+- [x] Update `MEMORY.md` with SP4 completion notes
+- [x] Run `npx vitest run` one final time to verify all tests pass (313/313)
+- [x] Merge to master
+
+**Status: COMPLETE** — All 15 tasks implemented, 313 tests passing, docs updated.
