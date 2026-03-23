@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { beauState, SLEEP_LABELS, MODE_LABELS, EMOTION_LABELS, PRESENCE_LABELS } from '$lib/stores/beau.svelte.js';
+	import { beauState, SLEEP_LABELS, MODE_LABELS, FACE_STATE_LABELS, PRESENCE_LABELS } from '$lib/stores/beau.svelte.js';
 
 	let { config, data }: { config: Record<string, unknown>; data?: unknown } = $props();
 
@@ -33,7 +33,7 @@
 
 		<div class="vitals-row">
 			<span class="vitals-key">FEELING</span>
-			<span class="vitals-value">{(EMOTION_LABELS[beauState.emotionalState] ?? beauState.emotionalState).toUpperCase()}</span>
+			<span class="vitals-value">{(FACE_STATE_LABELS[beauState.faceState] ?? beauState.faceState).toUpperCase()}</span>
 		</div>
 
 		<div class="vitals-row">

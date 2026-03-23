@@ -103,7 +103,7 @@ function buildCurrentStateSection(): string | null {
 	const lines: string[] = [];
 
 	lines.push(`- **Mode:** ${state.mode}`);
-	lines.push(`- **Emotion:** ${state.emotionalState}`);
+	lines.push(`- **Expression:** ${state.faceState}`);
 	lines.push(`- **Online:** ${state.online ? 'yes' : 'no'}`);
 	lines.push(`- **Sleep:** ${state.sleepState}`);
 	lines.push(`- **Presence:** ${state.presenceState}`);
