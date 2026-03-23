@@ -38,6 +38,9 @@ const defaultState: BeauState = {
   signalLayer: { wonder: 0.5, reflection: 0.3, mischief: 0.3 },
   momentumLayer: { wonder: 0.5, reflection: 0.3, mischief: 0.3 },
   signalSources: [],
+  // ── Face State ──
+  faceState: 'idle',
+  glow: { color: 'rgba(0, 229, 160, 0.25)', animation: 'slowpulse', duration: '4s' },
 };
 
 export const beauState = $state<BeauState>({ ...defaultState });
@@ -129,6 +132,19 @@ export const EMOTION_LABELS: Record<string, string> = {
   reflective: 'Reflective',
   mischievous: 'Mischievous',
   peaceful: 'Peaceful',
+};
+
+export const FACE_STATE_LABELS: Record<string, string> = {
+  idle: 'Idle',
+  listening: 'Listening',
+  thinking: 'Thinking',
+  speaking: 'Speaking',
+  delighted: 'Delighted',
+  witness: 'Witness',
+  sleepy: 'Sleepy',
+  unamused: 'Unamused',
+  mischievous: 'Mischievous',
+  protective: 'Protective',
 };
 
 export const SLEEP_LABELS: Record<string, string> = {

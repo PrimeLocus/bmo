@@ -18,6 +18,8 @@ import { WellnessDeviceCoordinator, parseDeviceStatus, parseDeviceTelemetry, par
 import { PersonalityEngine, DEFAULT_CONFIG } from '../personality/engine.js';
 import type { ActivitySignals, PersonalityVector } from '../personality/types.js';
 import { runCompaction, scheduleBackup, isNotable } from '../personality/compaction.js';
+import { resolveFaceState, resolveGlow } from '../face-state.js';
+import type { InteractionSignals } from '../face-state.js';
 
 export type BeauState = {
   mode: string;
@@ -57,6 +59,9 @@ export type BeauState = {
   signalLayer: { wonder: number; reflection: number; mischief: number };
   momentumLayer: { wonder: number; reflection: number; mischief: number };
   signalSources: string[];
+  // ── Face State ──
+  faceState: string;
+  glow: { color: string; animation: string; duration: string };
 };
 
 const DEFAULT_STATE: BeauState = {
@@ -97,6 +102,9 @@ const DEFAULT_STATE: BeauState = {
   signalLayer: { wonder: 0.5, reflection: 0.3, mischief: 0.3 },
   momentumLayer: { wonder: 0.5, reflection: 0.3, mischief: 0.3 },
   signalSources: [],
+  // ── Face State ──
+  faceState: 'idle',
+  glow: { color: 'rgba(0, 229, 160, 0.25)', animation: 'slowpulse', duration: '4s' },
 };
 
 let state: BeauState = { ...DEFAULT_STATE };
@@ -376,6 +384,23 @@ export function connectMQTT() {
     return dominant > 0.6 ? 'wonder' : 'curious';
   }
 
+  // ── Face State — interaction signal tracking ──
+  const interactionSignals: InteractionSignals = {
+    voiceListening: false,
+    voiceSpeaking: false,
+    voiceThinking: false,
+    securityStranger: false,
+  };
+
+  function updateFaceState() {
+    const faceState = resolveFaceState(state, interactionSignals);
+    const glow = resolveGlow(faceState);
+    state = { ...state, faceState, glow };
+    // Note: do NOT call broadcast() here — the MQTT message handler's
+    // existing broadcast() at the end of the switch handles it.
+    // For personality engine calls, broadcast() is called after state assignment.
+  }
+
   // Activity signal cache — refreshed every 30 seconds
   let activityCache: ActivitySignals = {
     haikuRecent: false,
@@ -426,6 +451,12 @@ export function connectMQTT() {
     const snap = personalityEngine.getLastSnapshot();
     const derivedMode = personalityEngine.getDerivedMode();
 
+    const faceState = resolveFaceState(
+      { ...state, mode: derivedMode, personalityVector: vector },
+      interactionSignals
+    );
+    const glow = resolveGlow(faceState);
+
     state = {
       ...state,
       personalityVector: vector,
@@ -435,6 +466,8 @@ export function connectMQTT() {
       signalSources: snap?.sources ?? state.signalSources,
       mode: derivedMode,
       emotionalState: vectorToEmotionalState(vector),
+      faceState,
+      glow,
     };
     broadcast();
 
@@ -754,6 +787,23 @@ export function connectMQTT() {
         }
         break;
       }
+      // ── Face State — interaction signals ──
+      case TOPICS.voice.listening:
+        interactionSignals.voiceListening = msg === '1';
+        updateFaceState();
+        break;
+      case TOPICS.voice.speaking:
+        interactionSignals.voiceSpeaking = msg === '1';
+        updateFaceState();
+        break;
+      case TOPICS.voice.thinking:
+        interactionSignals.voiceThinking = msg === '1';
+        updateFaceState();
+        break;
+      case TOPICS.security.stranger:
+        interactionSignals.securityStranger = msg === '1';
+        updateFaceState();
+        break;
     }
     broadcast();
   });
