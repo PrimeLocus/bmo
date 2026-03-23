@@ -250,6 +250,25 @@ const REGISTRY: Record<string, WidgetMeta> = {
 		dataKind: 'websocket',
 	},
 
+	'vector-gauge': {
+		id: 'vector-gauge',
+		label: 'Vector Gauge',
+		description: 'live personality vector bars with signal/momentum layer toggle',
+		icon: '\u{1F4CA}',
+		category: 'identity',
+		component: () => import('./terminal/VectorGaugeWidget.svelte'),
+		defaultPosition: { colSpan: 3, rowSpan: 2 },
+		configSchema: [
+			{
+				key: 'showLayers',
+				label: 'Show Layers',
+				type: 'boolean',
+				default: false,
+			},
+		],
+		dataKind: 'websocket',
+	},
+
 	// ── Creative ───────────────────────────────────────────────────────────
 
 	resolume: {
