@@ -43,7 +43,7 @@ export const PLACEHOLDER_FALLBACKS: Record<string, string> = {
   SLEEP_STATE: 'awake',
   PRESENCE_STATE: 'unknown',
   SEASONAL_CONTEXT: '',
-  EMOTIONAL_STATE: 'curious',
+  EMOTIONAL_STATE: 'present and quiet, settling in',
   WEATHER_SUMMARY: '',
   LUX_CONTEXT: '',
   NATAL_SUMMARY: '',
