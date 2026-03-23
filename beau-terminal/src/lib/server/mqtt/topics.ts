@@ -43,6 +43,13 @@ export const TOPICS = {
     },
     session: 'beau/wellness/session',
   },
+  personality: {
+    vector: 'beau/personality/vector',
+    signal: 'beau/personality/signal',
+    momentum: 'beau/personality/momentum',
+    mode: 'beau/personality/mode',
+    interpret: 'beau/personality/interpret',
+  },
 } as const;
 
 // Topics the terminal subscribes to (inbound from BMO)
