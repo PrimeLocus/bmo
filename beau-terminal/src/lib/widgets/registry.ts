@@ -269,6 +269,18 @@ const REGISTRY: Record<string, WidgetMeta> = {
 		dataKind: 'websocket',
 	},
 
+	'signal-sources': {
+		id: 'signal-sources',
+		label: 'Signal Sources',
+		description: 'which of the 21 signal rules are currently firing and why',
+		icon: '\u{1F50D}',
+		category: 'identity',
+		component: () => import('./terminal/SignalSourcesWidget.svelte'),
+		defaultPosition: { colSpan: 3, rowSpan: 3 },
+		configSchema: [],
+		dataKind: 'websocket',
+	},
+
 	// ── Creative ───────────────────────────────────────────────────────────
 
 	resolume: {
