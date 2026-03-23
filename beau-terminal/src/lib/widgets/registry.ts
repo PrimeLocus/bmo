@@ -238,6 +238,18 @@ const REGISTRY: Record<string, WidgetMeta> = {
 		mutationRoute: '/journal'
 	},
 
+	'inner-weather': {
+		id: 'inner-weather',
+		label: 'Inner Weather',
+		description: "beau's self-narration — interpretation, mode, and vector whisper",
+		icon: '\u{1F30A}',
+		category: 'identity',
+		component: () => import('./terminal/InnerWeatherWidget.svelte'),
+		defaultPosition: { colSpan: 6, rowSpan: 2 },
+		configSchema: [],
+		dataKind: 'websocket',
+	},
+
 	// ── Creative ───────────────────────────────────────────────────────────
 
 	resolume: {
