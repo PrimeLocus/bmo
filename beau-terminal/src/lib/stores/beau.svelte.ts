@@ -32,12 +32,20 @@ const defaultState: BeauState = {
   wellnessSessionId: null,
   wellnessBattery: null,
   wellnessProfile: null,
+  // ── Personality Engine ──
+  personalityVector: { wonder: 0.5, reflection: 0.3, mischief: 0.3 },
+  personalityInterpretation: '',
+  signalLayer: { wonder: 0.5, reflection: 0.3, mischief: 0.3 },
+  momentumLayer: { wonder: 0.5, reflection: 0.3, mischief: 0.3 },
+  signalSources: [],
 };
 
 export const beauState = $state<BeauState>({ ...defaultState });
 
 let es: EventSource | null = null;
 let visibilityBound = false;
+let previousVector = { wonder: 0.5, reflection: 0.3, mischief: 0.3 };
+let previousMode = 'ambient';
 
 export function connectBeauStream() {
   if (typeof window === 'undefined') return;
@@ -49,6 +57,29 @@ export function connectBeauStream() {
     try {
       const data = JSON.parse(event.data) as BeauState;
       Object.assign(beauState, data);
+
+      // ── bmo:personality event dispatch ──
+      const v = data.personalityVector;
+      if (v) {
+        const dw = Math.abs(v.wonder - previousVector.wonder);
+        const dr = Math.abs(v.reflection - previousVector.reflection);
+        const dm = Math.abs(v.mischief - previousVector.mischief);
+        const modeChanged = data.mode !== previousMode;
+
+        if (dw > 0.1 || dr > 0.1 || dm > 0.1 || modeChanged) {
+          window.dispatchEvent(new CustomEvent('bmo:personality', {
+            detail: {
+              vector: v,
+              mode: data.mode,
+              previousMode: modeChanged ? previousMode : null,
+              interpretation: data.personalityInterpretation ?? '',
+            },
+          }));
+        }
+
+        previousVector = { ...v };
+        previousMode = data.mode;
+      }
     } catch {
       // ignore malformed frames
     }
@@ -94,6 +125,10 @@ export const EMOTION_LABELS: Record<string, string> = {
   contemplative: 'Contemplative',
   playful: 'Playful',
   sleepy: 'Sleepy',
+  wonder: 'Wonder',
+  reflective: 'Reflective',
+  mischievous: 'Mischievous',
+  peaceful: 'Peaceful',
 };
 
 export const SLEEP_LABELS: Record<string, string> = {

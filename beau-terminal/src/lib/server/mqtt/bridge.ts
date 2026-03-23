@@ -1,7 +1,7 @@
 import mqtt from 'mqtt';
-import { desc, eq, isNull } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { haikus, dispatches } from '../db/schema.js';
+import { desc, eq, gte, isNull } from 'drizzle-orm';
+import { db, sqlite } from '../db/index.js';
+import { haikus, dispatches, journalEntries, noticings, personalitySnapshots } from '../db/schema.js';
 import { logActivity } from '../db/activity.js';
 import { TOPICS, SUBSCRIBE_TOPICS } from './topics.js';
 import { environmentSnapshots, environmentEvents } from '../db/schema.js';
@@ -15,6 +15,9 @@ import { WitnessController } from '../creative/witness.js';
 import { DebriefScheduler, formatDebriefPrompt } from '../creative/debrief.js';
 import { resolumeSessions, resolumeEvents, wellnessSessions, wellnessEvents } from '../db/schema.js';
 import { WellnessDeviceCoordinator, parseDeviceStatus, parseDeviceTelemetry, parseSessionEvent } from '../wellness/sessions.js';
+import { PersonalityEngine, DEFAULT_CONFIG } from '../personality/engine.js';
+import type { ActivitySignals, PersonalityVector } from '../personality/types.js';
+import { runCompaction, scheduleBackup, isNotable } from '../personality/compaction.js';
 
 export type BeauState = {
   mode: string;
@@ -48,6 +51,12 @@ export type BeauState = {
   wellnessSessionId: number | null;
   wellnessBattery: number | null;
   wellnessProfile: string | null;
+  // ── Personality Engine ──
+  personalityVector: { wonder: number; reflection: number; mischief: number };
+  personalityInterpretation: string;
+  signalLayer: { wonder: number; reflection: number; mischief: number };
+  momentumLayer: { wonder: number; reflection: number; mischief: number };
+  signalSources: string[];
 };
 
 const DEFAULT_STATE: BeauState = {
@@ -82,6 +91,12 @@ const DEFAULT_STATE: BeauState = {
   wellnessSessionId: null,
   wellnessBattery: null,
   wellnessProfile: null,
+  // ── Personality Engine ──
+  personalityVector: { wonder: 0.5, reflection: 0.3, mischief: 0.3 },
+  personalityInterpretation: '',
+  signalLayer: { wonder: 0.5, reflection: 0.3, mischief: 0.3 },
+  momentumLayer: { wonder: 0.5, reflection: 0.3, mischief: 0.3 },
+  signalSources: [],
 };
 
 let state: BeauState = { ...DEFAULT_STATE };
@@ -349,6 +364,149 @@ export function connectMQTT() {
     state = { ...state, weather, weatherSummary: summary };
     broadcast();
   });
+
+  // ── Personality Engine ────────────────────────────────────────────────────
+  const personalityEngine = new PersonalityEngine(DEFAULT_CONFIG);
+
+  // Deprecated emotionalState mapping — bridges old consumers
+  function vectorToEmotionalState(v: { wonder: number; reflection: number; mischief: number }): string {
+    const dominant = Math.max(v.wonder, v.reflection, v.mischief);
+    if (dominant === v.reflection) return dominant > 0.6 ? 'reflective' : 'contemplative';
+    if (dominant === v.mischief) return dominant > 0.6 ? 'mischievous' : 'playful';
+    return dominant > 0.6 ? 'wonder' : 'curious';
+  }
+
+  // Activity signal cache — refreshed every 30 seconds
+  let activityCache: ActivitySignals = {
+    haikuRecent: false,
+    journalRecent: false,
+    dispatchRecent: false,
+    ideaRecent: false,
+    noticingRecent: false,
+    debriefRecent: false,
+  };
+
+  function refreshActivityCache() {
+    const cutoff30min = new Date(Date.now() - 30 * 60 * 1000);
+    const cutoffText = cutoff30min.toISOString().replace('T', ' ').slice(0, 19);
+    try {
+      // haikus.createdAt is integer (timestamp mode) — compare with Date object
+      activityCache.haikuRecent = !!db.select({ id: haikus.id })
+        .from(haikus).where(gte(haikus.createdAt, cutoff30min)).limit(1).get();
+
+      // journalEntries.createdAt is text (datetime format)
+      activityCache.journalRecent = !!db.select({ id: journalEntries.id })
+        .from(journalEntries).where(gte(journalEntries.createdAt, cutoffText)).limit(1).get();
+
+      // dispatches.createdAt is text (datetime format)
+      activityCache.dispatchRecent = !!db.select({ id: dispatches.id })
+        .from(dispatches).where(gte(dispatches.createdAt, cutoffText)).limit(1).get();
+
+      // ideas table has no timestamp column — always false
+      activityCache.ideaRecent = false;
+
+      // noticings.createdAt is text (datetime format)
+      activityCache.noticingRecent = !!db.select({ id: noticings.id })
+        .from(noticings).where(gte(noticings.createdAt, cutoffText)).limit(1).get();
+
+      // resolumeSessions with debriefText written recently
+      activityCache.debriefRecent = !!db.select({ id: resolumeSessions.id })
+        .from(resolumeSessions).where(gte(resolumeSessions.createdAt, cutoffText)).limit(1).get();
+    } catch (e) {
+      console.error('[personality] activity cache refresh failed:', e);
+    }
+  }
+
+  // Wire vector change → state update + snapshot persistence + MQTT publish
+  let previousSnapshotVector: PersonalityVector = { ...DEFAULT_CONFIG.restingBaseline };
+  let previousSnapshotMode: string = 'ambient';
+
+  personalityEngine.onVectorChange((vector) => {
+    // Consume snapshot once (getLastSnapshot clears after read)
+    const snap = personalityEngine.getLastSnapshot();
+    const derivedMode = personalityEngine.getDerivedMode();
+
+    state = {
+      ...state,
+      personalityVector: vector,
+      personalityInterpretation: personalityEngine.getInterpretation(),
+      signalLayer: personalityEngine.getSignalLayer(),
+      momentumLayer: personalityEngine.getMomentumLayer(),
+      signalSources: snap?.sources ?? state.signalSources,
+      mode: derivedMode,
+      emotionalState: vectorToEmotionalState(vector),
+    };
+    broadcast();
+
+    // Persist snapshot if engine produced one
+    if (snap) {
+      const hasCreativeActivity = activityCache.haikuRecent || activityCache.journalRecent || activityCache.ideaRecent;
+      const hadModeTransition = derivedMode !== previousSnapshotMode;
+      const notable = isNotable(vector, previousSnapshotVector, hasCreativeActivity, hadModeTransition);
+
+      try {
+        db.insert(personalitySnapshots).values({
+          wonder: snap.wonder,
+          reflection: snap.reflection,
+          mischief: snap.mischief,
+          signalWonder: snap.signalWonder,
+          signalReflection: snap.signalReflection,
+          signalMischief: snap.signalMischief,
+          momentumWonder: snap.momentumWonder,
+          momentumReflection: snap.momentumReflection,
+          momentumMischief: snap.momentumMischief,
+          derivedMode: snap.derivedMode,
+          interpretation: snap.interpretation,
+          sources: JSON.stringify(snap.sources),
+          snapshotReason: snap.snapshotReason,
+          isNotable: notable ? 1 : 0,
+        }).run();
+      } catch (e) {
+        console.error('[personality] snapshot write failed:', e);
+      }
+
+      previousSnapshotVector = { ...vector };
+      previousSnapshotMode = derivedMode;
+    }
+  });
+
+  // Restore momentum from last persisted snapshot
+  try {
+    const lastSnapshot = db.select()
+      .from(personalitySnapshots)
+      .orderBy(desc(personalitySnapshots.timestamp))
+      .limit(1)
+      .get();
+    if (lastSnapshot) {
+      personalityEngine.restoreMomentum({
+        wonder: lastSnapshot.momentumWonder,
+        reflection: lastSnapshot.momentumReflection,
+        mischief: lastSnapshot.momentumMischief,
+      });
+      console.log('[personality] Restored momentum from last snapshot');
+    }
+  } catch (e) {
+    console.error('[personality] momentum restoration failed:', e);
+  }
+
+  // Start the engine tick loop
+  personalityEngine.start(
+    () => ({
+      lux: state.lux,
+      presenceState: state.presenceState as 'occupied' | 'empty' | 'uncertain',
+      sleepState: state.sleepState as 'awake' | 'settling' | 'asleep' | 'waking',
+      interactionAge: Math.floor((Date.now() - lastInteractionAt) / 1000),
+      weather: state.weather?.condition ?? null,
+      seasonalContext: state.seasonalContext || null,
+      timeOfDay: new Date(),
+      resolumeActive: state.resolumeActive,
+    }),
+    () => activityCache,
+  );
+
+  // Start activity cache refresh interval
+  setInterval(refreshActivityCache, 30_000);
+  refreshActivityCache();
 
   const brokerUrl = process.env.MQTT_URL || 'mqtt://localhost:1883';
 
