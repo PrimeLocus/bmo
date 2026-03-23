@@ -98,7 +98,7 @@ When trigger conditions align (e.g., keyboard quiet + high reflection + late nig
 
 Maximum 3 haiku and 5 total thoughts per calendar day. Haiku count toward both caps (3 haiku + 2 other = 5 total max). This is a ceiling, never a target. Zero is valid. The budget prevents chattiness but never forces output.
 
-A single authoritative function `getDailyBudgetStatus()` in `queue.ts` returns `{ surfacedToday: number, haikuToday: number, atHaikuCap: boolean, atTotalCap: boolean }`. Both the pressure engine and the dispatcher check budget via this function — no duplicate queries, no conflicting counts. All queries use `datetime(surfaced_at, 'localtime')` to compute the local calendar day (Lafayette is UTC-5/UTC-6; a midnight haiku must count against the correct day).
+A single authoritative function `getDailyBudgetStatus()` in `queue.ts` returns `{ surfacedToday: number, haikuToday: number, atHaikuCap: boolean, atTotalCap: boolean }` where `atHaikuCap = haikuToday >= MAX_DAILY_HAIKU` and `atTotalCap = surfacedToday >= MAX_DAILY_THOUGHTS`. Haiku are included in `surfacedToday` — they are not counted separately. Both the pressure engine and the dispatcher check budget via this function — no duplicate queries, no conflicting counts. All queries use `datetime(surfaced_at, 'localtime')` to compute the local calendar day (Lafayette is UTC-5/UTC-6; a midnight haiku must count against the correct day).
 
 ### Cooldown
 
@@ -222,24 +222,27 @@ In-memory priority queue backed by SQLite `pending_thoughts` table for persisten
 
 ### Database Schema
 
-```sql
-CREATE TABLE pending_thoughts (
-  id              TEXT PRIMARY KEY,
-  type            TEXT NOT NULL,       -- 'observation' | 'reaction' | 'haiku'
-  trigger         TEXT NOT NULL,       -- what caused this thought
-  text            TEXT,                -- NULL until generated
-  status          TEXT NOT NULL,       -- 'requested' | 'generating' | 'pending' | 'ready' | 'surfaced' | 'decayed' | 'dropped'
-  priority        INTEGER NOT NULL,
-  context_json    TEXT NOT NULL,       -- full request context
-  created_at      TEXT NOT NULL,       -- datetime
-  generated_at    TEXT,                -- when LLM returned text
-  surfaced_at     TEXT,                -- when shown to user
-  expires_at      TEXT NOT NULL,       -- decay deadline
-  novelty         INTEGER DEFAULT 0,  -- 1 if random novelty spike
-  model           TEXT,                -- which LLM generated it
-  generation_ms   INTEGER             -- forming duration
-);
+```typescript
+// Drizzle DSL — consistent with existing schema.ts patterns
+export const pendingThoughts = sqliteTable('pending_thoughts', {
+  id:            text('id').primaryKey(),
+  type:          text('type').notNull(),             // 'observation' | 'reaction' | 'haiku'
+  trigger:       text('trigger').notNull(),           // what caused this thought
+  text:          text('text'),                        // null until generated
+  status:        text('status').notNull(),             // lifecycle state
+  priority:      integer('priority').notNull(),
+  contextJson:   text('context_json').notNull(),       // full request context as JSON
+  createdAt:     text('created_at').notNull().default(sql`(datetime('now'))`),
+  generatedAt:   text('generated_at'),
+  surfacedAt:    text('surfaced_at'),
+  expiresAt:     text('expires_at').notNull(),          // decay deadline (computed at insert)
+  novelty:       integer('novelty').notNull().default(0), // 1 if random novelty spike
+  model:         text('model'),                        // which LLM generated it
+  generationMs:  integer('generation_ms'),             // forming duration in ms
+});
 ```
+
+Drizzle auto-migration handles table creation on startup, consistent with all other tables in `schema.ts`.
 
 ### Thought Lifecycle
 
@@ -300,7 +303,7 @@ Added to the widget registry. Available for custom pages, natural fit for the "B
 
 ### StatusBar Integration
 
-When a thought surfaces, dispatch a `bmo:react` CustomEvent with the thought text. This reuses the existing 3.5s green fade-in message pattern in the StatusBar.
+When a thought surfaces, dispatch a `bmo:react` CustomEvent with `{ detail: { text, duration } }`. The duration scales with text length: short observations (~3.5s, matching existing `bmo:react` behavior), longer reactions (~5s), haiku (~8s, three lines need reading time). The StatusBar's `bmo:react` handler uses the `duration` field if present, falling back to the existing 3.5s default for backward compatibility with existing callers (software steps, parts, captures).
 
 ### MQTT Broadcast
 
@@ -466,7 +469,7 @@ These stream via SSE to the client for widget consumption and face state decisio
 | `src/lib/server/db/schema.ts` | Add `pending_thoughts` table |
 | `src/lib/server/mqtt/bridge.ts` | Instantiate thought system, subscribe to `beau/thoughts/result`, update BeauState. **Note:** `SUBSCRIBE_TOPICS` array in `topics.ts` must include the result topic — adding the constant alone does not subscribe |
 | `src/lib/server/mqtt/topics.ts` | Add `beau/thoughts/*` topic constants AND add result topic to `SUBSCRIBE_TOPICS` array |
-| `src/lib/server/face-state.ts` | Add `thoughtOverlay` parameter to `resolveGlow()` — overlay system, not new face state |
+| `src/lib/server/face-state.ts` | Add `thoughtOverlay` parameter to `resolveGlow()` — overlay system, not new face state. Both call sites in `bridge.ts` (`updateFaceState()` and `onVectorChange` callback) must pass the current thought-pending status from the queue manager via `queue.getReadyThoughtType()` (returns `null` or the pending thought's type string) |
 | `src/lib/stores/beau.svelte.ts` | Extend BeauState type with thought fields |
 | `src/lib/widgets/registry.ts` | Register PendingThoughtsWidget (widget #48) |
 | `src/lib/widgets/loaders.ts` | Add `pending-thoughts` data loader (query pending_thoughts table) |
