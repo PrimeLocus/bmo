@@ -50,6 +50,14 @@ export const TOPICS = {
     mode: 'beau/personality/mode',
     interpret: 'beau/personality/interpret',
   },
+  voice: {
+    listening: 'beau/voice/listening',
+    speaking: 'beau/voice/speaking',
+    thinking: 'beau/voice/thinking',
+  },
+  security: {
+    stranger: 'beau/security/stranger',
+  },
 } as const;
 
 // Topics the terminal subscribes to (inbound from BMO)
@@ -76,6 +84,11 @@ export const SUBSCRIBE_TOPICS: string[] = [
   TOPICS.wellness.device.status,
   TOPICS.wellness.device.telemetry,
   TOPICS.wellness.session,
+  // Face state — interaction signals
+  TOPICS.voice.listening,
+  TOPICS.voice.speaking,
+  TOPICS.voice.thinking,
+  TOPICS.security.stranger,
 ];
 
 // ─── Type unions ───
@@ -100,3 +113,9 @@ export type DeviceType = (typeof DEVICE_TYPES)[number];
 
 export const HEATING_STATES = ['idle', 'heating', 'ready', 'active', 'cooling'] as const;
 export type HeatingState = (typeof HEATING_STATES)[number];
+
+export const FACE_STATES = [
+  'idle', 'listening', 'thinking', 'speaking', 'delighted',
+  'witness', 'sleepy', 'unamused', 'mischievous', 'protective',
+] as const;
+export type FaceState = (typeof FACE_STATES)[number];

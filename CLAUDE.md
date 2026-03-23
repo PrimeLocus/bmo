@@ -4,7 +4,7 @@ Physical BMO robot build — Raspberry Pi 5 + Hailo NPU + custom AI personality 
 
 ## Project Overview
 
-- **Personality**: Beau — wonder-first, reflection underneath, mischief at edges. Full spec in `bmo-personality-bible.docx`.
+- **Personality**: Beau — wonder-first, reflection underneath, mischief at edges. Full spec in `docs/bible/bmo-personality-bible.docx`.
 - **Wake words**: "Hey BMO" (public/performative) vs "Hey Beau" (private/warmer) — different system prompt tone injection per wake word.
 - **Voice**: Korean-Cajun blend, custom Piper TTS trained via TextyMcSpeechy on Legion RTX 4090.
 - **Brain routing**: Hailo NPU (reflex/vision) → Pi CPU Ollama (philosophy/poetry) → ThinkStation via Tailscale (heavy reasoning). See `docs/reference.md` for full routing details.
@@ -32,9 +32,17 @@ bmo/
 ├── test/
 │   └── init.test.js          # CLI tests
 ├── docs/
-│   └── reference.md          # Deep technical reference (MQTT, schema, brain routing)
-├── bmo-personality-bible.docx
-├── bmo-system-prompt.md      # Canonical system prompt ({{PLACEHOLDER}} syntax)
+│   ├── reference.md          # Deep technical reference (MQTT, schema, brain routing)
+│   └── bible/                # Beau's Bible — identity, philosophy, canon (see bible/INDEX.md)
+│       ├── INDEX.md           # Reading guide + document map
+│       ├── bmo-personality-bible.docx  # Core personality spec
+│       ├── beau-personality-addendum.docx  # Expanded personality notes
+│       ├── beau-full-handoff.docx  # Full project handoff
+│       ├── bmo-system-prompt.md    # Canonical system prompt ({{PLACEHOLDER}} syntax)
+│       ├── bmo-canon-reference.md  # Adventure Time BMO lore → build mapping
+│       ├── beau-philosophy.md      # Ethics, autonomy, emergence framework
+│       ├── art-of-ooo-internals.png  # Art book internal design reference
+│       └── BMO-Wiki/               # Fandom wiki full page save
 │
 └── beau-terminal/            # Beau's Terminal — the command center
     ├── package.json
@@ -50,7 +58,7 @@ bmo/
     │   ├── hooks.server.ts   # Startup: DB seed + MQTT connect + WebSocket upgrade
     │   ├── lib/
     │   │   ├── components/
-    │   │   │   ├── BmoFace.svelte      # Animated BMO face — reacts to mode/emotion via beauState
+    │   │   │   ├── BmoFace.svelte      # Pixel-art SVG face — 10 states, glow borders, blink transitions, driven by beauState.faceState
     │   │   │   ├── CommandPalette.svelte # Ctrl+K command palette — search pages, actions, widgets
     │   │   │   ├── EditBar.svelte      # Edit mode toolbar (Ctrl+E) — font, panel controls
     │   │   │   ├── LinkEditor.svelte   # Inline link editor for entity_links relationships
@@ -59,7 +67,9 @@ bmo/
     │   │   │   ├── PanelCanvas.svelte  # 12-column CSS grid container, layout persistence
     │   │   │   ├── SitrepModal.svelte  # Sitrep export modal — preview, copy, download markdown
     │   │   │   ├── SpeechBubble.svelte # Speech bubble overlay for BmoFace dialog
-    │   │   │   └── StatusBar.svelte    # Top bar — online/offline, mode, emotion, sitrep button, last haiku, bmo:react reactions
+    │   │   │   └── StatusBar.svelte    # Top bar — online/offline, mode, faceState, sitrep button, last haiku, bmo:react reactions
+    │   │   ├── face/
+    │   │   │   └── frames.ts           # Pixel-art rect data for all 10 face states (FaceRect arrays, timing, animation config)
     │   │   ├── stores/
     │   │   │   ├── beau.svelte.ts      # WebSocket client → live BeauState ($state)
     │   │   │   ├── editMode.svelte.ts  # Edit mode toggle (Ctrl+E) — global $state
@@ -172,7 +182,7 @@ Dark terminal aesthetic. Monospace Courier New on near-black.
 
 High contrast mode: `html[data-contrast="high"]`. User-adjustable: font size (14–32px), font weight (400/600), line height (1.5/1.7/1.9).
 
-The `BmoFace` component renders an animated BMO face in the StatusBar and as a standalone widget. Face expression updates reactively via `beauState.emotion` and `beauState.mode`.
+The `BmoFace` component renders an animated pixel-art SVG face in the Nav sidebar (mini) and as a standalone widget (standard). 10 canon face states (idle, listening, thinking, speaking, delighted, witness, sleepy, unamused, mischievous, protective) driven by `beauState.faceState`. LED glow borders mirror bible §50 color mapping. Face state resolved server-side in `face-state.ts` via priority stack (interaction signals > sleep/mode > personality vector > idle). Blink transitions between states.
 
 ## Edit Mode & Panel System
 
@@ -243,7 +253,9 @@ When working on Beau's Terminal, read these first:
 - `src/lib/components/PanelCanvas.svelte` — 12-column grid container + layout engine
 - `src/app.css` — design tokens
 - `src/hooks.server.ts` — startup orchestration
-- `src/lib/server/mqtt/topics.ts` — MQTT topic constants and type unions (modes, device types, heating states)
+- `src/lib/server/mqtt/topics.ts` — MQTT topic constants and type unions (modes, device types, heating states, face states)
+- `src/lib/server/face-state.ts` — face state priority stack resolver + glow config (bible §49/§50)
+- `src/lib/face/frames.ts` — pixel-art frame data for all 10 face states
 - `src/lib/server/prompt/assembler.ts` — prompt section parser + mode injection
 - `src/lib/server/sitrep.ts` — sitrep markdown assembler (queries all tables + live state)
 - `src/lib/server/wellness/sessions.ts` — wellness session lifecycle (coordinator, manager, parsers)

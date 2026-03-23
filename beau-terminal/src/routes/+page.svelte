@@ -118,7 +118,7 @@
       {/if}
     </div>
     <div style="color: var(--bmo-muted); font-family: 'Courier New', monospace; font-size: 0.75rem; letter-spacing: 2px; margin-top: 0.25rem; text-transform: uppercase;">
-      {beauState.mode ?? '—'} · {beauState.emotionalState ?? '—'}
+      {beauState.mode ?? '—'} · {beauState.faceState ?? '—'}
     </div>
   </div>
 </div>

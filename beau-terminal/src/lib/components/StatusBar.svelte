@@ -48,7 +48,7 @@
   </div>
 
   <div style="color: var(--bmo-muted)">
-    STATE: <span style="color: var(--bmo-text)">{beauState.emotionalState.toUpperCase()}</span>
+    STATE: <span style="color: var(--bmo-text)">{beauState.faceState.toUpperCase()}</span>
   </div>
 
   <div style="color: var(--bmo-muted)">
