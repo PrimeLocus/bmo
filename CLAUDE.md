@@ -80,7 +80,7 @@ bmo/
     │   │   │   ├── navConfig.svelte.ts # Nav items/groups — dual persist, CRUD ops
     │   │   │   └── settings.svelte.ts  # Display settings ($state + localStorage)
     │   │   ├── widgets/
-    │   │   │   ├── registry.ts           # Widget registry — 47 widgets, metadata, data kinds
+    │   │   │   ├── registry.ts           # Widget registry — 48 widgets, metadata, data kinds
     │   │   │   ├── templates.ts          # Page template definitions — pre-built widget layouts
     │   │   │   ├── WidgetRenderer.svelte # Dynamic widget loader (renders by widgetId)
     │   │   │   ├── WidgetDrawer.svelte   # Side drawer — browse/add widgets in edit mode (shows descriptions)
@@ -92,6 +92,7 @@ bmo/
     │   │   │   │   │                     # Wellness: WellnessSessionWidget, WellnessLogWidget
     │   │   │   │   │                     # Personality: InnerWeatherWidget, VectorGaugeWidget,
     │   │   │   │   │                     #      SignalSourcesWidget, PersonalityTimelineWidget
+    │   │   │   │   │                     # Thoughts: PendingThoughtsWidget
     │   │   │   └── content/              # 11 content widgets (clock, markdown, image, etc.)
     │   │   │       │                     # New: QuickCaptureWidget, IntegrationsStatusWidget
     │   │   └── server/
@@ -99,11 +100,17 @@ bmo/
     │   │       ├── db/
     │   │       │   ├── activity.ts   # Activity log queries — recent events, entity activity feed
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
-    │   │       │   ├── schema.ts     # 27 tables — source of truth for DB schema
+    │   │       │   ├── schema.ts     # 28 tables — source of truth for DB schema
     │   │       │   └── seed.ts       # 18 parts, 10 phases, 52 steps, 11 ideas
     │   │       ├── mqtt/
-    │   │       │   ├── bridge.ts     # MQTT → BeauState → SSE broadcast
+    │   │       │   ├── bridge.ts     # MQTT → BeauState → SSE broadcast + thought system orchestration
     │   │       │   └── topics.ts     # MQTT topic constants + type unions (modes, devices, heating states)
+    │   │       ├── thoughts/
+    │   │       │   ├── types.ts       # ThoughtRequest, ThoughtResult, tuning constants
+    │   │       │   ├── pressure.ts    # Pressure accumulation engine + novelty detection
+    │   │       │   ├── dispatcher.ts  # Type selection + request assembly
+    │   │       │   ├── queue.ts       # Priority queue, decay, lifecycle, budget tracking
+    │   │       │   └── index.ts       # Singleton accessor for API routes
     │   │       ├── identity/
     │   │       │   ├── emergence.ts   # Soul code query + empty state
     │   │       │   ├── natal.ts       # Active natal profile query
@@ -156,11 +163,15 @@ bmo/
     │       │   ├── search/           # GET global search — pages, widgets, entities
     │       │   ├── sitrep/           # GET sitrep — full markdown situation report export
     │       │   ├── workshop-stats/   # GET workshop progress aggregates
-    │       │   └── widgets/[widgetId]/data/  # GET widget data (for custom page rendering)
+    │       │   ├── widgets/[widgetId]/data/  # GET widget data (for custom page rendering)
+    │       │   └── thoughts/surface/ # POST surface a pending thought
     │       └── api/
     │           ├── ...
     │           └── sse/              # SSE endpoint for real-time BeauState streaming
     └── build/                        # Production output (adapter-node)
+├── scripts/
+│   ├── ollama-listener.js    # Standalone MQTT → Ollama → MQTT thought generation
+│   └── package.json          # Minimal deps (mqtt only)
 ```
 
 ## Tech Stack (beau-terminal)
@@ -186,7 +197,7 @@ Dark terminal aesthetic. Monospace Courier New on near-black.
 
 High contrast mode: `html[data-contrast="high"]`. User-adjustable: font size (14–32px), font weight (400/600), line height (1.5/1.7/1.9).
 
-The `BmoFace` component renders an animated pixel-art SVG face in the Nav sidebar (mini) and as a standalone widget (standard). 10 canon face states (idle, listening, thinking, speaking, delighted, witness, sleepy, unamused, mischievous, protective) driven by `beauState.faceState`. LED glow borders mirror bible §50 color mapping. Face state resolved server-side in `face-state.ts` via priority stack (interaction signals > sleep/mode > personality vector > idle). Blink transitions between states.
+The `BmoFace` component renders an animated pixel-art SVG face in the Nav sidebar (mini) and as a standalone widget (standard). 10 canon face states (idle, listening, thinking, speaking, delighted, witness, sleepy, unamused, mischievous, protective) driven by `beauState.faceState`. LED glow borders mirror bible §50 color mapping. Face state resolved server-side in `face-state.ts` via priority stack (interaction signals > sleep/mode > personality vector > idle). Blink transitions between states. Thought overlay glow (independent of face state) indicates pending thoughts; click-to-surface dispatches `bmo:thought-surface` event.
 
 ## Edit Mode & Panel System
 
@@ -194,13 +205,13 @@ Ctrl+E toggles edit mode globally. Ctrl+K opens the command palette (search page
 - **Panels** can be dragged (title bar) and resized (edge handles) on a 12-column CSS grid
 - **EditBar** shows font size +/− controls, panel visibility toggles, and reset layout button
 - **Nav sidebar** becomes editable — rename groups, reorder/hide/show items, add custom pages. Nav is organized into four fixed groups: TODAY, WORKSHOP, BEAU, SYSTEM
-- **Widget drawer** lets users browse 47 widgets (with descriptions) and add them to custom pages
+- **Widget drawer** lets users browse 48 widgets (with descriptions) and add them to custom pages
 - **Page templates** — when creating a custom page, users can pick a pre-built template from `templates.ts` to seed the layout with a curated widget set
 
 ### Widget System
 
-47 widgets in two categories:
-- **Terminal widgets** (36) — data-bound to Beau systems (beauState, DB queries). Examples: SleepWidget, ModeWidget, PartsTrackerWidget, HaikuArchiveWidget, BmoFaceWidget, WorkshopProgressWidget, BlockedWaitingWidget, RecentActivityWidget, BeauVitalsWidget, NextStepsWidget, WellnessSessionWidget, WellnessLogWidget, InnerWeatherWidget, VectorGaugeWidget, SignalSourcesWidget, PersonalityTimelineWidget
+48 widgets in two categories:
+- **Terminal widgets** (37) — data-bound to Beau systems (beauState, DB queries). Examples: SleepWidget, ModeWidget, PartsTrackerWidget, HaikuArchiveWidget, BmoFaceWidget, WorkshopProgressWidget, BlockedWaitingWidget, RecentActivityWidget, BeauVitalsWidget, NextStepsWidget, WellnessSessionWidget, WellnessLogWidget, InnerWeatherWidget, VectorGaugeWidget, SignalSourcesWidget, PersonalityTimelineWidget, PendingThoughtsWidget
 - **Content widgets** (11) — standalone content blocks (Clock, Markdown, Image, Embed, LinkCard, Countdown, Divider, QuickCaptureWidget, IntegrationsStatusWidget)
 
 Widget data kinds:
@@ -250,7 +261,7 @@ When working on Beau's Terminal, read these first:
 - `src/lib/stores/editMode.svelte.ts` — edit mode global state (Ctrl+E toggle)
 - `src/lib/stores/navConfig.svelte.ts` — nav items/groups config + CRUD
 - `src/lib/stores/gridEngine.ts` — grid collision detection + push/compact algorithm
-- `src/lib/widgets/registry.ts` — widget registry (47 widgets, metadata, categories)
+- `src/lib/widgets/registry.ts` — widget registry (48 widgets, metadata, categories)
 - `src/lib/widgets/templates.ts` — page template definitions for custom page creation
 - `src/lib/server/db/activity.ts` — activity log queries (recent events, entity activity feed)
 - `src/lib/components/Panel.svelte` — panel component (drag, resize, edit controls)
@@ -258,7 +269,10 @@ When working on Beau's Terminal, read these first:
 - `src/app.css` — design tokens
 - `src/hooks.server.ts` — startup orchestration
 - `src/lib/server/mqtt/topics.ts` — MQTT topic constants and type unions (modes, device types, heating states, face states)
-- `src/lib/server/face-state.ts` — face state priority stack resolver + glow config (bible §49/§50)
+- `src/lib/server/face-state.ts` — face state priority stack resolver + glow config (bible §49/§50) + thought overlay glow
+- `src/lib/server/thoughts/pressure.ts` — thought pressure accumulation + novelty detection
+- `src/lib/server/thoughts/dispatcher.ts` — thought type selection + request assembly
+- `src/lib/server/thoughts/queue.ts` — priority queue, decay, lifecycle, budget tracking
 - `src/lib/face/frames.ts` — pixel-art frame data for all 10 face states
 - `src/lib/server/prompt/assembler.ts` — prompt section parser + mode injection
 - `src/lib/server/sitrep.ts` — sitrep markdown assembler (queries all tables + live state)
