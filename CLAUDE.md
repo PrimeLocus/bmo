@@ -70,6 +70,8 @@ bmo/
     │   │   │   └── StatusBar.svelte    # Top bar — online/offline, mode, faceState, sitrep button, last haiku, bmo:react reactions
     │   │   ├── face/
     │   │   │   └── frames.ts           # Pixel-art rect data for all 10 face states (FaceRect arrays, timing, animation config)
+    │   │   ├── personality/
+    │   │   │   └── rule-meta.ts        # Client-safe signal rule name→delta map (21 rules, no server deps)
     │   │   ├── stores/
     │   │   │   ├── beau.svelte.ts      # WebSocket client → live BeauState ($state)
     │   │   │   ├── editMode.svelte.ts  # Edit mode toggle (Ctrl+E) — global $state
@@ -88,6 +90,8 @@ bmo/
     │   │   │   │   │                     #      BlockedWaitingWidget, RecentActivityWidget,
     │   │   │   │   │                     #      BeauVitalsWidget, NextStepsWidget
     │   │   │   │   │                     # Wellness: WellnessSessionWidget, WellnessLogWidget
+    │   │   │   │   │                     # Personality: InnerWeatherWidget, VectorGaugeWidget,
+    │   │   │   │   │                     #      SignalSourcesWidget, PersonalityTimelineWidget
     │   │   │   └── content/              # 11 content widgets (clock, markdown, image, etc.)
     │   │   │       │                     # New: QuickCaptureWidget, IntegrationsStatusWidget
     │   │   └── server/
@@ -259,6 +263,8 @@ When working on Beau's Terminal, read these first:
 - `src/lib/server/prompt/assembler.ts` — prompt section parser + mode injection
 - `src/lib/server/sitrep.ts` — sitrep markdown assembler (queries all tables + live state)
 - `src/lib/server/wellness/sessions.ts` — wellness session lifecycle (coordinator, manager, parsers)
+- `src/lib/personality/rule-meta.ts` — client-safe signal rule name→delta map (21 rules)
+- `src/lib/widgets/terminal/personality-chart.ts` — SVG scale/path utilities for personality timeline
 
 ## Deep Reference
 

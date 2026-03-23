@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-03-23-personality-widgets-design.md`
 
+**Status:** COMPLETE — all 8 tasks implemented, 221/221 tests passing, merged to master. Branch: `feature/personality-widgets`.
+
 ---
 
 ### Task 1: Signal Rule Meta — Client-Safe Export
