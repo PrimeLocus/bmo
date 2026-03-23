@@ -18,7 +18,7 @@ import { WellnessDeviceCoordinator, parseDeviceStatus, parseDeviceTelemetry, par
 import { PersonalityEngine, DEFAULT_CONFIG } from '../personality/engine.js';
 import type { ActivitySignals, PersonalityVector } from '../personality/types.js';
 import { runCompaction, scheduleBackup, isNotable } from '../personality/compaction.js';
-import { resolveFaceState, resolveGlow } from '../face-state.js';
+import { resolveFaceState, resolveGlow, resolveGlowWithOverlay } from '../face-state.js';
 import type { InteractionSignals } from '../face-state.js';
 import { PressureEngine } from '../thoughts/pressure.js';
 import { ThoughtDispatcher } from '../thoughts/dispatcher.js';
@@ -412,7 +412,7 @@ export function connectMQTT() {
 
   function updateFaceState() {
     const faceState = resolveFaceState(state, interactionSignals);
-    const glow = resolveGlow(faceState);
+    const glow = resolveGlowWithOverlay(faceState, thoughtQueue.getReadyThoughtType());
     state = { ...state, faceState, glow };
     // Note: do NOT call broadcast() here — the MQTT message handler's
     // existing broadcast() at the end of the switch handles it.
@@ -473,7 +473,7 @@ export function connectMQTT() {
       { ...state, mode: derivedMode, personalityVector: vector },
       interactionSignals
     );
-    const glow = resolveGlow(faceState);
+    const glow = resolveGlowWithOverlay(faceState, thoughtQueue.getReadyThoughtType());
 
     state = {
       ...state,
