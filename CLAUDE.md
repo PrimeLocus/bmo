@@ -101,7 +101,7 @@ bmo/
     │   │       │   ├── activity.ts   # Activity log queries — recent events, entity activity feed
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
     │   │       │   ├── schema.ts     # 30 tables — source of truth for DB schema
-    │   │       │   └── seed.ts       # 18 parts, 10 phases, 52 steps, 11 ideas
+    │   │       │   └── seed.ts       # 18 parts, 14 phases, 74 steps, 11 ideas
     │   │       ├── mqtt/
     │   │       │   ├── bridge.ts     # MQTT → BeauState → SSE broadcast + thought system orchestration
     │   │       │   └── topics.ts     # MQTT topic constants + type unions (modes, devices, heating states)
