@@ -8,7 +8,7 @@ import { nanoid } from 'nanoid';
 const RESERVED_SLUGS = new Set([
   'identity', 'presence', 'parts', 'software', 'ideas', 'todo',
   'memory', 'prompt', 'settings', 'haikus', 'sessions', 'photography',
-  'journal', 'api', 'ws', 'photos', 'custom'
+  'journal', 'integrations', 'api', 'ws', 'photos', 'custom',
 ]);
 
 function isValidSlug(slug: string): boolean {

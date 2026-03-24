@@ -67,7 +67,7 @@ bmo/
     │   │   │   ├── PanelCanvas.svelte  # 12-column CSS grid container, layout persistence
     │   │   │   ├── SitrepModal.svelte  # Sitrep export modal — preview, copy, download markdown
     │   │   │   ├── SpeechBubble.svelte # Speech bubble overlay for BmoFace dialog
-    │   │   │   └── StatusBar.svelte    # Top bar — online/offline, mode, faceState, sitrep button, last haiku, bmo:react reactions
+    │   │   │   └── StatusBar.svelte    # Top bar — online/offline, mode, faceState, sitrep button, last haiku, bmo:react reactions, thought toast notifications
     │   │   ├── face/
     │   │   │   └── frames.ts           # Pixel-art rect data for all 10 face states (FaceRect arrays, timing, animation config)
     │   │   ├── personality/
@@ -100,7 +100,7 @@ bmo/
     │   │       ├── db/
     │   │       │   ├── activity.ts   # Activity log queries — recent events, entity activity feed
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
-    │   │       │   ├── schema.ts     # 28 tables — source of truth for DB schema
+    │   │       │   ├── schema.ts     # 30 tables — source of truth for DB schema
     │   │       │   └── seed.ts       # 18 parts, 10 phases, 52 steps, 11 ideas
     │   │       ├── mqtt/
     │   │       │   ├── bridge.ts     # MQTT → BeauState → SSE broadcast + thought system orchestration
@@ -152,7 +152,7 @@ bmo/
     │       ├── photography/          # Photo gallery + session photo browser
     │       ├── photos/               # Catch-all — serves photo files from disk
     │       ├── journal/              # Journal — private entries with consent gate
-    │       ├── custom/[slug]/        # Custom pages — user-built dashboards with widgets
+    │       ├── [slug]/               # Custom pages — user-built dashboards at root-level URLs
     │       ├── integrations/         # Integrations status dashboard
     │       ├── api/
     │       │   ├── capture/          # POST quick capture — saves to captures table
@@ -223,15 +223,15 @@ Each widget entry in the registry includes a `description` field displayed in th
 
 ### Custom Pages
 
-Users can create custom dashboard pages (`/custom/[slug]`) with any combination of widgets. Custom page definitions stored in `custom_pages` table. Widget instances have IDs like `w:{widgetId}:{nanoid(8)}`.
+Users can create custom dashboard pages at root-level URLs (`/mind`, `/session-lounge`, etc.) via + PAGE in edit mode. Custom page definitions stored in `custom_pages` table. Widget instances have IDs like `w:{widgetId}:{nanoid(8)}`. Layout store key format: `page:{slug}`.
 
 ### Persistence
 
-Panel layouts and nav config use **dual-tier persistence**: localStorage (primary, instant) + SQLite via `/api/layouts` (backup, debounced 2s). Layout store key format: `bmo-layout-{pageId}`. Nav config key: `bmo-nav-config`.
+Panel layouts and nav config use **dual-tier persistence**: localStorage (primary, instant) + SQLite via `/api/layouts` (backup, debounced 2s). Layout store key format: `bmo-layout:{pageId}` (colon separator). Nav config key: `bmo-nav-config`. Layouts API returns `null` (200) for missing layouts, not 404.
 
 ## Conventions
 
-- **Svelte 5 runes only** — no `$:` reactive statements, no `writable()`/`readable()` stores.
+- **Svelte 5 runes only** — no `$:` reactive statements, no `writable()`/`readable()` stores. **GOTCHA:** `structuredClone()` cannot clone `$state` proxy objects — use `JSON.parse(JSON.stringify())` (see `deepCopy` in navConfig.svelte.ts).
 - **Form actions** for mutations — SvelteKit `use:enhance`. No client-side fetch for CRUD.
 - **CSS custom properties** for all colors — never hardcode hex (except status colors like `#d63031`).
 - **Tracking-widest uppercase** for labels and headers — terminal aesthetic.
@@ -254,8 +254,8 @@ Database auto-seeds on startup. Seed is additive: it inserts missing reference r
 
 When working on Beau's Terminal, read these first:
 
-- `src/lib/server/db/schema.ts` — all 27 table definitions
-- `src/lib/server/mqtt/bridge.ts` — MQTT state + subscriber broadcast (consumed by SSE); per-device wellness session Maps; interactionAge tracking; startup orphan recovery
+- `src/lib/server/db/schema.ts` — all 30 table definitions
+- `src/lib/server/mqtt/bridge.ts` — MQTT state + subscriber broadcast (consumed by SSE); per-device wellness session Maps; interactionAge tracking; startup orphan recovery; `patchState()` for external state updates
 - `src/lib/stores/beau.svelte.ts` — client-side live state (BeauState via SSE EventSource)
 - `src/lib/stores/layout.svelte.ts` — per-page panel grid layouts + dual persistence
 - `src/lib/stores/editMode.svelte.ts` — edit mode global state (Ctrl+E toggle)

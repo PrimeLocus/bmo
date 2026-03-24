@@ -8,6 +8,9 @@
   let reaction = $state<string | null>(null);
   let reactionTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // Toast for surfaced thoughts — persistent until dismissed
+  let toast = $state<{ text: string; type: string } | null>(null);
+
   function openSitrep() {
     sitrepOpen = true;
   }
@@ -18,15 +21,29 @@
     reactionTimer = setTimeout(() => { reaction = null; }, duration);
   }
 
+  function showToast(text: string, type: string) {
+    toast = { text, type };
+  }
+
+  function dismissToast() {
+    toast = null;
+  }
+
   onMount(() => {
     const handleSitrep = () => { sitrepOpen = true; };
     const handleReact = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (!detail) return;
-      // Support both string (existing callers) and object (thought system)
-      const text = typeof detail === 'string' ? detail : detail.text;
-      const duration = typeof detail === 'object' ? (detail.duration ?? 3500) : 3500;
-      if (text) showReaction(text, duration);
+      if (typeof detail === 'string') {
+        // Simple string reactions (parts delivered, etc.)
+        showReaction(detail);
+      } else if (detail.type) {
+        // Thought system — show as persistent toast
+        showToast(detail.text, detail.type);
+      } else {
+        // Object with text + optional duration (legacy)
+        showReaction(detail.text, detail.duration ?? 3500);
+      }
     };
     window.addEventListener('bmo:sitrep', handleSitrep);
     window.addEventListener('bmo:react', handleReact);
@@ -106,7 +123,7 @@
     <div class="italic truncate max-w-xs reaction-flash" style="color: var(--bmo-green)">
       {reaction}
     </div>
-  {:else if beauState.lastHaiku}
+  {:else if !toast && beauState.lastHaiku}
     <div class="italic truncate max-w-xs" style="color: var(--bmo-muted)">
       "{beauState.lastHaiku.split('\n')[0]}..."
     </div>
@@ -115,12 +132,94 @@
 
 <SitrepModal bind:open={sitrepOpen} />
 
+{#if toast}
+  <div class="thought-toast" role="status">
+    <div class="thought-toast-header">
+      <span class="thought-toast-type">{toast.type.toUpperCase()}</span>
+      <button class="thought-toast-close" onclick={dismissToast} title="Dismiss">✕</button>
+    </div>
+    <div class="thought-toast-text" class:thought-toast-haiku={toast.type === 'haiku'}>
+      {#if toast.type === 'haiku'}
+        {#each toast.text.split('\n') as line}
+          <div>{line}</div>
+        {/each}
+      {:else}
+        {toast.text}
+      {/if}
+    </div>
+  </div>
+{/if}
+
 <style>
   .reaction-flash {
     animation: reaction-in 0.2s ease-out;
   }
   @keyframes reaction-in {
     from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .thought-toast {
+    position: fixed;
+    top: 56px;
+    right: 16px;
+    z-index: 1000;
+    min-width: 280px;
+    max-width: 400px;
+    border: 1px solid var(--bmo-green);
+    background: var(--bmo-bg);
+    padding: 0;
+    animation: toast-in 0.3s ease-out;
+    box-shadow: 0 0 20px rgba(0, 229, 160, 0.1);
+  }
+
+  .thought-toast-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--bmo-border);
+    background: var(--bmo-surface);
+  }
+
+  .thought-toast-type {
+    font-size: 0.6rem;
+    letter-spacing: 3px;
+    color: var(--bmo-muted);
+  }
+
+  .thought-toast-close {
+    background: none;
+    border: none;
+    color: var(--bmo-muted);
+    cursor: pointer;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    transition: color 0.15s;
+  }
+
+  .thought-toast-close:hover {
+    color: var(--bmo-green);
+  }
+
+  .thought-toast-text {
+    padding: 12px 14px;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--bmo-green);
+    font-style: italic;
+    white-space: pre-wrap;
+  }
+
+  .thought-toast-haiku {
+    text-align: center;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    padding: 16px 20px;
+  }
+
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(-8px); }
     to   { opacity: 1; transform: translateY(0); }
   }
 </style>

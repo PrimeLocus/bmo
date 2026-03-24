@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 import { getThoughtSystem } from '$lib/server/thoughts/index.js';
+import { getState, patchState } from '$lib/server/mqtt/bridge.js';
 
 export const POST: RequestHandler = async () => {
   const system = getThoughtSystem();
@@ -11,6 +12,16 @@ export const POST: RequestHandler = async () => {
 
   // Publish surfaced event via MQTT
   system.publishSurfaced(thought);
+
+  // Update BeauState so SSE clients see the surfaced thought
+  const patch: Record<string, unknown> = {
+    lastThoughtText: thought.text,
+    lastThoughtAt: thought.surfacedAt,
+  };
+  if (thought.type === 'haiku' && thought.text) {
+    patch.lastHaiku = thought.text;
+  }
+  patchState(patch);
 
   return json({
     id: thought.id,

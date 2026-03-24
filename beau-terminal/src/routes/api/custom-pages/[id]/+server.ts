@@ -37,7 +37,7 @@ export const DELETE: RequestHandler = async ({ params }) => {
   if (!existing) throw error(404, 'Page not found');
 
   // Also delete the associated layout
-  const layoutId = `custom:${existing.slug}`;
+  const layoutId = `page:${existing.slug}`;
   db.delete(layouts).where(eq(layouts.id, layoutId)).run();
   db.delete(customPages).where(eq(customPages.id, params.id)).run();
   return json({ ok: true });

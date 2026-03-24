@@ -138,6 +138,12 @@ export function getState(): BeauState {
   return { ...state };
 }
 
+/** Patch BeauState and broadcast to all SSE listeners */
+export function patchState(patch: Partial<BeauState>) {
+  state = { ...state, ...patch };
+  broadcast();
+}
+
 function broadcast() {
   for (const fn of listeners) fn({ ...state });
 }

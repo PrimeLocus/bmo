@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ params }) => {
   if (!page) throw error(404, 'Page not found');
 
   // Load the saved layout to see which widgets need server data
-  const layoutId = `custom:${params.slug}`;
+  const layoutId = `page:${params.slug}`;
   const layoutRow = db.select().from(layouts).where(eq(layouts.id, layoutId)).get();
 
   let widgetData: Record<string, unknown> = {};

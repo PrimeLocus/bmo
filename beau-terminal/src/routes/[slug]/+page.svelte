@@ -12,7 +12,7 @@
 
   const { data } = $props();
 
-  const pageId = $derived(`custom:${data.page.slug}`);
+  const pageId = $derived(`page:${data.page.slug}`);
   const layout = $derived(getPageLayout(pageId));
 
   // Widget panels from saved layout

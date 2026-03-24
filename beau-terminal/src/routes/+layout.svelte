@@ -51,13 +51,9 @@
         const thought = await res.json();
         if (!thought.text) return;
 
-        // Duration by type
-        const durations: Record<string, number> = { observation: 3500, reaction: 5000, haiku: 8000 };
-        const duration = durations[thought.type] ?? 5000;
-
-        // Show via StatusBar
+        // Show as toast via StatusBar (includes type for formatting)
         window.dispatchEvent(new CustomEvent('bmo:react', {
-          detail: { text: thought.text, duration },
+          detail: { text: thought.text, type: thought.type },
         }));
       } catch {
         // silently fail — thought may have decayed

@@ -41,14 +41,14 @@ function validateLayout(data: unknown): boolean {
 export const GET: RequestHandler = async ({ url }) => {
   const page = getPageParam(url);
   const row = db.select().from(layouts).where(eq(layouts.id, page)).get();
-  if (!row) throw error(404, 'No saved layout');
+  if (!row) return json(null);
   try {
     const data = JSON.parse(row.data);
     // If stored data is old pixel format, treat as missing (self-heal)
-    if (!validateLayout(data)) throw error(404, 'No saved layout');
+    if (!validateLayout(data)) return json(null);
     return json(data);
   } catch {
-    throw error(404, 'No saved layout');
+    return json(null);
   }
 };
 

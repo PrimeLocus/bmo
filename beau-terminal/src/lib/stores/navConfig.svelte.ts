@@ -44,7 +44,12 @@ const LS_KEY = 'bmo-nav-config';
 const SQLITE_ID = '__nav__';
 
 // In-memory reactive cache
-let _config = $state<NavConfig>(structuredClone(DEFAULT_NAV_CONFIG));
+/** Deep-copy that works on both plain objects and Svelte 5 $state proxies */
+function deepCopy<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj)) as T;
+}
+
+let _config = $state<NavConfig>(deepCopy(DEFAULT_NAV_CONFIG));
 
 // Debounce timer for SQLite sync
 let syncTimer: ReturnType<typeof setTimeout> | undefined;
@@ -104,9 +109,10 @@ function scheduleSQLiteSync(config: NavConfig) {
 }
 
 function persist(config: NavConfig) {
-  _config = structuredClone(config);
-  writeLS(config);
-  scheduleSQLiteSync(config);
+  const plain = deepCopy(config);
+  _config = plain;
+  writeLS(plain);
+  scheduleSQLiteSync(plain);
 }
 
 function migrateNavConfig(rawConfig: NavConfig): NavConfig {
@@ -238,7 +244,7 @@ export function saveNavConfig(config: NavConfig) {
 }
 
 export function resetNavConfig() {
-  _config = structuredClone(DEFAULT_NAV_CONFIG);
+  _config = deepCopy(DEFAULT_NAV_CONFIG);
   deleteLS();
   clearTimeout(syncTimer);
   if (typeof fetch !== 'undefined') {
@@ -308,14 +314,14 @@ export function reorderGroup(group: string, direction: 'up' | 'down') {
 
 export function addGroup(name: string) {
   if (_config.groups.includes(name)) return;
-  const updated = structuredClone(_config);
+  const updated = deepCopy(_config);
   updated.groups.push(name);
   persist(updated);
 }
 
 export function renameGroup(oldName: string, newName: string) {
   if (oldName === newName) return;
-  const updated = structuredClone(_config);
+  const updated = deepCopy(_config);
   const idx = updated.groups.indexOf(oldName);
   if (idx < 0) return;
   updated.groups[idx] = newName;
@@ -327,7 +333,7 @@ export function renameGroup(oldName: string, newName: string) {
 
 export function removeGroup(name: string) {
   if (_config.groups.length <= 1) return;
-  const updated = structuredClone(_config);
+  const updated = deepCopy(_config);
   updated.groups = updated.groups.filter(g => g !== name);
   const fallback = updated.groups[0];
   for (const item of updated.items) {

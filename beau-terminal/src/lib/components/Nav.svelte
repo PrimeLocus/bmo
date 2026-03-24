@@ -158,7 +158,7 @@
       const siblings = itemsInGroup(group);
       const maxOrder = siblings.length > 0 ? Math.max(...siblings.map(s => s.sortOrder)) : -1;
       addNavItem({
-        id: `/custom/${page.slug}`,
+        id: `/${page.slug}`,
         label: cpName.trim().toUpperCase(),
         icon: cpIcon || '📄',
         group,

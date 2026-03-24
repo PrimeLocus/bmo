@@ -367,6 +367,8 @@ export class ThoughtQueue {
 				};
 				this.thoughts.set(thought.id, thought);
 			}
+			// Promote best pending thought to ready after loading
+			this._promoteReady();
 		} catch {
 			// DB not ready yet — will be populated on first enqueue
 		}

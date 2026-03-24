@@ -113,6 +113,11 @@ export function connectBeauStream() {
         }
       }
     });
+    // Close SSE cleanly before page unload to prevent "connection interrupted" console noise
+    window.addEventListener('beforeunload', () => {
+      es?.close();
+      es = null;
+    });
   }
 }
 

@@ -174,8 +174,9 @@ export async function startListener() {
 // Entry point — only runs when executed directly, not when imported
 // ---------------------------------------------------------------------------
 
-const isMain =
-  import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`;
+const isMain = process.argv[1] &&
+  new URL(import.meta.url).pathname.toLowerCase() ===
+  new URL(`file:///${process.argv[1].replace(/\\/g, '/')}`).pathname.toLowerCase();
 if (isMain) {
   startListener();
 }

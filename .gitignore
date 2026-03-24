@@ -41,5 +41,22 @@ vite.config.ts.timestamp-*
 # Private documents (personality bible, background info)
 *.docx
 
+# Bible — personal/copyrighted content (keep structure in repo, not content)
+docs/bible/BMO-Wiki/
+docs/bible/art-of-ooo-internals.png
+docs/bible/SESSION-CONTEXT.md
+docs/bible/beau-philosophy.md
+docs/bible/bmo-canon-reference.md
+
+# Screenshots
+*.png
+!beau-terminal/static/**/*.png
+
 # One-off migration scripts with sensitive data
 beau-terminal/scripts/
+
+# Architecture handoff docs (A2A, may contain infra details)
+docs/bmo-brain-routing-handoff.md
+
+# Hydra
+.hydra/
