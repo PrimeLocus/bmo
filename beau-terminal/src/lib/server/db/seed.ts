@@ -319,16 +319,47 @@ const PHASE_DATA = [
     { id: 's43', text: 'Prototype v1 front buttons on perfboard; defer custom KiCad PCB until enclosure fit is confirmed', order: 4 },
     { id: 's44', text: 'Final assembly: mount Pi stack, route cables, install face display', order: 5 },
   ]},
+  // Bible Alignment — Terminal Software (SP1–SP4)
+  { phase: 'Phase 10 — Personality Engine (SP1)', order: 11, steps: [
+    { id: 'sp1a', text: 'Two-layer momentum model — signal EMA (α 0.08–0.25) + momentum EMA (α 0.002), 60/40 blend', order: 1, done: true },
+    { id: 'sp1b', text: '21 signal rules (15 environmental + 6 activity) — sensor-to-dimension mapping for wonder/reflection/mischief', order: 2, done: true },
+    { id: 'sp1c', text: 'Mode classifier — 5 centroids (ambient/witness/collaborator/archivist/social), Euclidean distance, 3-tick hysteresis', order: 3, done: true },
+    { id: 'sp1d', text: 'Contextual interpreter — phrase-pool sentence builder, deterministic, weather/time/activity aware', order: 4, done: true },
+    { id: 'sp1e', text: 'Tiered snapshot retention (hot 1h / warm 24h / cool 7d / cold 30d) + DB backup every 6h + JSON export', order: 5, done: true },
+    { id: 'sp1f', text: 'BeauState integration — bmo:personality CustomEvent, MQTT publish to beau/personality/*, emotionalState backward compat', order: 6, done: true },
+  ]},
+  { phase: 'Phase 11 — Face States & Expression (SP2)', order: 12, steps: [
+    { id: 'sp2a', text: 'Pixel-art SVG face rewrite — 10 canon states from bible §49 (idle, listening, thinking, speaking, delighted, witness, sleepy, unamused, mischievous, protective)', order: 1, done: true },
+    { id: 'sp2b', text: 'Frame coordinate data (FaceRect arrays) for all 10 states with per-state timing and animation config', order: 2, done: true },
+    { id: 'sp2c', text: 'Face state priority stack resolver — interaction signals > sleep/mode > personality vector > idle', order: 3, done: true },
+    { id: 'sp2d', text: 'LED glow borders per bible §50 — per-state color + animation (teal, blue-teal, amber, yellow-green, etc.)', order: 4, done: true },
+    { id: 'sp2e', text: 'MQTT interaction signal topics (voice/listening, voice/speaking, voice/thinking, security/stranger) + blink transitions (240ms)', order: 5, done: true },
+  ]},
+  { phase: 'Phase 12 — Personality Widgets (SP3)', order: 13, steps: [
+    { id: 'sp3a', text: 'InnerWeatherWidget — ambient interpretation display + mode indicator + whisper bars', order: 1, done: true },
+    { id: 'sp3b', text: 'VectorGaugeWidget — horizontal bars with signal/momentum layer toggle for diagnostic view', order: 2, done: true },
+    { id: 'sp3c', text: 'SignalSourcesWidget — active rules list + per-dimension delta contributions', order: 3, done: true },
+    { id: 'sp3d', text: 'PersonalityTimelineWidget — SVG area chart with ambient/detail toggle, mode bands, hover, 500-row cap', order: 4, done: true },
+    { id: 'sp3e', text: "Client-safe rule-meta.ts (21 rules) + SVG scale utilities + 'Beau\\'s Mind' page template", order: 5, done: true },
+  ]},
+  { phase: 'Phase 13 — Pending Thoughts & Haiku Dispatch (SP4)', order: 14, steps: [
+    { id: 'sp4a', text: 'Pressure accumulation engine — vector magnitude + time silence + novelty spikes + random novelty (4%)', order: 1, done: true },
+    { id: 'sp4b', text: 'Three thought types with decay windows — observation (2–4h), reaction (8–12h), haiku (24h)', order: 2, done: true },
+    { id: 'sp4c', text: 'Priority queue — max 5 pending, single ready slot, 30s generation timeout, daily budget (3 haiku + 5 total)', order: 3, done: true },
+    { id: 'sp4d', text: 'MQTT round-trip generation — terminal publishes request → standalone Ollama listener generates → publishes result', order: 4, done: true },
+    { id: 'sp4e', text: 'Glow overlay system (independent of face state, 3 styles) + BmoFace click-to-surface + toast notifications', order: 5, done: true },
+    { id: 'sp4f', text: 'PendingThoughtsWidget diagnostic — pressure bar, active queue, daily counts, surfaced/decayed history', order: 6, done: true },
+  ]},
 ] as const;
 
 const IDEA_SEEDS: IdeaSeed[] = [
   { id: 'i1', priority: 'high', text: "Beau's voice — Korean-Cajun blend. Musical vowels + Louisiana rhythm. TextyMcSpeechy on Legion RTX 4090.", done: false },
-  { id: 'i2', priority: 'high', text: 'Proactive haiku dispatch — 1–3 haikus/day unprompted. Triggers: time of day, lux/weather, camera, end of work session, significant project moment.', done: false },
+  { id: 'i2', priority: 'high', text: 'Proactive haiku dispatch — 1–3 haikus/day unprompted. Triggers: time of day, lux/weather, camera, end of work session, significant project moment.', done: true },
   { id: 'i3', priority: 'high', text: 'Brain routing dispatcher — reflex/vision → HAT Qwen2.5 1.5B, poetry/philosophy → Pi CPU Gemma 3 4B, heavy → ThinkStation via Tailscale.', done: false },
   { id: 'i3b', priority: 'high', text: "Dual wake word — 'Hey BMO' = public/performative. 'Hey Beau' = private/warmer. Different system prompt tone injection.", done: false },
   { id: 'i4', priority: 'medium', text: 'VJ witness mode — Resolume OSC session detection, witness mode controller, post-session debrief reflection, photo pipeline with vision captions.', done: false },
   { id: 'i5', priority: 'medium', text: 'Physical button mapping — A/GPIO 17: cycle emotion, B/GPIO 27: room survey, Select/GPIO 22: witness mode, Start/GPIO 23: wake/text adventure. Clear of ReSpeaker v2.0; gpiozero pull-ups.', done: false },
-  { id: 'i6', priority: 'medium', text: 'Emotional state model — curious/contemplative/playful/sleepy probabilistically influences system prompt tone.', done: false },
+  { id: 'i6', priority: 'medium', text: 'Personality vector model — wonder/reflection/mischief 3D vector with two-layer EMA momentum. Replaces simple emotional states. Drives mode classification, face state, and prompt tone.', done: true },
   { id: 'i7', priority: 'medium', text: 'RAG from creative + reflective life — ChromaDB + nomic-embed-text indexes journals, VJ logs, noticings, project READMEs. Folder watcher auto-indexes.', done: false },
   { id: 'i8', priority: 'low', text: 'ThinkStation backbone — heavy queries via Tailscale to Qwen3-30B. Auto-fallback when offline.', done: false },
   { id: 'i9', priority: 'low', text: 'HAT+ 2 mixed mode — once Hailo fixes segfault bugs, enable simultaneous vision+LLM.', done: false },
@@ -416,21 +447,30 @@ function syncSoftware() {
 
     const resolvedPhaseId = phaseId;
     for (const step of phase.steps) {
+      const seedDone = 'done' in step ? (step as { done: boolean }).done : false;
       const existingStep = db.select().from(softwareSteps).where(eq(softwareSteps.id, step.id)).get();
       if (!existingStep) {
         db.insert(softwareSteps)
-          .values({ id: step.id, phaseId: resolvedPhaseId, text: step.text, done: false, order: step.order })
+          .values({ id: step.id, phaseId: resolvedPhaseId, text: step.text, done: seedDone, order: step.order })
           .run();
         insertedSteps++;
         continue;
       }
 
-      if (existingStep.phaseId === resolvedPhaseId && existingStep.text === step.text && existingStep.order === step.order) {
-        continue;
-      }
+      // Advance done status (true→false never happens), update text/order/phase if changed
+      const shouldAdvanceDone = seedDone && !existingStep.done;
+      const needsUpdate = existingStep.phaseId !== resolvedPhaseId ||
+        existingStep.text !== step.text ||
+        existingStep.order !== step.order ||
+        shouldAdvanceDone;
+
+      if (!needsUpdate) continue;
+
+      const patch: Record<string, unknown> = { phaseId: resolvedPhaseId, text: step.text, order: step.order };
+      if (shouldAdvanceDone) patch.done = true;
 
       db.update(softwareSteps)
-        .set({ phaseId: resolvedPhaseId, text: step.text, order: step.order })
+        .set(patch)
         .where(eq(softwareSteps.id, step.id))
         .run();
       updatedSteps++;
@@ -453,10 +493,17 @@ function syncIdeas() {
       continue;
     }
 
-    if (existing.priority === idea.priority && existing.text === idea.text) continue;
+    // Advance done status (true→false never happens)
+    const shouldAdvanceDone = idea.done && !existing.done;
+    const textOrPriorityChanged = existing.priority !== idea.priority || existing.text !== idea.text;
+
+    if (!textOrPriorityChanged && !shouldAdvanceDone) continue;
+
+    const patch: Record<string, unknown> = { priority: idea.priority, text: idea.text };
+    if (shouldAdvanceDone) patch.done = true;
 
     db.update(ideas)
-      .set({ priority: idea.priority, text: idea.text })
+      .set(patch)
       .where(eq(ideas.id, existing.id))
       .run();
     updated++;
