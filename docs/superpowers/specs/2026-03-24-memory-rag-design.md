@@ -35,11 +35,13 @@ Core design principle: **raw state in SQL, derived meaning in vectors.** Structu
 
 The `MemoryProvider` abstraction supports three modes via `CHROMA_URL` and `OLLAMA_URL` environment variables:
 
-- **local** (dev): ChromaDB + Ollama both on localhost
+- **local** (dev): ChromaDB + Ollama both on localhost. Queue + worker colocated in same process.
 - **remote** (prod): ChromaDB on Proxmox, embedding worker on NUC/Mac Mini
-- **hybrid** (Pi): queries Proxmox ChromaDB, queues embeddings for remote processing, fail-open to empty fragments when offline
+- **hybrid** (Pi): queries Proxmox ChromaDB, fail-open to empty fragments when offline
 
 Same code, different env vars. Local identity cache on Pi is deferred — adds cache invalidation and sync complexity that isn't needed until the Pi is assembled and offline scenarios are real.
+
+**SP5 scope: single-process, colocated queue+worker.** The embedding_queue is a local SQLite table and the worker runs in the same process. Remote worker topology (Pi queues → NUC/Mac processes) is a deployment concern for hardware-integration work, not SP5.
 
 ---
 
@@ -74,6 +76,10 @@ Append-only. Grows as Beau generates, observes, and interacts.
 | Photo captions | Caption + tags | `source`, `entityId`, `sessionId`, `createdAt` |
 
 Each haiku is its own document (not batched by week). Short but semantically dense — enriched with metadata for retrieval filtering.
+
+**Chunking for long documents:** Any document over 400 tokens gets chunked at paragraph boundaries (same strategy as bible). Each chunk gets its own queue entry with incrementing `chunkIndex`. ChromaDB document ID format: `{source}:{entityId}:{chunkIndex}`. Short documents (most haikus, captures) have `chunkIndex = 0` only.
+
+**Chunk lifecycle:** `remove(source, entityId)` deletes ALL chunks for that entity from both queue and ChromaDB. On re-upsert when chunk count changes, orphan chunks (old chunkIndex values no longer present) are cleaned up. Dedup in retrieval: group by `(source, entityId)`, take the highest-scoring chunk per entity.
 
 ### `beau_private` — Consent-Gated Reflections
 
@@ -143,7 +149,9 @@ interface MemoryRetriever {
 }
 ```
 
-**Callers never specify collections.** The provider maps `mode` → allowed collections internally using the retrieval policy engine (`memory.ts`). This enforces privacy rules structurally.
+**Callers never specify collections.** The provider maps `(mode, caller)` → allowed collections internally using the retrieval policy engine. This enforces privacy rules structurally.
+
+**Privacy rule:** `beau_private` is **thoughts-only**. `caller: 'prompt'` NEVER queries `beau_private` — no exceptions. Only `caller: 'thoughts'` in collaborator/archivist mode can access private memories. Beau uses these internally to inform thought generation; the output is Beau's own words, not verbatim journal text. This maintains the structural privacy boundary: `beau_private` never appears in text that Papa directly sees via RAG_FRAGMENTS.
 
 ### MemoryIndexer
 
@@ -189,6 +197,11 @@ interface MemoryOps {
     failed: number;
     pending: number;
   }>;
+
+  rebuildCollection(collection: CollectionName): Promise<{
+    cleared: number;
+    requeued: number;
+  }>;
 }
 ```
 
@@ -226,7 +239,10 @@ embedding_queue
   collection    TEXT NOT NULL        — 'beau_identity' | 'beau_experience' | 'beau_private'
   contentHash   TEXT NOT NULL        — SHA-256 of document text, detect changes
   text          TEXT NOT NULL        — the content to embed (stored for retry without re-querying source)
+  chunkIndex    INTEGER DEFAULT 0    — 0 for single-doc entries, 0..N for chunked entries
   metadata      TEXT DEFAULT '{}'    — JSON metadata to store alongside vector
+  embeddingModel TEXT DEFAULT 'nomic-embed-text'  — model used, for version tracking
+  chunkerVersion TEXT DEFAULT 'v1'   — chunking algorithm version, triggers rebuild on change
   status        TEXT DEFAULT 'pending'  — 'pending' | 'processing' | 'indexed' | 'failed'
   retryCount    INTEGER DEFAULT 0    — max 5 (Pi goes offline more than a server)
   lastError     TEXT                 — error message from last failed attempt
@@ -238,25 +254,43 @@ embedding_queue
   updatedAt     TEXT DEFAULT (datetime('now'))
 ```
 
-**Unique constraint:** `(source, entityId, collection)` — one queue entry per document per collection.
+**Unique constraint:** `(source, entityId, collection, chunkIndex)` — one queue entry per chunk per collection.
 
-This replaces the need for `embeddingStatus` columns scattered across source tables. The existing `embeddingStatus` columns on haikus, resolume_sessions, and photos remain for backward compatibility but are no longer the source of truth.
+This replaces the need for `embeddingStatus` columns on source tables. Only `resolume_sessions` and `photos` currently have `embeddingStatus` columns (haikus does not, despite earlier documentation). These existing columns are ignored — the queue is the sole source of truth. A one-time startup reconciliation backfills queue entries for existing content (see Startup Reconciliation below).
 
 ### Background Sweep
 
 A periodic job in `bridge.ts` running on its **own `setInterval`** (separate from the 5-second personality/pressure tick — the sweep runs at 60s+ intervals):
 
-1. **Claim batch:** `SELECT ... WHERE status = 'pending' AND (nextAttemptAt IS NULL OR nextAttemptAt <= datetime('now')) LIMIT 5`, then `UPDATE ... SET status = 'processing', lockedAt = now, lockedBy = workerId`
-2. **Embed:** Call `POST http://{OLLAMA_URL}/api/embed` with `model: 'nomic-embed-text'` and batch of texts
-3. **Upsert to ChromaDB:** `POST http://{CHROMA_URL}/api/v2/collections/{collection}/upsert` with vectors + metadata
-4. **Mark indexed:** `UPDATE ... SET status = 'indexed', processedAt = now`
-5. **On failure:** `UPDATE ... SET status = 'failed', retryCount = retryCount + 1, lastError = msg, nextAttemptAt = now + backoff(retryCount)`
+1. **Atomic claim:** Single UPDATE with RETURNING — no SELECT-then-UPDATE gap:
+   ```sql
+   UPDATE embedding_queue
+   SET status = 'processing', lockedBy = :workerId, lockedAt = datetime('now'), updatedAt = datetime('now')
+   WHERE id IN (
+     SELECT id FROM embedding_queue
+     WHERE status = 'pending' AND (nextAttemptAt IS NULL OR nextAttemptAt <= datetime('now'))
+     LIMIT :batchSize
+   )
+   RETURNING *
+   ```
+2. **Embed:** Call Ollama embed API via `chromadb` client or direct HTTP with `model: 'nomic-embed-text'` and batch of texts
+3. **Upsert to ChromaDB:** Upsert vectors + metadata into the target collection
+4. **Mark indexed (CAS):** Guards against stale writes if content changed during processing:
+   ```sql
+   UPDATE embedding_queue
+   SET status = 'indexed', processedAt = datetime('now'), updatedAt = datetime('now')
+   WHERE id = :id AND lockedBy = :workerId AND contentHash = :claimedHash
+   ```
+   If CAS fails (hash changed since claim), reset to `pending` for re-embedding with new content.
+5. **On failure:** `UPDATE ... SET status = 'failed', retryCount = retryCount + 1, lastError = msg, nextAttemptAt = now + backoff(retryCount), updatedAt = now`
 
 **Sweep interval:** Configurable via `MEMORY_SWEEP_INTERVAL_MS` env var. Default 60s on dev/NUC, 300s+ on Pi. Battery/mobile mode = sweep disabled, queue only.
 
 **Batch size:** 5–10 documents per tick on dev, 2–3 on Pi.
 
 **Stuck job recovery:** On startup, reset any `status = 'processing'` with `lockedAt` older than 5 minutes back to `pending`.
+
+**Single-process scope (SP5):** The `started` boolean in `hooks.server.ts` prevents duplicate initialization within one process. Multi-process / HMR safety (DB-backed leader election) deferred to deployment hardening. For SP5, one process owns the sweep.
 
 ### Bible Indexing (One-Time)
 
@@ -284,7 +318,22 @@ Content is enqueued for embedding at creation time in the existing write paths:
 | Journal entry POST (`/api/journal/entries`) | On insert | `beau_private` |
 | Noticing surfaced | On status → `'surfaced'` | `beau_private` |
 
-Each write path calls `memoryIndexer.upsert(...)` after the DB insert. This is fire-and-forget — the queue handles retry.
+Each write path calls `memoryIndexer.upsert(...)` after the DB insert (and `memoryIndexer.remove(...)` on deletes). This is fire-and-forget — the queue handles retry.
+
+**Write paths requiring `remove()` on delete:** journal entry delete (`/journal` page action), photo delete (if implemented).
+
+### Startup Reconciliation
+
+On server startup (after stuck-job recovery, before sweep starts), a full reconciliation runs:
+
+1. For each source table with embeddable content (haikus, captures, journal_entries, resolume_sessions, photos, noticings): query all rows
+2. For each row: compute `contentHash`, compare against `embedding_queue`
+3. **Missing** (row exists, no queue entry) → enqueue as `pending`
+4. **Hash mismatch** (row exists, queue entry has different hash) → update queue entry text/hash/metadata, reset to `pending`
+5. **Orphan** (queue entry exists, source row deleted) → delete from queue AND delete from ChromaDB
+6. Canon docs reconciled separately via the Bible indexing path (content hash per chunk)
+
+This catches missed creates, missed updates, AND missed deletes — guaranteeing consistency between SQLite and ChromaDB regardless of what write paths may have missed. Runs once per startup, not on every tick.
 
 ---
 
@@ -310,17 +359,29 @@ Token counts are estimated as `Math.ceil(text.length / 4)` — the standard char
 
 ### Retrieval Policy (new function alongside existing memory.ts)
 
-A new `getCollectionPolicy(mode: Mode)` function returns `{ collections: CollectionName[], maxTokens: number }`. This does NOT modify the existing `getRetrievalPolicy()` — that function is preserved for any consumers that still use the source-based API. The new function is the primary policy interface for the MemoryRetriever.
+A new `getCollectionPolicy(mode: Mode, caller: 'prompt' | 'thoughts')` function returns `{ collections: CollectionName[], maxTokens: number }`. This does NOT modify the existing `getRetrievalPolicy()` — that function is preserved for any consumers that still use the source-based API. The new function is the primary policy interface for the MemoryRetriever.
 
-The policy engine maps mode → which collections to query and max token budget:
+The policy engine maps `(mode, caller)` → collections + token budget:
 
-| Mode | Collections | Token budget | Depth |
-|---|---|---|---|
-| ambient | `beau_identity` | 100–250 | shallow |
-| witness | `beau_identity`, `beau_experience` | 150–300 | moderate |
-| collaborator | `beau_identity`, `beau_experience`, `beau_private` | 250–450 | deep |
-| archivist | `beau_identity`, `beau_experience`, `beau_private` | 400–650 | deep |
-| social | `beau_identity`, `beau_experience` | 100–250 | shallow |
+**caller: 'prompt'** (generates text Papa sees — `beau_private` NEVER included):
+
+| Mode | Collections | Token budget |
+|---|---|---|
+| ambient | `beau_identity` | 100–250 |
+| witness | `beau_identity`, `beau_experience` | 150–300 |
+| collaborator | `beau_identity`, `beau_experience` | 250–450 |
+| archivist | `beau_identity`, `beau_experience` | 400–650 |
+| social | `beau_identity`, `beau_experience` | 100–250 |
+
+**caller: 'thoughts'** (Beau's internal cognition — `beau_private` accessible in deep modes):
+
+| Mode | Collections | Token budget |
+|---|---|---|
+| ambient | `beau_identity` | 100–250 |
+| witness | `beau_identity`, `beau_experience` | 150–300 |
+| collaborator | `beau_identity`, `beau_experience`, `beau_private` | 250–450 |
+| archivist | `beau_identity`, `beau_experience`, `beau_private` | 400–650 |
+| social | `beau_identity`, `beau_experience` | 100–250 |
 
 ### Reranking (v1 — Simple)
 
@@ -341,14 +402,12 @@ Both `rawSimilarity` and `finalScore` stored on the fragment for debugging. Pers
 The async `retrieve()` call happens **upstream** of the assembler — the caller (e.g., the route handler or bridge code that builds the prompt) calls `retrieve()`, formats the fragments into a string, and passes it as `values.RAG_FRAGMENTS` to `assemblePrompt()`. The assembler itself stays synchronous (consistent with how every other placeholder like `EMOTIONAL_STATE` and `WEATHER_SUMMARY` works). Formatted as:
 
 ```
-<memory_context>
 [canon] Beau keeps a private journal. Papa can't read it unless he asks.
 [haiku] old cypress knees / water remembers the shape / of what held it still
 [session] VJ set on 2026-03-15: 47 minutes, 120-135 BPM, used Tunnel clips
-</memory_context>
 ```
 
-Source tags (`[canon]`, `[haiku]`, etc.) help the LLM understand provenance without performing remembrance.
+The `formatFragments()` function returns ONLY the `[source] text` lines — NOT wrapped in `<memory_context>` tags. The prompt template (`bmo-system-prompt.md`) already provides the `<memory_context>{{RAG_FRAGMENTS}}</memory_context>` wrapper. Source tags help the LLM understand provenance without performing remembrance.
 
 **2. Thought generation — `recentActivity` field**
 
@@ -392,7 +451,7 @@ If ChromaDB or Ollama (for query embedding) is unreachable:
 |---|---|
 | `src/lib/server/db/schema.ts` | Add `embedding_queue` table |
 | `src/lib/server/mqtt/bridge.ts` | Instantiate MemoryProvider, start sweep interval, enqueue on content events |
-| `src/lib/server/thoughts/dispatcher.ts` | Call `retrieve()` to populate `recentActivity` |
+| `src/lib/server/thoughts/dispatcher.ts` | `assembleRequest()` becomes async; call `retrieve()` to populate `recentActivity`; add dispatch mutex (boolean `isDispatching` flag, cleared in `finally`) to prevent overlapping dispatches from setInterval; retrieval has 2s timeout (slow ChromaDB → empty context, proceed) |
 | `src/lib/server/prompt/assembler.ts` | No change to assembler itself — callers pass pre-fetched `RAG_FRAGMENTS` value |
 | `src/lib/server/reflective/memory.ts` | Add `getCollectionPolicy()` alongside existing `getRetrievalPolicy()` |
 | `src/hooks.server.ts` | Initialize MemoryProvider on startup, trigger Bible indexing |
