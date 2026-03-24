@@ -168,7 +168,7 @@ Published by the `ble-bridge/` service. Beau-terminal subscribes to all three; i
 
 Note: `haikus.session_id` is a nullable FK to `resolume_sessions.id` — haikus generated during a VJ session are automatically linked.
 
-Seed data: 18 parts, 10 phases, 52 steps, 11 ideas + 116 link mappings. Startup seed is additive: it inserts missing rows and syncs canonical reference text/status without overwriting more-advanced local states such as installed parts.
+Seed data: 18 parts, 14 phases, 74 steps, 11 ideas + 116 link mappings. Phases 10–13 track Bible Alignment terminal software (SP1–SP4) and are seeded as done. Startup seed is additive: it inserts missing rows, syncs canonical reference text/status, and advances done-state (never downgrades) without overwriting more-advanced local states such as installed parts.
 
 ---
 
