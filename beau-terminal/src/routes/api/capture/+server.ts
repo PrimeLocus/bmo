@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types.js';
 import { db } from '$lib/server/db/index.js';
 import { captures, ideas, todos } from '$lib/server/db/schema.js';
 import { logActivity } from '$lib/server/db/activity.js';
+import { enqueueMemory } from '$lib/server/memory/index.js';
 import { nanoid } from 'nanoid';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -57,9 +58,11 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ ok: true, type: 'task', id: taskId });
     }
     case 'note': {
-      db.insert(captures).values({ text: trimmed, type: 'note' }).run();
+      const noteResult = db.insert(captures).values({ text: trimmed, type: 'note' }).run();
+      const noteId = Number(noteResult.lastInsertRowid);
       logActivity('capture', null, 'created', `Captured note: ${trimmed.substring(0, 60)}`);
-      return json({ ok: true, type: 'note' });
+      enqueueMemory('capture', noteId, trimmed);
+      return json({ ok: true, type: 'note', id: noteId });
     }
     default:
       return json({ error: 'type must be idea, task, or note' }, { status: 400 });

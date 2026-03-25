@@ -18,6 +18,8 @@ import type {
   ThoughtType,
   DailyBudgetStatus,
 } from './types.js';
+import { getMemoryProvider } from '../memory/index.js';
+import { formatFragments, RETRIEVAL_TIMEOUT_MS } from '../memory/types.js';
 
 // ── Partial BeauState shape needed by the dispatcher ─────────────────────────
 
@@ -150,14 +152,34 @@ export class ThoughtDispatcher {
 
   /**
    * Assemble a full ThoughtRequest payload ready for MQTT dispatch.
+   * Retrieves memory context (fail-open: proceeds without if unavailable).
    */
-  assembleRequest(
+  async assembleRequest(
     type: ThoughtType,
     state: DispatchableState,
     trigger: string,
     isNovelty: boolean,
-  ): ThoughtRequest {
+  ): Promise<ThoughtRequest> {
     const hour = new Date().getHours();
+
+    // Attempt memory retrieval — fail-open with hard timeout
+    let recentActivity = '';
+    const mem = getMemoryProvider();
+    if (mem) {
+      try {
+        const retrieval = mem.retrieve(
+          `${state.environment} ${state.mode}`,
+          { mode: state.mode, caller: 'thoughts', maxTokens: 300 },
+        );
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('retrieval timeout')), RETRIEVAL_TIMEOUT_MS),
+        );
+        const { fragments } = await Promise.race([retrieval, timeoutPromise]);
+        recentActivity = formatFragments(fragments);
+      } catch {
+        // fail-open: proceed without memory context
+      }
+    }
 
     return {
       id: nanoid(12),
@@ -168,7 +190,7 @@ export class ThoughtDispatcher {
         mode: state.mode,
         timeOfDay: getTimeOfDay(hour),
         environment: state.environment,
-        recentActivity: '',
+        recentActivity,
         momentum: this.getInterpretation(),
       },
       constraints: {

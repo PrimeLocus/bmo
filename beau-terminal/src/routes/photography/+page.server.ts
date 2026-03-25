@@ -5,6 +5,7 @@ import { fail } from '@sveltejs/kit';
 import { writeFileSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { validateImageMime, generatePhotoFilename, MAX_PHOTO_SIZE } from '$lib/server/creative/photography.js';
+import { enqueueMemory, removeMemory } from '$lib/server/memory/index.js';
 import type { PageServerLoad, Actions } from './$types.js';
 
 const PHOTOS_DIR = join(process.cwd(), 'data', 'photos');
@@ -46,11 +47,17 @@ export const actions: Actions = {
     const buffer = Buffer.from(await file.arrayBuffer());
     writeFileSync(join(PHOTOS_DIR, filename), buffer);
 
-    db.insert(photos).values({
+    const photoResult = db.insert(photos).values({
       imagePath: filename,
       notes,
       sourceType,
     }).run();
+
+    // Enqueue photo notes for memory indexing (only if notes are non-empty)
+    if (notes) {
+      const photoId = Number(photoResult.lastInsertRowid);
+      enqueueMemory('photo', photoId, notes);
+    }
 
     return { success: true };
   },
@@ -67,6 +74,7 @@ export const actions: Actions = {
       }
     }
     db.delete(photos).where(eq(photos.id, id)).run();
+    removeMemory('photo', id);
     return { success: true };
   },
 };

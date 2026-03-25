@@ -52,7 +52,7 @@ const rngZero = () => 0;
 // ── Test 1: Full lifecycle ─────────────────────────────────────────────────────
 
 describe('Integration: full thought lifecycle', () => {
-  it('pressure accumulates, crosses threshold, request is assembled, enqueued, and surfaced', () => {
+  it('pressure accumulates, crosses threshold, request is assembled, enqueued, and surfaced', async () => {
     // 1. Create components
     const pressure = new PressureEngine();
     const dispatcher = new ThoughtDispatcher(() => 'Wonder and quiet light');
@@ -94,7 +94,7 @@ describe('Integration: full thought lifecycle', () => {
     expect(['observation', 'reaction', 'haiku']).toContain(type);
 
     // 8. Assemble the request
-    const request = dispatcher.assembleRequest(type!, state, trigger, isNovelty);
+    const request = await dispatcher.assembleRequest(type!, state, trigger, isNovelty);
     expect(request.id).toBeDefined();
     expect(request.type).toBe(type);
 
