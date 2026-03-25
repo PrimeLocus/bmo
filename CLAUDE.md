@@ -100,11 +100,18 @@ bmo/
     │   │       ├── db/
     │   │       │   ├── activity.ts   # Activity log queries — recent events, entity activity feed
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
-    │   │       │   ├── schema.ts     # 30 tables — source of truth for DB schema
+    │   │       │   ├── schema.ts     # 31 tables — source of truth for DB schema
     │   │       │   └── seed.ts       # 18 parts, 14 phases, 74 steps, 11 ideas
     │   │       ├── mqtt/
     │   │       │   ├── bridge.ts     # MQTT → BeauState → SSE broadcast + thought system orchestration
     │   │       │   └── topics.ts     # MQTT topic constants + type unions (modes, devices, heating states)
+    │   │       ├── memory/
+    │   │       │   ├── types.ts       # Interfaces, SourceType, CollectionName, constants
+    │   │       │   ├── provider.ts    # MemoryProvider — ChromaDB + Ollama pipeline
+    │   │       │   ├── retriever.ts   # ChromaDB queries, reranking, fail-open
+    │   │       │   ├── indexer.ts     # embedding_queue management, atomic claim, CAS
+    │   │       │   ├── chunker.ts     # Bible/document chunking, SHA-256 hashing
+    │   │       │   └── index.ts       # Singleton accessor
     │   │       ├── thoughts/
     │   │       │   ├── types.ts       # ThoughtRequest, ThoughtResult, tuning constants
     │   │       │   ├── pressure.ts    # Pressure accumulation engine + novelty detection
@@ -254,7 +261,7 @@ Database auto-seeds on startup. Seed is additive: it inserts missing reference r
 
 When working on Beau's Terminal, read these first:
 
-- `src/lib/server/db/schema.ts` — all 30 table definitions
+- `src/lib/server/db/schema.ts` — all 31 table definitions
 - `src/lib/server/mqtt/bridge.ts` — MQTT state + subscriber broadcast (consumed by SSE); per-device wellness session Maps; interactionAge tracking; startup orphan recovery; `patchState()` for external state updates
 - `src/lib/stores/beau.svelte.ts` — client-side live state (BeauState via SSE EventSource)
 - `src/lib/stores/layout.svelte.ts` — per-page panel grid layouts + dual persistence
@@ -279,6 +286,12 @@ When working on Beau's Terminal, read these first:
 - `src/lib/server/wellness/sessions.ts` — wellness session lifecycle (coordinator, manager, parsers)
 - `src/lib/personality/rule-meta.ts` — client-safe signal rule name→delta map (21 rules)
 - `src/lib/widgets/terminal/personality-chart.ts` — SVG scale/path utilities for personality timeline
+- `src/lib/server/memory/provider.ts` — MemoryProvider: ChromaDB + Ollama embedding pipeline, retrieval, health checks
+- `src/lib/server/memory/retriever.ts` — ChromaDB queries, reranking, fail-open retrieval
+- `src/lib/server/memory/indexer.ts` — embedding_queue management (upsert, claim, CAS, reconciliation)
+- `src/lib/server/memory/chunker.ts` — Bible/document chunking, SHA-256 content hashing
+- `src/lib/server/memory/types.ts` — Memory interfaces, SourceType, CollectionName, constants
+- `src/lib/server/reflective/memory.ts` — retrieval policy engine + getCollectionPolicy (mode × caller → collections)
 
 ## Deep Reference
 

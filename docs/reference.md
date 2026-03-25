@@ -166,9 +166,11 @@ Published by the `ble-bridge/` service. Beau-terminal subscribes to all three; i
 | **wellness_sessions** | Cannabis device session records | id (auto), createdAt, startedAt, endedAt, status, deviceId, deviceType, displayName, targetTemp, peakTemp, avgTemp, profile, durationSeconds, batteryStart, batteryEnd, contextMode |
 | **wellness_events** | Per-telemetry-frame data within a wellness session | id (auto), sessionId (FK→wellness_sessions), timestamp, sequence, eventType, payloadJson |
 
+| **embedding_queue** | Memory/RAG embedding pipeline queue | id (auto), source, entityId, collection, contentHash, text, chunkIndex, metadata (JSON), embeddingModel, chunkerVersion, status, retryCount, lastError, lockedAt, lockedBy, nextAttemptAt, createdAt, processedAt, updatedAt |
+
 Note: `haikus.session_id` is a nullable FK to `resolume_sessions.id` — haikus generated during a VJ session are automatically linked.
 
-Seed data: 18 parts, 14 phases, 74 steps, 11 ideas + 116 link mappings. Phases 10–13 track Bible Alignment terminal software (SP1–SP4) and are seeded as done. Startup seed is additive: it inserts missing rows, syncs canonical reference text/status, and advances done-state (never downgrades) without overwriting more-advanced local states such as installed parts.
+31 tables total. Seed data: 18 parts, 14 phases, 74 steps, 11 ideas + 116 link mappings. Phases 10–13 track Bible Alignment terminal software (SP1–SP4) and are seeded as done. Startup seed is additive: it inserts missing rows, syncs canonical reference text/status, and advances done-state (never downgrades) without overwriting more-advanced local states such as installed parts.
 
 ---
 
