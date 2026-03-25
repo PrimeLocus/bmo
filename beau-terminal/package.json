@@ -28,6 +28,11 @@
 		"vite": "^7.3.1",
 		"vitest": "^4.1.0"
 	},
+	"overrides": {
+		"@sveltejs/kit": {
+			"cookie": "0.7.2"
+		}
+	},
 	"dependencies": {
 		"better-sqlite3": "^12.6.2",
 		"chromadb": "^3.4.0",
