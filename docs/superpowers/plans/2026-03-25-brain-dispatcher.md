@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-03-25-brain-dispatcher-design.md`
 
+**Status:** Complete (2026-03-25). 17 commits on `feature/brain-dispatcher-sp6`. 650 tests (221 brain-specific). GPT-5.4 review completed with 5 fixes applied.
+
 ---
 
 ## File Map
