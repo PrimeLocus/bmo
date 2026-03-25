@@ -7,6 +7,7 @@ import {
   buildConsentEventValues,
   generateSessionToken,
 } from '$lib/server/reflective/journal.js';
+import { removeMemory } from '$lib/server/memory/index.js';
 import type { PageServerLoad, Actions } from './$types.js';
 
 function hasConsent(cookies: import('@sveltejs/kit').Cookies): string | null {
@@ -116,6 +117,7 @@ export const actions: Actions = {
       })
     ).run();
     db.delete(journalEntries).where(eq(journalEntries.id, id)).run();
+    removeMemory('journal', id);
     return { success: true };
   },
 };

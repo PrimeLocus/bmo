@@ -219,10 +219,10 @@ describe('ThoughtDispatcher.selectType', () => {
 // ── assembleRequest ───────────────────────────────────────────────────────────
 
 describe('ThoughtDispatcher.assembleRequest', () => {
-  it('constructs correct payload with interpreter output in momentum', () => {
+  it('constructs correct payload with interpreter output in momentum', async () => {
     const interpretation = 'Mostly quiet tonight';
     const d = makeDispatcher(interpretation);
-    const req = d.assembleRequest('reaction', mockState as any, 'idle', false);
+    const req = await d.assembleRequest('reaction', mockState as any, 'idle', false);
 
     expect(req.id).toMatch(/^[a-zA-Z0-9_-]{12}$/);
     expect(req.type).toBe('reaction');
@@ -241,22 +241,58 @@ describe('ThoughtDispatcher.assembleRequest', () => {
     expect(() => new Date(req.requestedAt)).not.toThrow();
   });
 
-  it('sets maxLength=30 for observation type', () => {
+  it('sets maxLength=30 for observation type', async () => {
     const d = makeDispatcher();
-    const req = d.assembleRequest('observation', mockState as any, 'lux_change', false);
+    const req = await d.assembleRequest('observation', mockState as any, 'lux_change', false);
     expect(req.constraints.maxLength).toBe(30);
   });
 
-  it('sets maxLength=17 for haiku type', () => {
+  it('sets maxLength=17 for haiku type', async () => {
     const d = makeDispatcher();
-    const req = d.assembleRequest('haiku', mockState as any, 'idle', true);
+    const req = await d.assembleRequest('haiku', mockState as any, 'idle', true);
     expect(req.constraints.maxLength).toBe(17);
   });
 
-  it('sets novelty=true when isNovelty=true', () => {
+  it('sets novelty=true when isNovelty=true', async () => {
     const d = makeDispatcher();
-    const req = d.assembleRequest('reaction', mockState as any, 'idle', true);
+    const req = await d.assembleRequest('reaction', mockState as any, 'idle', true);
     expect(req.novelty).toBe(true);
+  });
+
+  it('populates recentActivity when memory provider is registered', async () => {
+    // Register a mock memory provider
+    const { registerMemoryProvider, getMemoryProvider } = await import('../memory/index.js');
+    const mockProvider = {
+      retrieve: vi.fn().mockResolvedValue({
+        fragments: [
+          {
+            id: 'test:1:0',
+            text: 'A quiet evening observation',
+            source: 'capture',
+            collection: 'beau_experience',
+            entityId: '1',
+            tokenCount: 5,
+            rawDistance: 0.3,
+            finalScore: 0.7,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        usedTokens: 5,
+      }),
+      upsert: vi.fn(),
+      remove: vi.fn(),
+    };
+    registerMemoryProvider(mockProvider as any);
+
+    try {
+      const d = makeDispatcher();
+      const req = await d.assembleRequest('reaction', mockState as any, 'idle', false);
+      expect(req.context.recentActivity).toContain('[capture] A quiet evening observation');
+      expect(mockProvider.retrieve).toHaveBeenCalledOnce();
+    } finally {
+      // Clean up — deregister
+      registerMemoryProvider(null as any);
+    }
   });
 });
 

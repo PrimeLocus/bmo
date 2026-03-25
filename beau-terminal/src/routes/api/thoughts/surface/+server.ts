@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types.js';
 import { getThoughtSystem } from '$lib/server/thoughts/index.js';
 import { getState, patchState } from '$lib/server/mqtt/bridge.js';
+import { enqueueMemory } from '$lib/server/memory/index.js';
 
 export const POST: RequestHandler = async () => {
   const system = getThoughtSystem();
@@ -22,6 +23,11 @@ export const POST: RequestHandler = async () => {
     patch.lastHaiku = thought.text;
   }
   patchState(patch);
+
+  // Enqueue surfaced thought for memory indexing
+  if (thought.text) {
+    enqueueMemory('haiku', thought.id, thought.text, { type: thought.type, trigger: thought.trigger });
+  }
 
   return json({
     id: thought.id,

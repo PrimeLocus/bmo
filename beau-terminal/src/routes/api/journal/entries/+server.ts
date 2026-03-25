@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '$lib/server/db/index.js';
 import { journalEntries } from '$lib/server/db/schema.js';
 import { validateVisibility } from '$lib/server/reflective/journal.js';
+import { enqueueMemory } from '$lib/server/memory/index.js';
 import type { RequestHandler } from './$types.js';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -31,6 +32,15 @@ export const POST: RequestHandler = async ({ request }) => {
   };
 
   const result = db.insert(journalEntries).values(values).returning().get();
+
+  // Enqueue for memory indexing — combine title + body for richer embeddings
+  const memText = [values.title, values.body].filter(Boolean).join(' ');
+  if (memText) {
+    const memMeta: Record<string, string | number> = {};
+    if (values.mood) memMeta.mood = values.mood;
+    enqueueMemory('journal', result.id, memText, memMeta);
+  }
+
   return json({ id: result.id }, { status: 201 });
 };
 

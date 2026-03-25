@@ -26,6 +26,7 @@ import { ThoughtQueue } from '../thoughts/queue.js';
 import { registerThoughtSystem } from '../thoughts/index.js';
 import { PRESSURE_TICK_MS } from '../thoughts/types.js';
 import type { ThoughtResult } from '../thoughts/types.js';
+import { enqueueMemory } from '../memory/index.js';
 
 export type BeauState = {
   mode: string;
@@ -600,32 +601,43 @@ export function connectMQTT() {
   const thoughtDispatcher = new ThoughtDispatcher(() => personalityEngine.getInterpretation());
 
   // ── Thought pressure tick (independent interval) ──
+  let isDispatching = false;
   setInterval(() => {
     const budget = thoughtQueue.getDailyBudgetStatus();
     pressureEngine.tick(state, state.sleepState, budget);
 
-    if (pressureEngine.shouldDispatch(budget)) {
+    if (pressureEngine.shouldDispatch(budget) && !isDispatching) {
       const trigger = pressureEngine.getLastTrigger();
       const isNovelty = pressureEngine.wasNoveltySpike();
       const thoughtType = thoughtDispatcher.selectType(state, budget, trigger, isNovelty);
       if (thoughtType) {
-        const request = thoughtDispatcher.assembleRequest(thoughtType, state, trigger, isNovelty);
-        thoughtQueue.enqueue({
-          id: request.id,
-          type: request.type,
-          trigger: request.trigger,
-          contextJson: JSON.stringify(request),
-          expiresAt: thoughtDispatcher.computeExpiresAt(request.type),
-          novelty: request.novelty,
-        });
-        if (_publish) {
-          _publish(TOPICS.thoughts.request, JSON.stringify(request));
-        }
-        pressureEngine.resetAfterDispatch();
+        isDispatching = true;
+        const dispatchState = { ...state }; // snapshot before await
+        (async () => {
+          try {
+            const request = await thoughtDispatcher.assembleRequest(thoughtType, dispatchState, trigger, isNovelty);
+            thoughtQueue.enqueue({
+              id: request.id,
+              type: request.type,
+              trigger: request.trigger,
+              contextJson: JSON.stringify(request),
+              expiresAt: thoughtDispatcher.computeExpiresAt(request.type),
+              novelty: request.novelty,
+            });
+            if (_publish) {
+              _publish(TOPICS.thoughts.request, JSON.stringify(request));
+            }
+            pressureEngine.resetAfterDispatch();
+          } catch (e) {
+            console.error('[thoughts] dispatch failed:', e);
+          } finally {
+            isDispatching = false;
+          }
+        })();
       }
     }
 
-    // Run decay + generation timeout checks
+    // Run decay + generation timeout checks (sync, runs every tick regardless)
     thoughtQueue.runDecay();
 
     // Update state with thought system info
@@ -809,6 +821,13 @@ export function connectMQTT() {
             db.update(resolumeSessions).set({
               debriefText: parsed.text,
             }).where(eq(resolumeSessions.id, parsed.sessionId)).run();
+            // Enqueue debrief text for memory indexing
+            if (parsed.text) {
+              const debriefMeta: Record<string, string | number> = {};
+              if (typeof parsed.duration === 'number') debriefMeta.duration = parsed.duration;
+              if (typeof parsed.bpm === 'number') debriefMeta.bpm = parsed.bpm;
+              enqueueMemory('session', parsed.sessionId, parsed.text, debriefMeta);
+            }
           }
         } catch { /* ignore malformed */ }
         break;

@@ -61,16 +61,11 @@ export class MemoryProvider implements MemoryRetriever, MemoryIndexer, MemoryOps
 	}
 
 	async remove(ref: { source: SourceType; entityId: string }): Promise<void> {
-		// Remove from queue
-		await this.indexer.remove(ref);
-
-		// Remove from ChromaDB — fail-open
+		// Remove from ChromaDB FIRST — if this fails, queue entries remain and
+		// startup reconciliation will retry the delete (orphan cleanup)
 		try {
 			const collectionName = collectionForSource(ref.source);
 			const collection = await this.chroma.getOrCreateCollection({ name: collectionName });
-			// Delete all docs with IDs matching pattern {source}:{entityId}:*
-			// ChromaDB delete supports a where filter, but we use ID prefix matching.
-			// Since ChromaDB doesn't support wildcard ID deletion, we query for matching IDs first.
 			const prefix = `${ref.source}:${ref.entityId}:`;
 			const results = await collection.get({
 				where: { source: ref.source as string },
@@ -80,8 +75,11 @@ export class MemoryProvider implements MemoryRetriever, MemoryIndexer, MemoryOps
 				await collection.delete({ ids: matchingIds });
 			}
 		} catch {
-			// Fail-open: ChromaDB unreachable or error — queue removal already succeeded
+			// Fail-open: ChromaDB unreachable — queue entries stay, reconciliation cleans up
 		}
+
+		// Remove from queue — always succeeds (local SQLite)
+		await this.indexer.remove(ref);
 	}
 
 	// --- MemoryOps ---
