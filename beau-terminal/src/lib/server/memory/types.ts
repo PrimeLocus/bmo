@@ -22,7 +22,7 @@ export interface MemoryFragment {
 	collection: CollectionName;
 	entityId: string;
 	tokenCount: number;
-	rawSimilarity: number;
+	rawDistance: number;
 	finalScore: number;
 	createdAt: string;
 }
@@ -30,7 +30,7 @@ export interface MemoryFragment {
 export interface RetrieveContext {
 	mode: string;
 	caller: 'prompt' | 'thoughts' | 'internal';
-	maxTokens: number;
+	maxTokens?: number; // optional override — clamped to policy max if provided
 	filters?: { sources?: SourceType[]; after?: string; before?: string };
 	debug?: boolean;
 }
@@ -48,15 +48,19 @@ export interface MemoryDocument {
 	source: SourceType;
 	entityId: string;
 	text: string;
-	collection: CollectionName;
 	metadata: Record<string, string | number>;
+}
+
+/** Derive collection from source type — callers cannot override */
+export function collectionForSource(source: SourceType): CollectionName {
+	return SOURCE_TO_COLLECTION[source];
 }
 
 export type UpsertStatus = 'queued' | 'skipped_unchanged' | 'requeued';
 
 export interface MemoryIndexer {
-	upsert(doc: MemoryDocument): Promise<{ status: UpsertStatus; jobId?: number }>;
-	remove(ref: { source: SourceType; entityId: string; collection: CollectionName }): Promise<void>;
+	upsert(doc: MemoryDocument): Promise<{ status: UpsertStatus; chunkCount: number }>;
+	remove(ref: { source: SourceType; entityId: string }): Promise<void>;
 }
 
 export interface MemoryHealth {

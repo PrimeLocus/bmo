@@ -475,6 +475,7 @@ try {
   )`).run();
 } catch { /* already exists */ }
 try { sqlite.prepare("CREATE UNIQUE INDEX IF NOT EXISTS eq_source_entity_collection_chunk ON embedding_queue(source, entity_id, collection, chunk_index)").run(); } catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS eq_status_next_attempt ON embedding_queue(status, next_attempt_at)").run(); } catch { /* already exists */ }
 
 export { sqlite };
 

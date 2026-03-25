@@ -71,7 +71,11 @@ export function chunkText(text: string): string[] {
 	if (text.length <= MAX_CHARS) return [text];
 
 	const paragraphs = text.split(/\n\n+/).filter((p) => p.trim());
-	if (paragraphs.length <= 1) return [text];
+
+	// No paragraph breaks — fall back to sentence/word splitting
+	if (paragraphs.length <= 1) {
+		return chunkByWords(text);
+	}
 
 	const chunks: string[] = [];
 	let current = '';
@@ -82,6 +86,30 @@ export function chunkText(text: string): string[] {
 			current = para;
 		} else {
 			current = current ? `${current}\n\n${para}` : para;
+		}
+	}
+
+	if (current.trim()) {
+		chunks.push(current.trim());
+	}
+
+	return chunks.length ? chunks : [text];
+}
+
+/** Fallback: split long text by words when no paragraph breaks exist */
+function chunkByWords(text: string): string[] {
+	if (text.length <= MAX_CHARS) return [text];
+
+	const words = text.split(/\s+/);
+	const chunks: string[] = [];
+	let current = '';
+
+	for (const word of words) {
+		if (current && current.length + word.length + 1 > MAX_CHARS) {
+			chunks.push(current.trim());
+			current = word;
+		} else {
+			current = current ? `${current} ${word}` : word;
 		}
 	}
 

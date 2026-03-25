@@ -40,12 +40,13 @@ describe('chunkText', () => {
 		}
 	});
 
-	it('handles text with no paragraph breaks', () => {
-		const long = 'word '.repeat(500);
+	it('splits long text without paragraph breaks by words', () => {
+		const long = 'word '.repeat(500); // ~2500 chars, well over MAX_CHARS
 		const chunks = chunkText(long);
-		// Even without paragraph breaks, should return at least the full text
-		expect(chunks.length).toBeGreaterThanOrEqual(1);
-		expect(chunks.join(' ').trim().length).toBeGreaterThan(0);
+		expect(chunks.length).toBeGreaterThan(1);
+		for (const chunk of chunks) {
+			expect(chunk.length).toBeLessThanOrEqual(1700); // MAX_CHARS + margin
+		}
 	});
 });
 
