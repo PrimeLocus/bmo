@@ -52,6 +52,13 @@ Published by the `ble-bridge/` service. Beau-terminal subscribes to all three; i
 | `beau/thoughts/surfaced` | Terminal → subscribers | Thought that was just shown to user |
 | `beau/thoughts/pressure` | Terminal → subscribers | Current pressure value (diagnostic) |
 
+### Brain (Phase 14)
+
+| Topic | Direction | Description |
+|---|---|---|
+| `beau/brain/dispatch` | Terminal → subscribers | Dispatch result metadata (BrainDispatchLog JSON) |
+| `beau/brain/availability` | Terminal → subscribers | Tier health status (available/degraded/offline per tier) |
+
 #### Wellness MQTT payload schemas
 
 **`beau/wellness/device/status`**
@@ -153,7 +160,7 @@ Published by the `ble-bridge/` service. Beau-terminal subscribes to all three; i
 | **natalProfiles** | Birth chart data | id, birthTimestamp, timezone, locationName, lat/lon, westernChartJson, summaryText, isActive, version |
 | **voiceModels** | Voice model versions | id, versionName (unique), engine, modelPath, trainingNotes, status, activatedAt, retiredAt |
 | **voiceTrainingPhrases** | Training phrases per voice model | id, voiceModelId (FK), text, source, includedInTraining, sortOrder |
-| **dispatches** | Brain routing dispatch log | id, tier, model, querySummary, routingReason, contextMode, durationMs, environmentId |
+| **dispatches** | Brain routing dispatch log | id, timestamp, requestId, parentRequestId, kind, status, tier, model, querySummary, routingReason, contextMode, voicePreferred, thoughtFloor, contextFloor, highestAvailable, clamped, trimmed, fallbackFrom, qualityEscalatedFrom, durationMs, environmentId |
 | **environmentSnapshots** | Environment state snapshots (60s min interval) | id, timestamp, presenceState, lux, sleepState, weatherJson, seasonalSummary, contextMode |
 | **environmentEvents** | Environment state change events | id, timestamp, eventType, payloadJson, source |
 | **resolume_sessions** | Resolume VJ session records | id (auto), createdAt, startedAt, endedAt, status, sessionName, venue, bpmMin, bpmMax, bpmAvg, clipsUsedJson, columnsTriggeredJson, colorObservations, oscLogPath, debriefText, moodTagsJson, visualPrompt, beauPresent, embeddingStatus |
@@ -170,21 +177,22 @@ Published by the `ble-bridge/` service. Beau-terminal subscribes to all three; i
 
 Note: `haikus.session_id` is a nullable FK to `resolume_sessions.id` — haikus generated during a VJ session are automatically linked.
 
-31 tables total. Seed data: 18 parts, 14 phases, 74 steps, 11 ideas + 116 link mappings. Phases 10–13 track Bible Alignment terminal software (SP1–SP4) and are seeded as done. Startup seed is additive: it inserts missing rows, syncs canonical reference text/status, and advances done-state (never downgrades) without overwriting more-advanced local states such as installed parts.
+31 tables total (no new tables, just added 14 columns to dispatches). Seed data: 18 parts, 15 phases, 85 steps, 11 ideas + 116 link mappings. Phases 10–14 track Bible Alignment terminal software (SP1–SP4) and Brain Dispatcher (SP6) and are seeded as done. Startup seed is additive: it inserts missing rows, syncs canonical reference text/status, and advances done-state (never downgrades) without overwriting more-advanced local states such as installed parts.
 
 ---
 
 ## Brain Routing
 
-The HAT's 1.5B models are weak at reasoning (confirmed). Routing is intentional:
+Four-tier model with personality-driven voice casting, context scaling, and quality gates:
 
-| Tier | Model | Hardware | Use Case |
-|---|---|---|---|
-| **Reflex** | Qwen2.5 1.5B | Hailo NPU (8GB HAT RAM) | Wake word, object detection, fast banter, short factual. Zero Pi CPU usage. |
-| **Philosopher** | Gemma 3 4B | Pi CPU via Ollama (16GB RAM) | Philosophical, creative, poetic. Full system prompt + RAG. Runs alongside HA, display, orchestration. |
-| **Heavy** | Qwen3-30B | ThinkStation via Tailscale | Extended reasoning, large context. Full prompt + extended memory. Auto-fallback when offline. |
+| Tier | ID | Model | Hardware | Use Case |
+|---|---|---|---|---|
+| **T1** | `t1-reflex` | Qwen2.5 1.5B | Hailo NPU (8GB HAT RAM) | Wake word, object detection, fast banter, short factual. Zero Pi CPU usage. < 500ms response. |
+| **T2** | `t2-philosophy` | Gemma 3 4B | Pi CPU via Ollama (16GB RAM) | Philosophical, creative, poetic. Full system prompt + RAG. < 2s response. Runs alongside HA, display, orchestration. |
+| **T3** | `t3-reasoning` | Jetson Orin Nano 8GB | Jetson via Tailscale | Mid-tier reasoning, longer context. Full prompt + memory. 2–8s response. Available ~mid-2026. |
+| **T4** | `t4-heavy` | Qwen3-30B | ThinkStation via Tailscale | Extended reasoning, large context. Full prompt + extended memory. 5–30s response. Auto-fallback when offline. Tier 4 stopgap: Mac Mini M5 Pro. |
 
-Both HAT and Pi CPU stacks coexist and run simultaneously on the same Pi 5 board.
+Personality-driven voice caster maps mood vector → preferred tier. Context scaler adjusts token budgets per tier. Precedence arbiter chooses quality or latency based on thought type + pressure. HAT and Pi CPU stacks coexist and run simultaneously on the same Pi 5 board.
 
 ---
 
