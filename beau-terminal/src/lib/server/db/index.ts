@@ -450,4 +450,31 @@ try {
 } catch { /* already exists */ }
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS idx_personality_snapshots_ts ON personality_snapshots(timestamp)").run(); } catch { /* already exists */ }
 
+// Memory/RAG — embedding queue
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS embedding_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    collection TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    text TEXT NOT NULL,
+    chunk_index INTEGER NOT NULL DEFAULT 0,
+    metadata TEXT NOT NULL DEFAULT '{}',
+    embedding_model TEXT NOT NULL DEFAULT 'nomic-embed-text',
+    chunker_version TEXT NOT NULL DEFAULT 'v1',
+    status TEXT NOT NULL DEFAULT 'pending',
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT,
+    locked_at TEXT,
+    locked_by TEXT,
+    next_attempt_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    processed_at TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`).run();
+} catch { /* already exists */ }
+try { sqlite.prepare("CREATE UNIQUE INDEX IF NOT EXISTS eq_source_entity_collection_chunk ON embedding_queue(source, entity_id, collection, chunk_index)").run(); } catch { /* already exists */ }
+
 export { sqlite };
+

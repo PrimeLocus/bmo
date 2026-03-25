@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 export const parts = sqliteTable('parts', {
@@ -386,3 +386,27 @@ export const personalitySnapshots = sqliteTable('personality_snapshots', {
   snapshotReason: text('snapshot_reason').notNull().default('interval'),
   isNotable: integer('is_notable').notNull().default(0),
 });
+
+export const embeddingQueue = sqliteTable('embedding_queue', {
+  id:             integer('id').primaryKey({ autoIncrement: true }),
+  source:         text('source').notNull(),
+  entityId:       text('entity_id').notNull(),
+  collection:     text('collection').notNull(),
+  contentHash:    text('content_hash').notNull(),
+  text:           text('text').notNull(),
+  chunkIndex:     integer('chunk_index').notNull().default(0),
+  metadata:       text('metadata').notNull().default('{}'),
+  embeddingModel: text('embedding_model').notNull().default('nomic-embed-text'),
+  chunkerVersion: text('chunker_version').notNull().default('v1'),
+  status:         text('status').notNull().default('pending'),
+  retryCount:     integer('retry_count').notNull().default(0),
+  lastError:      text('last_error'),
+  lockedAt:       text('locked_at'),
+  lockedBy:       text('locked_by'),
+  nextAttemptAt:  text('next_attempt_at'),
+  createdAt:      text('created_at').notNull().default(sql`(datetime('now'))`),
+  processedAt:    text('processed_at'),
+  updatedAt:      text('updated_at').notNull().default(sql`(datetime('now'))`),
+}, (table) => [
+  uniqueIndex('eq_source_entity_collection_chunk').on(table.source, table.entityId, table.collection, table.chunkIndex),
+]);
