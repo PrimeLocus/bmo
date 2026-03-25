@@ -204,8 +204,12 @@ export const embeddingQueue = sqliteTable('embedding_queue', {
   createdAt:       text('created_at').notNull().default(sql`(datetime('now'))`),
   processedAt:     text('processed_at'),
   updatedAt:       text('updated_at').notNull().default(sql`(datetime('now'))`),
-});
+}, (table) => [
+  uniqueIndex('embedding_queue_unique').on(table.source, table.entityId, table.collection, table.chunkIndex),
+]);
 ```
+
+Note: import `uniqueIndex` from `drizzle-orm/sqlite-core` at the top of schema.ts.
 
 - [ ] **Step 2: Verify dev server starts and auto-migrates**
 
@@ -259,7 +263,7 @@ Expected: FAIL (module not found)
 
 Exports: `contentHash(text) -> string`, `chunkText(text) -> string[]`, `chunkBible(markdown) -> BibleChunk[]`
 
-`chunkBible` splits on `/^## (\d+)\.\s+(.+)$/gm`, extracts body between headings, applies `chunkText` to long bodies. Each chunk gets a SHA-256 content hash.
+`chunkBible` splits on ALL `## ` H2 headings (not just numbered ones). The bible has 63 numbered sections (`## 1.` through `## 63.`) plus non-numbered sections (Purpose & Scope, Glossary, appendices). Non-numbered sections contain identity-relevant content (Glossary defines "Papa", "Soul Code", etc.). Use section ID = heading text slugified for non-numbered sections (e.g., `glossary`, `appendix-a`). Apply `chunkText` to long bodies. Each chunk gets a SHA-256 content hash.
 
 `chunkText` splits on `\n\n+` paragraph boundaries, accumulates paragraphs until exceeding `MAX_CHUNK_TOKENS * 4` chars, then starts a new chunk.
 
@@ -284,14 +288,16 @@ git commit -m "feat(memory): bible/document chunker with SHA-256 hashing -- SP5 
 
 - [ ] **Step 1: Write policy tests**
 
-Key test cases (all 5 modes x 2 callers = 10 combinations):
+Key test cases (all 5 modes x 3 callers = 15 combinations, but test critical paths):
 - `ambient/prompt` -> identity only, 100-250 tokens
 - `collaborator/thoughts` -> includes private
 - `collaborator/prompt` -> NEVER includes private
+- `collaborator/internal` -> same as thoughts (includes private in deep modes)
 - `archivist/prompt` -> NEVER includes private
 - `archivist/thoughts` -> all three collections
 - `social/*` -> excludes private for both callers
 - Unknown mode -> falls back to identity only
+- `internal` caller follows same rules as `thoughts` (Beau's own cognition)
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -495,6 +501,8 @@ After existing setIntervals in bridge.ts, add a new one at `MEMORY_SWEEP_INTERVA
 
 After `connectMQTT()` in the startup block, call `getMemoryProvider()?.indexBible()` and `getMemoryProvider()?.reconcileAll()` with `.catch()` for fail-open.
 
+**Important ordering:** Reconciliation MUST complete before the sweep interval starts processing, otherwise the sweep may process stale queue state. Either: (a) await reconciliation in bridge.ts before starting the sweep setInterval, or (b) add a `reconciled` boolean flag that the sweep checks before processing. Option (a) is cleaner — make the sweep setup await reconciliation in an async IIFE.
+
 - [ ] **Step 4: Test by starting dev server with ChromaDB running**
 
 Run: `cd beau-terminal && npm run dev`
@@ -514,29 +522,51 @@ git commit -m "feat(memory): bridge sweep + bible indexing + startup reconciliat
 **Files:**
 - Modify: `src/routes/api/capture/+server.ts`
 - Modify: `src/routes/api/journal/entries/+server.ts`
-- Modify: `src/lib/server/mqtt/bridge.ts` (thought surfaced handler)
+- Modify: `src/routes/journal/+page.server.ts` (journal delete action)
+- Modify: `src/lib/server/mqtt/bridge.ts` (thought surfaced handler + session debrief)
+- Modify: `src/routes/photography/+page.server.ts` (photo caption + delete)
 
-- [ ] **Step 1: Add enqueue to capture POST**
+All 6 enqueue points from the spec, plus remove on delete paths.
 
-After db.insert in the capture API route, call `getMemoryProvider()?.upsert(...)` with source='capture', collection='beau_experience'. Fire-and-forget (`.catch(() => {})`).
+**Important:** All source tables use integer auto-increment PKs. The `entityId` field is typed as `string`. Use `String(id)` for all conversions.
+
+- [ ] **Step 1: Fix capture POST to return the inserted id**
+
+The current capture route uses `.run()` which doesn't return the id. Change to `.returning().get()` or use `result.lastInsertRowid`. Then call `getMemoryProvider()?.upsert(...)` with `entityId: String(id)`, source='capture', collection='beau_experience'. Fire-and-forget (`.catch(() => {})`).
 
 - [ ] **Step 2: Add enqueue to journal entry POST**
 
-Same pattern. Source='journal', collection='beau_private'.
+Same pattern. Source='journal', collection='beau_private'. Use `String(id)` for entityId.
 
-- [ ] **Step 3: Add enqueue to thought surfaced handler in bridge.ts**
+- [ ] **Step 3: Add remove to journal entry DELETE**
+
+In `/journal` page server's delete action, call `getMemoryProvider()?.remove({ source: 'journal', entityId: String(id), collection: 'beau_private' })`. Fire-and-forget.
+
+- [ ] **Step 4: Add enqueue to thought surfaced handler in bridge.ts**
 
 When a thought is surfaced, enqueue with source='haiku', collection='beau_experience'.
 
-- [ ] **Step 4: Verify with manual test**
+- [ ] **Step 5: Add enqueue to session debrief save in bridge.ts**
 
-Start dev server, create a capture, check embedding_queue table has a new row.
+In the MQTT handler that persists debrief text (in `creative/debrief.ts` or bridge.ts), enqueue with source='session', collection='beau_experience'. Text = debrief text + duration/BPM context.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Add enqueue to photo caption update in photography route**
+
+In the photography page server's caption-update action, enqueue with source='photo', collection='beau_experience'. Text = caption + tags.
+
+- [ ] **Step 7: Add enqueue to noticing surfaced (if status transition exists)**
+
+When a noticing's status changes to 'surfaced', enqueue with source='noticing', collection='beau_private'. If no explicit surface action exists yet, add a note for future implementation.
+
+- [ ] **Step 8: Verify with manual test**
+
+Start dev server, create a capture via UI, check embedding_queue table has a new row.
+
+- [ ] **Step 9: Commit**
 
 ```bash
-git add src/routes/api/capture/+server.ts src/routes/api/journal/entries/+server.ts src/lib/server/mqtt/bridge.ts
-git commit -m "feat(memory): enqueue at write paths -- captures, journal, thoughts -- SP5 task 9"
+git add src/routes/api/capture/+server.ts src/routes/api/journal/entries/+server.ts src/routes/journal/+page.server.ts src/lib/server/mqtt/bridge.ts src/routes/photography/+page.server.ts
+git commit -m "feat(memory): all 6 enqueue points + remove on delete -- SP5 task 9"
 ```
 
 ---
@@ -550,7 +580,9 @@ git commit -m "feat(memory): enqueue at write paths -- captures, journal, though
 
 - [ ] **Step 1: Update dispatcher tests for async**
 
-Add `await` to all `assembleRequest()` calls. Add test: when memory provider returns fragments, `recentActivity` is populated with formatted text.
+Add `await` to all `assembleRequest()` calls (there are ~40 tests with direct calls). Make each affected test function async.
+
+**Mock strategy:** Inject the memory provider via constructor (matching the existing `getInterpretation` injection pattern) rather than mocking the singleton module. Add an optional `memoryRetriever?: MemoryRetriever` constructor param. When null, `recentActivity` stays empty string. Tests that don't care about memory pass nothing (backward compatible). Add one new test that injects a mock retriever returning known fragments and verifies `recentActivity` is populated.
 
 - [ ] **Step 2: Make assembleRequest async with retrieval**
 
