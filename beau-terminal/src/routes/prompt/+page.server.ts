@@ -28,4 +28,26 @@ export const actions: Actions = {
 
     return { success: true };
   },
+
+  dispatch: async ({ request }) => {
+    const form = await request.formData();
+    const content = (form.get('content') as string)?.trim();
+    const label = (form.get('label') as string)?.trim() || '';
+
+    if (!content) return fail(400, { error: 'content required' });
+
+    const { dispatch: brainDispatch } = await import('$lib/server/brain/index.js');
+    const { makeManualRequest } = await import('$lib/server/brain/types.js');
+
+    const brainRequest = makeManualRequest({ text: content, label });
+    const response = await brainDispatch(brainRequest);
+
+    db.insert(promptHistory).values({
+      content: `[brain/${response.tier}] ${content}`,
+      label,
+      createdAt: new Date(),
+    }).run();
+
+    return { success: true, response: response.text, tier: response.tier, model: response.model };
+  },
 };
