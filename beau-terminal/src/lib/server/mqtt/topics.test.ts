@@ -54,7 +54,7 @@ describe('type unions', () => {
     expect(HAIKU_TYPES).toEqual(['daily', 'emergence', 'reflective', 'seasonal', 'prompted']);
   });
 
-  it('DISPATCH_TIERS contains 3 tiers', () => {
-    expect(DISPATCH_TIERS).toEqual(['reflex', 'philosopher', 'heavy']);
+  it('DISPATCH_TIERS contains 4 tiers', () => {
+    expect(DISPATCH_TIERS).toEqual(['t1', 't2', 't3', 't4']);
   });
 });

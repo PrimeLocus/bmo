@@ -74,7 +74,7 @@ export const DECAY_TTL_OBSERVATION_MS = 10_800_000;  // 3 hours
 export const DECAY_TTL_REACTION_MS = 36_000_000;     // 10 hours
 export const DECAY_TTL_HAIKU_MS = 86_400_000;        // 24 hours
 export const DECAY_VARIANCE = 0.2;
-export const GENERATION_TIMEOUT_MS = 30_000;
+export const GENERATION_TIMEOUT_MS = 50_000;
 export const SLEEP_ACCUMULATION_RATE = 0.1;
 export const HAIKU_WINDOW_MULTIPLIER = 3.0;
 
