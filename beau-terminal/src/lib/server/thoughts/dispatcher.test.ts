@@ -1,6 +1,6 @@
 // src/lib/server/thoughts/dispatcher.test.ts
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   ThoughtDispatcher,
   getTimeOfDay,
@@ -216,83 +216,79 @@ describe('ThoughtDispatcher.selectType', () => {
   });
 });
 
-// ── assembleRequest ───────────────────────────────────────────────────────────
+// ── buildBrainRequest ────────────────────────────────────────────────────────
 
-describe('ThoughtDispatcher.assembleRequest', () => {
-  it('constructs correct payload with interpreter output in momentum', async () => {
-    const interpretation = 'Mostly quiet tonight';
+describe('ThoughtDispatcher.buildBrainRequest', () => {
+  it('returns a BrainRequestV1 with kind=thought.generate and origin=thoughts', () => {
+    const d = makeDispatcher();
+    const req = d.buildBrainRequest('reaction', mockState as any, 'idle', false);
+
+    expect(req.v).toBe(1);
+    expect(req.kind).toBe('thought.generate');
+    expect(req.origin).toBe('thoughts');
+    expect(req.requestId).toMatch(/^[a-zA-Z0-9_-]+$/);
+  });
+
+  it('populates input.type, input.trigger, input.novelty from arguments', () => {
+    const d = makeDispatcher();
+    const req = d.buildBrainRequest('observation', mockState as any, 'lux_change', true);
+
+    expect(req.input.type).toBe('observation');
+    expect(req.input.trigger).toBe('lux_change');
+    expect(req.input.novelty).toBe(true);
+  });
+
+  it('uses getTimeOfDay() for context.timeOfDay', () => {
+    const d = makeDispatcher();
+    const req = d.buildBrainRequest('reaction', mockState as any, 'idle', false);
+
+    // getTimeOfDay always returns a non-empty string for any hour
+    expect(typeof req.input.context.timeOfDay).toBe('string');
+    expect(req.input.context.timeOfDay).not.toBe('');
+  });
+
+  it('uses deriveTone() for constraints.tone', () => {
+    // mockState has reflection=0.6 as dominant > 0.5 → 'contemplative'
+    const d = makeDispatcher();
+    const req = d.buildBrainRequest('reaction', mockState as any, 'idle', false);
+
+    expect(req.input.constraints.tone).toBe('contemplative');
+  });
+
+  it('uses MAX_LENGTH[type] for constraints.maxLength', () => {
+    const d = makeDispatcher();
+
+    const obs = d.buildBrainRequest('observation', mockState as any, 'idle', false);
+    expect(obs.input.constraints.maxLength).toBe(30);
+
+    const react = d.buildBrainRequest('reaction', mockState as any, 'idle', false);
+    expect(react.input.constraints.maxLength).toBe(20);
+
+    const haiku = d.buildBrainRequest('haiku', mockState as any, 'idle', false);
+    expect(haiku.input.constraints.maxLength).toBe(17);
+  });
+
+  it('uses getInterpretation() for context.momentum', () => {
+    const interpretation = 'Wonder rising with the dawn';
     const d = makeDispatcher(interpretation);
-    const req = await d.assembleRequest('reaction', mockState as any, 'idle', false);
+    const req = d.buildBrainRequest('reaction', mockState as any, 'idle', false);
 
-    expect(req.id).toMatch(/^[a-zA-Z0-9_-]{12}$/);
-    expect(req.type).toBe('reaction');
-    expect(req.trigger).toBe('idle');
-    expect(req.novelty).toBe(false);
-    expect(req.context.vector).toEqual(mockState.personalityVector);
-    expect(req.context.mode).toBe('ambient');
-    expect(req.context.environment).toBe('quiet house, dim light');
-    expect(req.context.momentum).toBe(interpretation);
-    expect(typeof req.context.timeOfDay).toBe('string');
-    expect(req.context.timeOfDay).not.toBe('');
-    expect(typeof req.context.recentActivity).toBe('string');
-    expect(req.constraints.maxLength).toBe(20);
-    expect(req.constraints.tone).toBeDefined();
-    expect(typeof req.requestedAt).toBe('string');
-    expect(() => new Date(req.requestedAt)).not.toThrow();
+    expect(req.input.context.momentum).toBe(interpretation);
   });
 
-  it('sets maxLength=30 for observation type', async () => {
+  it('populates context.vector from state.personalityVector', () => {
     const d = makeDispatcher();
-    const req = await d.assembleRequest('observation', mockState as any, 'lux_change', false);
-    expect(req.constraints.maxLength).toBe(30);
+    const req = d.buildBrainRequest('reaction', mockState as any, 'idle', false);
+
+    expect(req.input.context.vector).toEqual(mockState.personalityVector);
   });
 
-  it('sets maxLength=17 for haiku type', async () => {
+  it('populates context.mode and context.environment from state', () => {
     const d = makeDispatcher();
-    const req = await d.assembleRequest('haiku', mockState as any, 'idle', true);
-    expect(req.constraints.maxLength).toBe(17);
-  });
+    const req = d.buildBrainRequest('reaction', mockState as any, 'idle', false);
 
-  it('sets novelty=true when isNovelty=true', async () => {
-    const d = makeDispatcher();
-    const req = await d.assembleRequest('reaction', mockState as any, 'idle', true);
-    expect(req.novelty).toBe(true);
-  });
-
-  it('populates recentActivity when memory provider is registered', async () => {
-    // Register a mock memory provider
-    const { registerMemoryProvider, getMemoryProvider } = await import('../memory/index.js');
-    const mockProvider = {
-      retrieve: vi.fn().mockResolvedValue({
-        fragments: [
-          {
-            id: 'test:1:0',
-            text: 'A quiet evening observation',
-            source: 'capture',
-            collection: 'beau_experience',
-            entityId: '1',
-            tokenCount: 5,
-            rawDistance: 0.3,
-            finalScore: 0.7,
-            createdAt: new Date().toISOString(),
-          },
-        ],
-        usedTokens: 5,
-      }),
-      upsert: vi.fn(),
-      remove: vi.fn(),
-    };
-    registerMemoryProvider(mockProvider as any);
-
-    try {
-      const d = makeDispatcher();
-      const req = await d.assembleRequest('reaction', mockState as any, 'idle', false);
-      expect(req.context.recentActivity).toContain('[capture] A quiet evening observation');
-      expect(mockProvider.retrieve).toHaveBeenCalledOnce();
-    } finally {
-      // Clean up — deregister
-      registerMemoryProvider(null as any);
-    }
+    expect(req.input.context.mode).toBe('ambient');
+    expect(req.input.context.environment).toBe('quiet house, dim light');
   });
 });
 
