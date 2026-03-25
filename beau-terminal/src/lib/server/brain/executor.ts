@@ -195,15 +195,35 @@ export async function executeWithFallback(
 
   // Decide direction: upward reuses prompt, downward re-prepares if callback provided
   const isDownward = TIER_ORDER[fallbackConfig.id] < TIER_ORDER[primaryTier];
-  let fallbackPrompt = prompt;
+  let fallbackPrompt: string;
 
   if (isDownward && preparePrompt) {
+    // Re-prepare for the lower tier. If this throws, skip the fallback entirely
+    // rather than silently reusing a prompt sized for the (now-failed) higher tier.
     try {
       fallbackPrompt = await preparePrompt(fallbackConfig);
     } catch {
-      // If re-preparation fails, fall back to original prompt
-      fallbackPrompt = prompt;
+      // Re-preparation failed — treat as if no fallback is available
+      if (isManual) {
+        throw primaryError instanceof Error
+          ? primaryError
+          : new Error(`executeWithFallback: primary tier ${primaryTier} failed, fallback re-prepare also failed`);
+      }
+      return {
+        requestId: request?.requestId ?? '',
+        text: null,
+        tier: primaryTier,
+        model: primaryConfig.model,
+        generationMs: 0,
+        clamped: plan.clamped,
+        trimmed: plan.trimmed,
+        fallback: true,
+        fallbackFrom: primaryTier,
+        qualityEscalated: false,
+      };
     }
+  } else {
+    fallbackPrompt = prompt;
   }
 
   // --- Fallback attempt ---

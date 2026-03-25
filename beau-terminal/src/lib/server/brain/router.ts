@@ -326,6 +326,13 @@ export function routeRequest(
     return null;
   }
 
+  // Fix 1: when trimmed (fell below floor to highest available tier), cap the
+  // memory budget to what the actual tier can hold — otherwise prepare.ts
+  // retrieves more memory fragments than the tier's context window fits.
+  const effectiveMemoryTokenBudget = resolved.trimmed
+    ? Math.min(memoryTokenBudget, tierConfig.maxMemoryTokens)
+    : memoryTokenBudget;
+
   return {
     targetTier: resolved.targetTier,
     tierConfig,
@@ -333,11 +340,11 @@ export function routeRequest(
     thoughtFloor,
     contextFloor,
     memoryDepth,
-    memoryTokenBudget,
+    memoryTokenBudget: effectiveMemoryTokenBudget,
     promptProfile: tierConfig.promptProfile,
     clamped: resolved.clamped,
     trimmed: resolved.trimmed,
-    allowEscalation: hints.allowEscalation ?? false,
+    allowEscalation: hints.allowEscalation ?? true,
     maxTier: hints.maxTier ?? null,
   };
 }

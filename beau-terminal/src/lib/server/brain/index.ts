@@ -104,14 +104,19 @@ export async function dispatch(request: BrainRequestV1): Promise<BrainResponse> 
 
   const registry = _registry;
 
+  // Boolean guard: set to true when the hard-cap timeout fires so that late
+  // side effects from the still-running _executeDispatch are suppressed.
+  let timedOut = false;
+
   // Wrap execution in a hard-cap timeout
   const hardTimeout = new Promise<BrainResponse>((resolve) => {
     setTimeout(() => {
+      timedOut = true;
       resolve(makeSilenceResponse(request.requestId));
     }, DISPATCH_TIMEOUT_MS);
   });
 
-  const execution = _executeDispatch(request, registry);
+  const execution = _executeDispatch(request, registry, () => timedOut);
 
   return Promise.race([execution, hardTimeout]);
 }
@@ -123,6 +128,7 @@ export async function dispatch(request: BrainRequestV1): Promise<BrainResponse> 
 async function _executeDispatch(
   request: BrainRequestV1,
   registry: TierRegistry,
+  isTimedOut: () => boolean = () => false,
 ): Promise<BrainResponse> {
   // 1. Route the request
   const plan = routeRequest(request, registry, previousTier);
@@ -205,12 +211,16 @@ async function _executeDispatch(
     }
   }
 
-  // 6. Log the dispatch
-  const onlineTiers = registry.getOnlineTiers().map((c) => c.id);
-  logDispatch({ request, plan, response, onlineTiers });
+  // 6. Log the dispatch — suppressed if the hard-cap timeout already fired
+  if (!isTimedOut()) {
+    const onlineTiers = registry.getOnlineTiers().map((c) => c.id);
+    logDispatch({ request, plan, response, onlineTiers });
+  }
 
-  // 7. Track previousTier for stickiness
-  previousTier = response.tier;
+  // 7. Track previousTier for stickiness — suppressed if timed out
+  if (!isTimedOut()) {
+    previousTier = response.tier;
+  }
 
   return response;
 }

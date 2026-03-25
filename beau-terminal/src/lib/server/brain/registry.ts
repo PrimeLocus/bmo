@@ -43,7 +43,7 @@ function buildDefaultConfigs(): TierConfig[] {
       defaultModel: 'qwen2.5:1.5b',
       timeoutMs: 5_000,
       maxPromptTokens: 1000,
-      maxMemoryTokens: 100,
+      maxMemoryTokens: 150,
       maxOutputTokens: 256,
       supportsStreaming: true,
       promptProfile: 'reflex',

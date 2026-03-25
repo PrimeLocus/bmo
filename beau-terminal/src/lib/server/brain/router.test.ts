@@ -613,12 +613,12 @@ describe('routeRequest', () => {
     expect(plan!.allowEscalation).toBe(true);
   });
 
-  it('allowEscalation defaults to false', () => {
+  it('allowEscalation defaults to true when not provided in hints', () => {
     const request = makeManualRequest();
     const plan = routeRequest(request, registry);
 
     expect(plan).not.toBeNull();
-    expect(plan!.allowEscalation).toBe(false);
+    expect(plan!.allowEscalation).toBe(true);
   });
 
   it('passes previousTier to castVoice for stickiness', () => {
@@ -662,6 +662,21 @@ describe('routeRequest', () => {
     expect(plan).not.toBeNull();
     expect(plan!.targetTier).toBe('t1');
     expect(plan!.trimmed).toBe(true);
+  });
+
+  it('when trimmed, memoryTokenBudget is capped to the target tier maxMemoryTokens', () => {
+    // Only t1 online (maxMemoryTokens=100 in test helper), haiku floor is t2
+    // balanced vector → medium depth = 300 tokens, but t1 only has 100
+    const registry1 = makeRegistry(['t1']);
+    const request = makeThoughtRequest('haiku', { wonder: 0.5, reflection: 0.5, mischief: 0.5 });
+    const plan = routeRequest(request, registry1);
+
+    expect(plan).not.toBeNull();
+    expect(plan!.trimmed).toBe(true);
+    // Budget must be capped to t1's maxMemoryTokens (100), not the raw depth budget (300)
+    const t1Config = registry1.getConfig('t1')!;
+    expect(plan!.memoryTokenBudget).toBe(t1Config.maxMemoryTokens);
+    expect(plan!.memoryTokenBudget).toBeLessThan(MEMORY_DEPTH_TOKENS[plan!.memoryDepth]);
   });
 
   it('uses vector from thought input context for voice casting', () => {

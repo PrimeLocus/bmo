@@ -306,6 +306,54 @@ describe('executeWithFallback', () => {
     expect(preparePrompt).toHaveBeenCalled();
   });
 
+  it('does not attempt fallback tier if re-prepare throws (downward fallback)', async () => {
+    setTierOnline('t1');
+    setTierOnline('t3');
+
+    const fetchMock = vi.mocked(fetch);
+    // t3 (primary) fails
+    fetchMock.mockRejectedValueOnce(new Error('t3 offline'));
+    // t1 would succeed if called — but it must NOT be called if re-prepare throws
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ model: 'qwen2.5:1.5b', response: 'should not appear', done: true }),
+        { status: 200 },
+      ),
+    );
+
+    const preparePrompt = vi.fn().mockRejectedValue(new Error('re-prepare failed'));
+    const t3Config = makeTierConfig({ id: 't3', model: 'llama3.1:8b', endpoint: 'http://localhost:11434' });
+    const plan = makeRoutePlan({ targetTier: 't3', tierConfig: t3Config });
+    const request = makeThoughtRequest(); // thought — should return silence, not throw
+
+    const result = await executeWithFallback('prompt', plan, registry, preparePrompt, request);
+
+    // Fallback was not attempted — fetch called only once (for the primary)
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // Returns silence (null text) because fallback was skipped
+    expect(result.text).toBeNull();
+  });
+
+  it('throws when re-prepare fails on downward fallback for manual.prompt', async () => {
+    setTierOnline('t1');
+    setTierOnline('t3');
+
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockRejectedValueOnce(new Error('t3 offline'));
+
+    const preparePrompt = vi.fn().mockRejectedValue(new Error('re-prepare failed'));
+    const t3Config = makeTierConfig({ id: 't3', model: 'llama3.1:8b', endpoint: 'http://localhost:11434' });
+    const plan = makeRoutePlan({ targetTier: 't3', tierConfig: t3Config });
+    const request = makeManualRequest(); // manual — should throw
+
+    await expect(
+      executeWithFallback('prompt', plan, registry, preparePrompt, request),
+    ).rejects.toThrow();
+
+    // Fallback was not attempted — fetch called only once
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('returns text=null when both attempts fail for thought.generate', async () => {
     setTierOnline('t2');
     setTierOnline('t3');

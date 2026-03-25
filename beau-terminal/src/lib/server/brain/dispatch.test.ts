@@ -568,6 +568,30 @@ describe('dispatch — 45s hard cap timeout', () => {
 
     expect(result.requestId).toBe('timeout-req-abc');
   });
+
+  it('logDispatch is NOT called when execution times out (late side effects suppressed)', async () => {
+    vi.useFakeTimers();
+
+    // Resolve executeWithFallback only after the timeout has fired
+    let resolveExecution!: (v: BrainResponse) => void;
+    mockExecuteWithFallback.mockImplementation(
+      () => new Promise<BrainResponse>((resolve) => { resolveExecution = resolve; }),
+    );
+
+    const req = makeThoughtRequest();
+    const dispatchPromise = dispatch(req);
+
+    // Fire the timeout first
+    vi.advanceTimersByTime(DISPATCH_TIMEOUT_MS + 1000);
+    const result = await dispatchPromise;
+
+    // Now resolve the late execution — side effects should be suppressed
+    resolveExecution(makeResponse());
+
+    // logDispatch must not have been called (timeout guard prevented it)
+    expect(result.text).toBeNull(); // silence from timeout
+    expect(mockLogDispatch).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------

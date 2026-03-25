@@ -176,11 +176,11 @@ describe('brain multi-tier routing (requires 3 Ollama models)', () => {
 		return false;
 	}
 
-	it('high mischief → voice wants T1, context scaler raises to T2 (memory budget)', async () => {
+	it('high mischief → voice wants T1, T1 handles light memory budget (150 tokens)', async () => {
 		if (skip()) return;
 
 		// Mischief=0.9 → voice=t1, memoryDepth=light (150 tokens)
-		// But T1.maxMemoryTokens=100 < 150, so contextFloor=t2
+		// T1.maxMemoryTokens=150 >= 150, so contextFloor=t1 — T1 is reachable (Fix 3)
 		const request = makeThoughtRequest({
 			type: 'observation',
 			trigger: 'test-mischief',
@@ -197,13 +197,14 @@ describe('brain multi-tier routing (requires 3 Ollama models)', () => {
 
 		const plan = routeRequest(request, registry);
 		expect(plan.voicePreferred).toBe('t1');
-		expect(plan.targetTier).toBe('t2'); // context scaler raised
-		expect(plan.clamped).toBe(true);
+		expect(plan.targetTier).toBe('t1'); // T1 now fits the light memory budget
+		expect(plan.clamped).toBe(false);
+		expect(plan.memoryTokenBudget).toBeLessThanOrEqual(150);
 
 		const prompt = await preparePrompt(request, plan, () => null);
 		const result = await executeOnTier(prompt, plan.tierConfig);
 
-		console.log(`[multi-tier] mischief→T2 clamped (${result.generationMs}ms, ${result.model}): ${result.text}`);
+		console.log(`[multi-tier] mischief→T1 (${result.generationMs}ms, ${result.model}): ${result.text}`);
 		expect(result.generationMs).toBeGreaterThan(0);
 	}, INTEGRATION_TIMEOUT);
 

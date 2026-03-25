@@ -65,7 +65,8 @@ describe('DEFAULT_TIER_CONFIGS', () => {
   it('has correct token budgets for t1', () => {
     const t1 = DEFAULT_TIER_CONFIGS.find((c) => c.id === 't1')!;
     expect(t1.maxPromptTokens).toBe(1000);
-    expect(t1.maxMemoryTokens).toBe(100);
+    // 150 so T1 is reachable when mischief is dominant (light depth = 150 tokens)
+    expect(t1.maxMemoryTokens).toBe(150);
     expect(t1.maxOutputTokens).toBe(256);
   });
 
