@@ -65,6 +65,10 @@ export const TOPICS = {
     surfaced: 'beau/thoughts/surfaced',
     pressure: 'beau/thoughts/pressure',
   },
+  brain: {
+    dispatch: 'beau/brain/dispatch',
+    availability: 'beau/brain/availability',
+  },
 } as const;
 
 // Topics the terminal subscribes to (inbound from BMO)
@@ -114,7 +118,7 @@ export type PresenceState = (typeof PRESENCE_STATES)[number];
 export const HAIKU_TYPES = ['daily', 'emergence', 'reflective', 'seasonal', 'prompted'] as const;
 export type HaikuType = (typeof HAIKU_TYPES)[number];
 
-export const DISPATCH_TIERS = ['reflex', 'philosopher', 'heavy'] as const;
+export const DISPATCH_TIERS = ['t1', 't2', 't3', 't4'] as const;
 export type DispatchTier = (typeof DISPATCH_TIERS)[number];
 
 export const DEVICE_TYPES = ['volcano-hybrid', 'puffco-peak-pro', 'dr-dabber-switch2'] as const;

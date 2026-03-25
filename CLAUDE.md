@@ -7,7 +7,7 @@ Physical BMO robot build — Raspberry Pi 5 + Hailo NPU + custom AI personality 
 - **Personality**: Beau — wonder-first, reflection underneath, mischief at edges. Full spec in `docs/bible/bmo-personality-bible.docx`.
 - **Wake words**: "Hey BMO" (public/performative) vs "Hey Beau" (private/warmer) — different system prompt tone injection per wake word.
 - **Voice**: Korean-Cajun blend, custom Piper TTS trained via TextyMcSpeechy on Legion RTX 4090.
-- **Brain routing**: Hailo NPU (reflex/vision) → Pi CPU Ollama (philosophy/poetry) → ThinkStation via Tailscale (heavy reasoning). See `docs/reference.md` for full routing details.
+- **Brain routing**: 4-tier dispatcher (T1 Hailo reflex → T2 Pi poetry → T3 Jetson working-mind → T4 Legion/Mac philosopher). Personality-driven voice casting. See `docs/reference.md` for full routing details.
 - **RAG**: ChromaDB + nomic-embed-text from journals, VJ logs, project docs.
 - **Integrations**: Home Assistant, Resolume VJ witness mode, Tailscale, MQTT (Mosquitto on Proxmox), BLE wellness devices (Volcano Hybrid, Puffco Peak Pro).
 
@@ -101,7 +101,7 @@ bmo/
     │   │       │   ├── activity.ts   # Activity log queries — recent events, entity activity feed
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
     │   │       │   ├── schema.ts     # 31 tables — source of truth for DB schema
-    │   │       │   └── seed.ts       # 18 parts, 14 phases, 74 steps, 11 ideas
+    │   │       │   └── seed.ts       # 18 parts, 15 phases, 85 steps, 11 ideas
     │   │       ├── mqtt/
     │   │       │   ├── bridge.ts     # MQTT → BeauState → SSE broadcast + thought system orchestration
     │   │       │   └── topics.ts     # MQTT topic constants + type unions (modes, devices, heating states)
@@ -112,10 +112,18 @@ bmo/
     │   │       │   ├── indexer.ts     # embedding_queue management, atomic claim, CAS
     │   │       │   ├── chunker.ts     # Bible/document chunking, SHA-256 hashing
     │   │       │   └── index.ts       # Singleton accessor
+    │   │       ├── brain/
+    │   │       │   ├── types.ts       # BrainRequestV1, BrainResponse, TierConfig, RoutePlan
+    │   │       │   ├── registry.ts    # TierRegistry — 4-tier config + Ollama health probing
+    │   │       │   ├── router.ts      # Voice caster + context scaler + tier precedence
+    │   │       │   ├── prepare.ts     # Request-to-prompt: memory retrieval + prompt assembly
+    │   │       │   ├── executor.ts    # HTTP calls to Ollama, fallback, quality escalation
+    │   │       │   ├── log.ts         # Dispatch logging to dispatches table
+    │   │       │   └── index.ts       # Public dispatch() API + singleton
     │   │       ├── thoughts/
     │   │       │   ├── types.ts       # ThoughtRequest, ThoughtResult, tuning constants
     │   │       │   ├── pressure.ts    # Pressure accumulation engine + novelty detection
-    │   │       │   ├── dispatcher.ts  # Type selection + request assembly
+    │   │       │   ├── dispatcher.ts  # Type selection + buildBrainRequest (routes through brain/)
     │   │       │   ├── queue.ts       # Priority queue, decay, lifecycle, budget tracking
     │   │       │   └── index.ts       # Singleton accessor for API routes
     │   │       ├── identity/
@@ -278,7 +286,13 @@ When working on Beau's Terminal, read these first:
 - `src/lib/server/mqtt/topics.ts` — MQTT topic constants and type unions (modes, device types, heating states, face states)
 - `src/lib/server/face-state.ts` — face state priority stack resolver + glow config (bible §49/§50) + thought overlay glow
 - `src/lib/server/thoughts/pressure.ts` — thought pressure accumulation + novelty detection
-- `src/lib/server/thoughts/dispatcher.ts` — thought type selection + request assembly
+- `src/lib/server/thoughts/dispatcher.ts` — thought type selection + buildBrainRequest (routes through brain/)
+- `src/lib/server/brain/index.ts` — Brain dispatcher public API: dispatch(), initBrain(), 45s hard cap
+- `src/lib/server/brain/router.ts` — Voice caster (nearest centroid) + context scaler + tier precedence
+- `src/lib/server/brain/registry.ts` — TierRegistry: 4-tier config, Ollama /api/tags health probing
+- `src/lib/server/brain/executor.ts` — HTTP calls to Ollama, fallback chain, quality escalation
+- `src/lib/server/brain/prepare.ts` — Request-to-prompt preparation with memory retrieval
+- `src/lib/server/brain/types.ts` — BrainRequestV1 envelope, BrainResponse, TierConfig, RoutePlan
 - `src/lib/server/thoughts/queue.ts` — priority queue, decay, lifecycle, budget tracking
 - `src/lib/face/frames.ts` — pixel-art frame data for all 10 face states
 - `src/lib/server/prompt/assembler.ts` — prompt section parser + mode injection

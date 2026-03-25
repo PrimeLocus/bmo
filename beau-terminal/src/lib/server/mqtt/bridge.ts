@@ -27,6 +27,7 @@ import { registerThoughtSystem } from '../thoughts/index.js';
 import { PRESSURE_TICK_MS } from '../thoughts/types.js';
 import type { ThoughtResult } from '../thoughts/types.js';
 import { enqueueMemory } from '../memory/index.js';
+import { initBrain, dispatch as brainDispatch } from '../brain/index.js';
 
 export type BeauState = {
   mode: string;
@@ -595,6 +596,9 @@ export function connectMQTT() {
 
   console.log('[personality] Engine running in SvelteKit host (TODO-B: extract to Pi)');
 
+  // ── Brain Dispatcher ───────────────────────────────────────────────────────
+  initBrain();
+
   // ── Thought System ────────────────────────────────────────────────────────
   const thoughtQueue = new ThoughtQueue(db);
   const pressureEngine = new PressureEngine();
@@ -615,18 +619,30 @@ export function connectMQTT() {
         const dispatchState = { ...state }; // snapshot before await
         (async () => {
           try {
-            const request = await thoughtDispatcher.assembleRequest(thoughtType, dispatchState, trigger, isNovelty);
+            const brainRequest = thoughtDispatcher.buildBrainRequest(thoughtType, dispatchState, trigger, isNovelty);
             thoughtQueue.enqueue({
-              id: request.id,
-              type: request.type,
-              trigger: request.trigger,
-              contextJson: JSON.stringify(request),
-              expiresAt: thoughtDispatcher.computeExpiresAt(request.type),
-              novelty: request.novelty,
+              id: brainRequest.requestId,
+              type: brainRequest.input.type,
+              trigger: brainRequest.input.trigger,
+              contextJson: JSON.stringify(brainRequest.input),
+              expiresAt: thoughtDispatcher.computeExpiresAt(brainRequest.input.type),
+              novelty: brainRequest.input.novelty,
             });
-            if (_publish) {
-              _publish(TOPICS.thoughts.request, JSON.stringify(request));
-            }
+            const response = await brainDispatch(brainRequest);
+            thoughtQueue.receiveResult({
+              id: brainRequest.requestId,
+              text: response.text,
+              generatedAt: new Date().toISOString(),
+              model: response.model,
+              generationMs: response.generationMs,
+            });
+            // Update state with thought result
+            state = {
+              ...state,
+              pendingThoughtCount: thoughtQueue.pendingCount(),
+              pendingThoughtType: thoughtQueue.getReadyThoughtType(),
+            };
+            broadcast();
             pressureEngine.resetAfterDispatch();
           } catch (e) {
             console.error('[thoughts] dispatch failed:', e);
@@ -894,6 +910,7 @@ export function connectMQTT() {
         interactionSignals.securityStranger = msg === '1';
         updateFaceState();
         break;
+      // Legacy: kept for external consumers (ollama-listener). Primary path now uses brain.dispatch().
       case TOPICS.thoughts.result: {
         try {
           const result = JSON.parse(msg) as ThoughtResult;

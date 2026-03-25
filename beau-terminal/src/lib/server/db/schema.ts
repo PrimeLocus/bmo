@@ -139,6 +139,19 @@ export const dispatches = sqliteTable('dispatches', {
   durationMs: integer('duration_ms'),
   promptVersion: text('prompt_version'),
   environmentId: integer('environment_id'),
+  // SP6 Task 6 — Dispatch Logging extended columns
+  requestId: text('request_id'),
+  parentRequestId: text('parent_request_id'),
+  kind: text('kind'),
+  status: text('status'),
+  voicePreferred: text('voice_preferred'),
+  thoughtFloor: text('thought_floor'),
+  contextFloor: text('context_floor'),
+  highestAvailable: text('highest_available'),
+  clamped: integer('clamped', { mode: 'boolean' }).notNull().default(false),
+  trimmed: integer('trimmed', { mode: 'boolean' }).notNull().default(false),
+  fallbackFrom: text('fallback_from'),
+  qualityEscalatedFrom: text('quality_escalated_from'),
 });
 
 // ─── Environment Domain (Phase 2) ───

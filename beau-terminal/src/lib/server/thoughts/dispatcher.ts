@@ -7,19 +7,17 @@
  * See: docs/bible/beaus-bible.md §44, §54
  */
 
-import { nanoid } from 'nanoid';
 import {
   HAIKU_WINDOWS,
   DECAY_TTL,
   DECAY_VARIANCE,
 } from './types.js';
 import type {
-  ThoughtRequest,
   ThoughtType,
   DailyBudgetStatus,
 } from './types.js';
-import { getMemoryProvider } from '../memory/index.js';
-import { formatFragments, RETRIEVAL_TIMEOUT_MS } from '../memory/types.js';
+import { makeThoughtRequest } from '../brain/types.js';
+import type { ThoughtInput, BrainRequestV1 } from '../brain/types.js';
 
 // ── Partial BeauState shape needed by the dispatcher ─────────────────────────
 
@@ -151,55 +149,34 @@ export class ThoughtDispatcher {
   }
 
   /**
-   * Assemble a full ThoughtRequest payload ready for MQTT dispatch.
-   * Retrieves memory context (fail-open: proceeds without if unavailable).
+   * Build a BrainRequestV1 of kind 'thought.generate' from the selected type
+   * and current state. Memory retrieval and prompt building are handled
+   * downstream by brain/prepare.ts.
    */
-  async assembleRequest(
+  buildBrainRequest(
     type: ThoughtType,
     state: DispatchableState,
     trigger: string,
     isNovelty: boolean,
-  ): Promise<ThoughtRequest> {
-    const hour = new Date().getHours();
-
-    // Attempt memory retrieval — fail-open with hard timeout
-    let recentActivity = '';
-    const mem = getMemoryProvider();
-    if (mem) {
-      try {
-        const retrieval = mem.retrieve(
-          `${state.environment} ${state.mode}`,
-          { mode: state.mode, caller: 'thoughts', maxTokens: 300 },
-        );
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('retrieval timeout')), RETRIEVAL_TIMEOUT_MS),
-        );
-        const { fragments } = await Promise.race([retrieval, timeoutPromise]);
-        recentActivity = formatFragments(fragments);
-      } catch {
-        // fail-open: proceed without memory context
-      }
-    }
-
-    return {
-      id: nanoid(12),
+  ): Extract<BrainRequestV1, { kind: 'thought.generate' }> {
+    const input: ThoughtInput = {
       type,
       trigger,
+      novelty: isNovelty,
       context: {
         vector: state.personalityVector,
         mode: state.mode,
-        timeOfDay: getTimeOfDay(hour),
+        timeOfDay: getTimeOfDay(new Date().getHours()),
         environment: state.environment,
-        recentActivity,
         momentum: this.getInterpretation(),
       },
       constraints: {
         maxLength: MAX_LENGTH[type],
         tone: deriveTone(state.personalityVector),
       },
-      requestedAt: new Date().toISOString(),
-      novelty: isNovelty,
     };
+
+    return makeThoughtRequest(input);
   }
 
   /**

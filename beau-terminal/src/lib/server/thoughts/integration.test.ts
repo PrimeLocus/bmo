@@ -93,31 +93,31 @@ describe('Integration: full thought lifecycle', () => {
     expect(type).not.toBeNull();
     expect(['observation', 'reaction', 'haiku']).toContain(type);
 
-    // 8. Assemble the request
-    const request = await dispatcher.assembleRequest(type!, state, trigger, isNovelty);
-    expect(request.id).toBeDefined();
-    expect(request.type).toBe(type);
+    // 8. Build the brain request (replaces old assembleRequest)
+    const brainRequest = dispatcher.buildBrainRequest(type!, state, trigger, isNovelty);
+    expect(brainRequest.requestId).toBeDefined();
+    expect(brainRequest.input.type).toBe(type);
 
     // 9. Enqueue the request
     const expiresAt = dispatcher.computeExpiresAt(type!);
     const enqueued = queue.enqueue({
-      id: request.id,
-      type: request.type,
-      trigger: request.trigger,
-      contextJson: JSON.stringify(request.context),
+      id: brainRequest.requestId,
+      type: brainRequest.input.type,
+      trigger: brainRequest.input.trigger,
+      contextJson: JSON.stringify(brainRequest.input),
       expiresAt,
-      novelty: request.novelty,
+      novelty: brainRequest.input.novelty,
     });
     expect(enqueued).not.toBeNull();
 
     // 10. Verify thought is in 'requested' status
-    const thought = queue.get(request.id)!;
+    const thought = queue.get(brainRequest.requestId)!;
     expect(thought.status).toBe('requested');
 
     // 11. Simulate receiving a result
     const generatedAt = new Date().toISOString();
     queue.receiveResult({
-      id: request.id,
+      id: brainRequest.requestId,
       text: 'Test thought',
       generatedAt,
       model: 'test',
@@ -125,7 +125,7 @@ describe('Integration: full thought lifecycle', () => {
     });
 
     // 12. Verify transition: pending → ready (single thought, promoted immediately)
-    const after = queue.get(request.id)!;
+    const after = queue.get(brainRequest.requestId)!;
     expect(after.status).toBe('ready');
     expect(after.text).toBe('Test thought');
 

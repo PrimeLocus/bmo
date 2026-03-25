@@ -26,6 +26,9 @@
 	let topic = $state('beau/command/mode');
 	let content = $state('');
 	let label = $state('');
+	let brainContent = $state('');
+	let brainLabel = $state('');
+	let brainResponse: { text: string | null; tier: string; model: string } | null = $state(null);
 
 	function applyPreset(p: typeof PRESETS[number]) {
 		topic = p.topic;
@@ -108,6 +111,58 @@
 		</div>
 		<button type="submit" class="publish-btn">PUBLISH</button>
 	</form>
+
+	<!-- Brain dispatch form -->
+	<div class="section">
+		<div class="section-label">BRAIN DISPATCH</div>
+		<form method="POST" action="/prompt?/dispatch" use:enhance={() => {
+			return async ({ result, update }) => {
+				if (result.type === 'success' && result.data) {
+					brainResponse = {
+						text: (result.data as any).response ?? null,
+						tier: (result.data as any).tier ?? '?',
+						model: (result.data as any).model ?? '?',
+					};
+				}
+				await update();
+				brainContent = '';
+				brainLabel = '';
+			};
+		}} class="send-form">
+			<div class="form-row">
+				<div class="field field-grow">
+					<label class="field-label" for="widget-brain-content">PROMPT</label>
+					<textarea
+						id="widget-brain-content"
+						name="content"
+						bind:value={brainContent}
+						rows="3"
+						placeholder="ask Beau something..."
+						class="field-textarea"
+					></textarea>
+				</div>
+				<div class="field field-label-col">
+					<label class="field-label" for="widget-brain-label">LABEL (OPT)</label>
+					<input
+						id="widget-brain-label"
+						type="text"
+						name="label"
+						bind:value={brainLabel}
+						placeholder="memo..."
+						class="field-input"
+					/>
+				</div>
+			</div>
+			<button type="submit" class="publish-btn brain-btn">DISPATCH</button>
+		</form>
+	</div>
+
+	{#if brainResponse}
+		<div class="brain-response">
+			<div class="section-label">RESPONSE <span class="tier-badge">{brainResponse.tier}</span> <span class="model-badge">{brainResponse.model}</span></div>
+			<div class="response-text">{brainResponse.text ?? '(SILENCE)'}</div>
+		</div>
+	{/if}
 
 	<!-- Recent history -->
 	{#if history.length > 0}
@@ -282,5 +337,31 @@
 		color: var(--bmo-muted);
 		font-style: italic;
 		flex-shrink: 0;
+	}
+
+	.brain-btn {
+		border-color: #6ec6ff;
+		color: #6ec6ff;
+	}
+
+	.brain-response {
+		border: 1px solid var(--bmo-border);
+		background: var(--bmo-surface);
+		padding: 1rem;
+	}
+
+	.response-text {
+		font-size: 0.875rem;
+		color: var(--bmo-text);
+		white-space: pre-wrap;
+		line-height: 1.5;
+	}
+
+	.tier-badge, .model-badge {
+		font-size: 0.625rem;
+		padding: 0.125rem 0.375rem;
+		border: 1px solid var(--bmo-border);
+		color: var(--bmo-muted);
+		margin-left: 0.5rem;
 	}
 </style>

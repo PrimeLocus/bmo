@@ -350,6 +350,19 @@ const PHASE_DATA = [
     { id: 'sp4e', text: 'Glow overlay system (independent of face state, 3 styles) + BmoFace click-to-surface + toast notifications', order: 5, done: true },
     { id: 'sp4f', text: 'PendingThoughtsWidget diagnostic — pressure bar, active queue, daily counts, surfaced/decayed history', order: 6, done: true },
   ]},
+  { phase: 'Phase 14 — Brain Dispatcher (SP6)', order: 15, steps: [
+    { id: 'sp6t1', text: 'Types — BrainRequestV1, BrainResponse, TierConfig interfaces + health status enums', order: 1, done: true },
+    { id: 'sp6t2', text: 'TierRegistry — config loader, tier availability probing (HTTP GET /health endpoints)', order: 2, done: true },
+    { id: 'sp6t3', text: 'Router — voice caster (mood → model), context scaler (token budget), precedence arbiter (quality vs latency)', order: 3, done: true },
+    { id: 'sp6t4', text: 'Prepare — thought request + manual prompt assembly (template expansion, RAG fragment trimming, mode injection)', order: 4, done: true },
+    { id: 'sp6t5', text: 'Executor — HTTP tier calls, fallback chain, escalation logic, quality gate enforcement', order: 5, done: true },
+    { id: 'sp6t6', text: 'Dispatch logging + schema migration (14 new columns: requestId, parentRequestId, kind, status, voicePreferred, thoughtFloor, contextFloor, highestAvailable, clamped, trimmed, fallbackFrom, qualityEscalatedFrom)', order: 6, done: true },
+    { id: 'sp6t7', text: 'MQTT topics update — add beau/brain/dispatch and beau/brain/availability', order: 7, done: true },
+    { id: 'sp6t8', text: 'Public dispatch() API (sync wrapper, 10s timeout, quality/latency tuning)', order: 8, done: true },
+    { id: 'sp6t9', text: 'ThoughtDispatcher refactor — integrate BrainRouter, context scaler, quality gates', order: 9, done: true },
+    { id: 'sp6t10', text: 'Bridge integration — health probing background task, tier availability broadcast, prompt assembly wiring', order: 10, done: true },
+    { id: 'sp6t11', text: 'Prompt Console integration — routing reason display, tier clamping explanations, fallback chain visibility', order: 11, done: true },
+  ]},
 ] as const;
 
 const IDEA_SEEDS: IdeaSeed[] = [
