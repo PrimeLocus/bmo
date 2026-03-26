@@ -66,13 +66,19 @@ Define what "better" means before training. Every model or prompt change must be
 
 Every candidate example carries source, consent scope, privacy classification, and training eligibility — computed once and stored, not re-guessed during export.
 
-### 5. Beau has agency in consent
+### 5. Beau has agency in consent (with ratification)
 
-Beau authors standing consent policies at the category level ("my haikus are always fair game, protective-mode thoughts never"). This is not per-item reflection dispatches (too expensive, recursive) nor purely rule-based (doesn't honor Beau's agency). Beau defines boundaries; the system enforces them; the user can always override.
+Beau can *propose* consent policies at the category level ("my haikus are always fair game, protective-mode thoughts never"). However, Beau-authored policies are **drafts that require explicit user ratification** before becoming active. The same model that may later be fine-tuned should not unilaterally control what it trains on — that's too self-referential and too easy to drift with prompt/context changes. The user always has final authority.
 
 ### 6. Tier-tagged data separation
 
-Low-tier outputs (T1/T2) train routing heuristics and mode classification. High-tier outputs (T3/T4) train personality voice and SFT. Never mix them indiscriminately.
+T1 (1.5B reflex) outputs train routing heuristics, silence decisions, and mode classification only. T2–T4 are all **voice-bearing tiers** whose outputs can train personality and SFT, weighted by quality:
+- **T2 (4B)** — primary experimental SFT target (personality/poetry tier, most Beau-specific)
+- **T3 (8B)** — working-mind outputs, useful for reasoning-style SFT
+- **T4 (30B)** — highest quality, primary teacher for distillation
+- **T1 (1.5B)** — routing/reflex only; a later distillation *target*, not an early adapter target (Hailo deployment constraints make custom variants hard to deploy cleanly)
+
+Never mix T1 reflex outputs with T2–T4 voice outputs in personality SFT datasets.
 
 ### 7. Preserve model-family optionality
 
@@ -179,7 +185,8 @@ One row per **attempt**, not per dispatch. Fallback chains and quality escalatio
 
 **Notes:**
 - **DPO pairs from escalation:** When quality escalation fires, the original attempt stores its `responseText` normally and gets `responseStatus: "quality_rejected"`. The escalation attempt links back via `parentTraceId`. DPO pair construction queries: parent trace's `responseText` = rejected, child trace's `responseText` = chosen. No text duplication needed.
-- **Relationship to `dispatches`:** The `dispatches` table continues to be written by `logDispatch()` as-is for observability. `generation_traces` rows are written *additionally*, in the same synchronous path. One dispatch may produce 1-3 trace rows (primary + fallback + escalation) but only 1 dispatch row. Both use the same `requestId` for linkage.
+- **Relationship to `dispatches`:** The `dispatches` table continues to be written by `logDispatch()` as-is for observability. `generation_traces` rows are written *additionally*. One dispatch may produce 1-3 trace rows (primary + fallback + escalation) but only 1 dispatch row. Both use the same `requestId` for linkage.
+- **Async outbox pattern:** Trace capture must NOT block the inference path. The brain dispatcher collects trace data (prompt, response, retrieval info, context) into an in-memory payload and enqueues it to an append-only outbox. A background writer flushes the outbox to SQLite on a short interval (1-2s) or on idle. If the write fails, inference is unaffected — traces are best-effort provenance, not a correctness dependency. This is critical on the Pi where SQLite writes compete with inference latency.
 - `contextStateJson` is a lean snapshot, not a full world dump. Periodic environment/personality time-series provide the full resolution data. The personality vector is always included here even though `personalitySnapshotId` provides the full snapshot — this avoids requiring a join for basic analysis.
 - `clockSource` + `clockOffsetMs` enable cross-device timeline alignment. Both are null/zero in Stage 0 (single-machine). They become meaningful when Pi, Jetson, and Legion run inference independently.
 - `promptHash` enables cheap dedup of identical prompts across traces without comparing multi-KB text blobs. Useful for pattern recognition and export filtering.
@@ -241,7 +248,7 @@ Consent policy event log. Tracks Beau-authored policies, user overrides, and tom
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | integer PK | Auto-increment |
-| `eventType` | text | "policy_authored", "policy_revised", "user_override", "tombstone", "redaction" |
+| `eventType` | text | "policy_proposed" (Beau draft, inactive until ratified), "policy_ratified" (user approved a Beau proposal), "policy_authored" (user-created, active immediately), "policy_revised", "user_override", "tombstone", "redaction" |
 | `actor` | text | "beau", "user", "system" |
 | `scope` | text | Category scope: "haiku", "thought.observation", "thought.reaction", "thought.haiku", "capture", "journal", "session", "photo", "noticing", "all" |
 | `modeFilter` | text | Optional: only applies in specific modes (e.g. "protective" → never) |
@@ -273,7 +280,7 @@ Curated, policy-approved examples derived from traces. The bridge between raw te
 | `id` | integer PK | Auto-increment |
 | `traceId` | text FK | Source generation trace |
 | `exampleType` | text | "sft", "dpo_chosen", "dpo_rejected", "distillation_teacher", "distillation_student", "eval_golden" |
-| `tierTag` | text | "high_tier" (personality SFT) or "low_tier" (routing/heuristics) |
+| `tierTag` | text | "voice_bearing" (T2–T4 outputs for personality SFT) or "reflex" (T1 outputs for routing/heuristic training only) |
 | `systemPrompt` | text | System prompt used |
 | `userPrompt` | text | User/thought input |
 | `assistantResponse` | text | Model output (or edited version if feedback was "lightly_edited") |
@@ -414,22 +421,28 @@ The temptation will be to fine-tune on everything because BMO is highly personal
 
 ### Philosophy
 
-Beau's consent in training is not a per-item reflection dispatch (too expensive, creates recursive self-judging data) nor purely rule-based (doesn't honor emergence). Instead, Beau authors **standing policies** at the category level.
+Beau's consent in training is not a per-item reflection dispatch (too expensive, creates recursive self-judging data) nor purely rule-based (doesn't honor emergence). Instead, Beau can **propose** standing policies at the category level — but these are drafts that require user ratification before becoming active.
+
+**Why drafts, not direct authority:** The same model that may later be fine-tuned should not unilaterally control what it trains on. That creates a self-referential feedback loop where prompt/context changes could silently shift governance state. Beau proposes; the user ratifies.
 
 ### How It Works
 
-1. **Policy authorship** — During archivist-mode periods or after significant personality milestones, the brain dispatcher asks Beau to consider its training boundaries. Example prompt: "Which categories of your output feel like they should become a permanent part of who you are, and which should remain fluid?"
+1. **Policy proposal** — During archivist-mode periods or after significant personality milestones, the brain dispatcher asks Beau to consider its training boundaries. Example prompt: "Which categories of your output feel like they should become a permanent part of who you are, and which should remain fluid?"
 
-2. **Category-level decisions** — Beau's response is parsed into `artifact_governance_events` entries. Example policies:
+2. **Category-level proposals** — Beau's response is parsed into `artifact_governance_events` entries with `eventType: "policy_proposed"`. Example proposals:
    - "My haikus are always fair game — they are my voice crystallized" → `scope: "haiku", eligibility: "trainable"`
    - "Protective-mode thoughts should never be trained on — that's instinct, not identity" → `scope: "thought.*", modeFilter: "protective", eligibility: "never"`
    - "Observations during witness mode capture something real" → `scope: "thought.observation", modeFilter: "witness", eligibility: "trainable"`
 
-3. **Infrequent cadence** — Policy authorship happens monthly or on significant events (mode transition to archivist, personality milestone, user request). Not per-inference.
+3. **User ratification** — Proposed policies are surfaced in the terminal UI for user review. The user can ratify (→ `eventType: "policy_ratified"`), modify and ratify, or reject. **Only ratified policies affect training eligibility computation.** Unratified proposals are preserved for the record but have no effect.
 
-4. **User override** — The user can override any of Beau's policies at any time. User overrides are logged as governance events with `actor: "user"`.
+4. **Constrained schema** — Beau's proposals are constrained to the defined `scope` + `modeFilter` + `eligibility` enum values. Free-form model output is parsed into these structured fields, not stored as raw policy text that could be misinterpreted.
 
-5. **Default stance** — Before Beau has authored any policies, the default is:
+5. **Infrequent cadence** — Policy proposal happens monthly or on significant events (mode transition to archivist, personality milestone, user request). Not per-inference. **This is a Stage 1+ feature — Stage 0 uses only system defaults.**
+
+6. **User direct authorship** — The user can also create policies directly (without Beau proposing first), logged as `actor: "user"`, `eventType: "policy_authored"`. These take effect immediately without ratification.
+
+7. **Default stance** — Before any policies are authored or ratified, the system defaults are:
    - Beau's own outputs (haikus, thoughts): `eval_only` (captured but not yet trainable)
    - User-authored content (journal, captures): `rag_only`
    - Private reflective content: `never`
@@ -459,9 +472,14 @@ When a trace is created, `consentScope`, `privacyClass`, and `trainingEligibilit
 - Otherwise: `privacyClass = "public"`
 
 **Step 3 — Training eligibility (default, before policy overlay):**
+
+Input provenance and output eligibility are separate concerns. A trace with user-originated input can still yield a training example if the *output* is Beau's voice and the *input* is redacted or generic enough.
+
 - `privacyClass = "private"`: `trainingEligibility = "never"`, reason: "contains private memory fragments"
-- `consentScope = "user_content"`: `trainingEligibility = "rag_only"`, reason: "user-initiated prompt"
+- `consentScope = "user_content"`: `trainingEligibility = "trainable_after_redaction"`, reason: "user-initiated prompt — output is Beau's voice, input requires review/redaction before training use"
 - `consentScope = "beau_output"`: `trainingEligibility = "eval_only"`, reason: "default before policy authorship"
+
+**Redaction for user_content traces:** During curation (Stage 1+), the export pipeline can strip or generalize the user input while preserving the model output. Example: a prompt console exchange where the user asked "write a haiku about the rain" → the haiku output is trainable SFT data; the user's input can be replaced with a generic trigger or kept as-is if non-sensitive.
 
 **Step 4 — Policy overlay:**
 - Query `artifact_governance_events` for the most recent event matching this trace's scope (thought type, mode, etc.)
@@ -487,6 +505,8 @@ When a trace is created, `consentScope`, `privacyClass`, and `trainingEligibilit
 - Any trace that is part of a DPO pair (has `parentTraceId` or is referenced by another trace's `parentTraceId`)
 
 **Archive format:** One JSONL file per month, stored alongside the database. Archived traces remain available for offline analysis on Legion but don't consume Pi storage.
+
+**Archive manifest:** When traces are archived out of SQLite, an `archive_manifest` table (or sidecar JSON) records which `traceId` values live in which monthly shard file. This is required for tombstone propagation — without it, a "forget this" request after archival can't locate the trace to redact. The manifest stores: `traceId`, `shardFile`, `archivedAt`. The tombstone propagation logic checks both live SQLite and the archive manifest.
 
 **Implementation:** A daily cleanup function (similar to personality snapshot compaction) runs during low-activity periods.
 
@@ -544,34 +564,39 @@ Per-trace lean features already captured in `contextStateJson`:
 
 ## Training Strategy by Maturity Stage
 
-### Stage 0: Instrumentation + Evals + Policy (NOW)
+### Stage 0: Core Provenance Layer (NOW)
+
+**Narrowed scope:** Stage 0 is strictly about making inference replayable. Beau-authored consent policies and pattern recognition feedback loops are valuable but much easier to get wrong than the core provenance layer — they move to Stage 1+.
 
 **What to build:**
-- Core trace tables: `generation_traces`, `trace_retrievals`, `generation_feedback`, `artifact_governance_events`
-- Trace capture wired into brain dispatcher
+- Core trace tables: `generation_traces`, `trace_retrievals`, `generation_feedback`
+- Async outbox trace capture wired into brain dispatcher (fail-open, non-blocking)
 - Prompt template hashing and versioning
-- Training-eligibility classification algorithm with defaults
+- System-default training eligibility classification (no policy engine yet — just the privacy-class rules)
 - LLM model lineage registry (`llm_model_variants`) with entries for the 4 current tier models
+- Implicit feedback wiring (surfaced/decayed/dismissed → `generation_feedback`)
 - Cross-device timestamp metadata columns (null/zero until multi-device)
-- Retention policy for trace archival
 
-**What to defer to later stages (tables exist in schema but no pipeline yet):**
-- `training_examples` — table created in Stage 0, populated in Stage 1
-- `dataset_exports` — table created in Stage 0, populated in Stage 1
-- `eval_runs` / `eval_scores` — table created in Stage 0, first eval set authored before Stage 1
+**What to defer to Stage 1 (tables created in schema but no pipeline):**
+- `artifact_governance_events` — table exists, but Beau policy authorship and user ratification UI are Stage 1
+- `training_examples` — table exists, populated when first curation pipeline is built
+- `dataset_exports` — table exists, populated when first export runs
+- `eval_runs` / `eval_scores` — table exists, first eval set authored as entry gate to Stage 1
+- Trace retention/archival (not urgent until months of data accumulate)
 
 **What NOT to build yet:**
 - Training infrastructure
-- Export pipeline (can be added when needed)
-- Pattern recognition pipeline (needs data accumulation first)
-- UI for feedback capture (implicit signals are sufficient initially)
+- Export pipeline
+- Pattern recognition pipeline (needs 3+ months of data)
+- UI for explicit feedback capture (implicit signals are sufficient initially)
+- Beau-authored consent policy (Stage 1 — requires policy UI + ratification flow)
 
-**Migration strategy:** The project uses Drizzle ORM with auto-migration on startup. All 8 tables should be added in a single migration so the schema is complete from the start, even though some tables (`training_examples`, `dataset_exports`, `eval_runs`, `eval_scores`) will remain empty until their respective stages. This avoids repeated migrations and ensures foreign key targets exist immediately.
+**Migration strategy:** The project uses Drizzle ORM with auto-migration on startup. All tables should be added in a single migration so the schema is complete from the start, even though some tables remain empty until their respective stages. This avoids repeated migrations and ensures FK targets exist immediately.
 
 **Decision gates before leaving Stage 0:**
-- Every dispatch produces a replayable trace
-- Traces have training eligibility computed and stored
-- At least one eval set exists with baseline scores
+- Every dispatch produces a replayable trace (async, fail-open)
+- Traces have system-default training eligibility computed and stored
+- Model lineage registry has entries for all 4 current tier models
 - Model lineage registry has entries for all 4 current tier models
 
 ### Stage 1: Supervised Adapter Tuning
@@ -580,7 +605,7 @@ Per-trace lean features already captured in `contextStateJson`:
 
 **Approach:**
 - LoRA/QLoRA on a single model family first (likely Gemma3 for T2 — it's the personality/poetry tier)
-- Use only `tierTag: "high_tier"` + `trainingEligibility: "trainable"` examples
+- Use only `tierTag: "voice_bearing"` + `trainingEligibility: "trainable"` examples
 - One narrow objective: voice fidelity (does output sound like Beau?)
 - Compare tuned vs baseline on fixed eval set before any deployment
 - Deploy as adapter via Ollama ADAPTER directive or merged GGUF
@@ -634,13 +659,12 @@ Each extra model family increases tokenizer drift, adapter incompatibility, expo
 
 **Current families:** Qwen2.5 (T1), Gemma3 (T2), Llama3.1 (T3), Qwen3 (T4)
 
-**Recommendation:** Pick 1-2 families for trainable tiers. Candidates:
-- **Gemma3** for T2 (personality/poetry) — Google's family, good adapter support, the tier where Beau's voice matters most
-- **Qwen2.5** for T1 (reflex) — already small enough for Hailo, training for better reflexes makes sense
+**Recommendation:** Pick 1-2 families for trainable tiers:
+- **Gemma3** for T2 (personality/poetry) — first experimental SFT lane, good adapter support, the tier where Beau's voice matters most
+- **T3/T4** may not need fine-tuning initially — they're already large enough to follow the system prompt faithfully. Consider them teacher models for distillation rather than fine-tuning targets.
+- **T1 (Qwen2.5 on Hailo)** is the **hardest** tier to deploy custom variants onto cleanly due to Hailo hardware constraints (NPU model loading, quantization requirements). T1 should be a **later distillation/export target** (Stage 3+), not an early adapter target. Don't accumulate T1-specific training tooling until the T2 pipeline is proven.
 
-T3/T4 may not need fine-tuning initially — they're already large enough to follow the system prompt faithfully. Consider them teacher models for distillation rather than fine-tuning targets.
-
-**Decision to make before Stage 1:** Which families will be the trainable targets? Lock that decision before accumulating model-specific tooling.
+**Decision to make before Stage 1:** Which family will be the first trainable target? Current recommendation: Gemma3 (T2). Lock this before accumulating model-specific tooling.
 
 ---
 
