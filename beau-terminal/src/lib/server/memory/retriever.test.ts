@@ -504,7 +504,7 @@ describe('MemoryRetrieverImpl', () => {
 
 			const result = await retriever.retrieve('test', defaultCtx());
 
-			expect(result).toEqual({ fragments: [], usedTokens: 0 });
+			expect(result).toEqual({ fragments: [], usedTokens: 0, provenance: [] });
 		});
 
 		it('returns empty when Ollama returns non-OK status', async () => {
@@ -515,7 +515,7 @@ describe('MemoryRetrieverImpl', () => {
 
 			const result = await retriever.retrieve('test', defaultCtx());
 
-			expect(result).toEqual({ fragments: [], usedTokens: 0 });
+			expect(result).toEqual({ fragments: [], usedTokens: 0, provenance: [] });
 		});
 
 		it('returns empty when ChromaDB is unreachable (all collections fail)', async () => {
@@ -525,7 +525,7 @@ describe('MemoryRetrieverImpl', () => {
 			const retriever = new MemoryRetrieverImpl(client, ollamaUrl);
 			const result = await retriever.retrieve('test', defaultCtx());
 
-			expect(result).toEqual({ fragments: [], usedTokens: 0 });
+			expect(result).toEqual({ fragments: [], usedTokens: 0, provenance: [] });
 		});
 	});
 

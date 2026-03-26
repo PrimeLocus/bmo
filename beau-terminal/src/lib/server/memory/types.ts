@@ -1,5 +1,7 @@
 // Memory/RAG types, interfaces, and constants — SP5
 
+import type { RetrievalProvenance } from '../training/types.js';
+
 export type SourceType = 'canon' | 'haiku' | 'journal' | 'session' | 'capture' | 'noticing' | 'photo';
 export type CollectionName = 'beau_identity' | 'beau_experience' | 'beau_private';
 
@@ -38,6 +40,7 @@ export interface RetrieveContext {
 export interface RetrieveResult {
 	fragments: MemoryFragment[];
 	usedTokens: number;
+	provenance: RetrievalProvenance[];
 }
 
 export interface MemoryRetriever {
