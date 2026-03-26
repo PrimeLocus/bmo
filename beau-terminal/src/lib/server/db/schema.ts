@@ -29,6 +29,7 @@ export const softwareSteps = sqliteTable('software_steps', {
   done: integer('done', { mode: 'boolean' }).notNull().default(false),
   order: integer('order').notNull(),
   links: text('links').notNull().default('[]'),
+  requiredPartIds: text('requiredPartIds').default('[]'),
 });
 
 export const ideas = sqliteTable('ideas', {

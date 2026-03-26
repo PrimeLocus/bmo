@@ -72,6 +72,24 @@ async function fetchDeliveryDate(tracking: string): Promise<string> {
 }
 
 export const actions: Actions = {
+  create: async ({ request }) => {
+    const form = await request.formData();
+    const name = (form.get('name') as string)?.trim();
+    const category = (form.get('category') as string)?.trim();
+    if (!name || !category) return fail(400, { error: 'name and category required' });
+    const price = Number(form.get('price') ?? 0) || 0;
+    const source = (form.get('source') as string | null)?.trim() ?? '';
+    const status = (form.get('status') as string | null) ?? 'ordered';
+    const eta = (form.get('eta') as string | null)?.trim() ?? '';
+    const role = (form.get('role') as string | null)?.trim() ?? '';
+    const notes = (form.get('notes') as string | null)?.trim() ?? '';
+    const buildVersion = (form.get('buildVersion') as string | null) ?? 'v1';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newPart = db.insert(parts).values({ name, category, price, source, status, eta, role, notes, buildVersion } as any).returning().get();
+    logActivity('part', newPart.id, 'created', name);
+    return { success: true };
+  },
+
   update: async ({ request }) => {
     const form = await request.formData();
     const id = Number(form.get('id'));
