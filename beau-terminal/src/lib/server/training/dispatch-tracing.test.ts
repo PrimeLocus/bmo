@@ -307,7 +307,7 @@ beforeEach(() => {
 
   mockRouteRequest.mockReturnValue(defaultPlan);
   mockPreparePrompt.mockResolvedValue(defaultPrepare);
-  mockGetOnlineTiers.mockReturnValue([defaultPlan.tierConfig]);
+  mockGetOnlineTiers.mockReturnValue([defaultPlan.tierConfig] as any);
   mockCheckQualitySignals.mockReturnValue(false);
 
   // Default: executeWithFallback succeeds and calls onAttempt
@@ -529,7 +529,7 @@ describe('dispatch trace capture — quality escalation', () => {
       allowEscalation: false,
     });
 
-    mockGetOnlineTiers.mockReturnValue([plan.tierConfig, t3Config]);
+    mockGetOnlineTiers.mockReturnValue([plan.tierConfig, t3Config] as any);
     mockCheckQualitySignals.mockReturnValue(true);
 
     // First call: returns primary plan. Second call: returns escalation plan.
