@@ -103,11 +103,17 @@ export {
 } from '../training/schema.js';
 ```
 
-- [ ] **Step 3: Verify migration runs**
+- [ ] **Step 3: Add manual bootstrap to db/index.ts**
+
+**Important:** This project uses a dual migration strategy — Drizzle migrations from `drizzle/` folder AND manual `CREATE TABLE IF NOT EXISTS` blocks in `db/index.ts`. The Drizzle migration folder may not auto-generate for new tables added to the schema file. Add `CREATE TABLE IF NOT EXISTS` blocks for all 9 training tables to `db/index.ts`, following the existing pattern (e.g., `emergence_artifacts`, `natal_profiles`).
+
+Also generate a Drizzle migration: `cd beau-terminal && npx drizzle-kit generate`. If generation fails or produces conflicts, the manual `CREATE TABLE IF NOT EXISTS` blocks ensure the tables exist regardless.
+
+- [ ] **Step 4: Verify tables exist at runtime**
 
 Run: `cd beau-terminal && npm run dev`
 
-Expected: Server starts, auto-migration creates 9 new tables. Check with `sqlite3 data/beau.db ".tables"`.
+Expected: Server starts, 9 new tables created. Check with `sqlite3 data/beau.db ".tables"`.
 
 - [ ] **Step 4: Commit**
 
@@ -540,7 +546,7 @@ Insert `generation_feedback` rows when thoughts are surfaced, decayed, or dismis
 
 - [ ] **Step 1: Write failing tests**
 
-Test that `recordFeedback` inserts a row with correct `outcomeType`, `reviewer`, and `requestId`. Test that it's fail-open (doesn't throw on DB error).
+Test that `recordFeedback` inserts a row with correct `outcomeType`, `reviewer`, and `traceId`. Test that it's fail-open (doesn't throw on DB error).
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -548,24 +554,20 @@ Run: `cd beau-terminal && npx vitest run src/lib/server/training/feedback.test.t
 
 - [ ] **Step 3: Implement feedback insertion**
 
-`recordFeedback(input: { traceId?, requestId?, reviewer, outcomeType, finalText?, notes? })` — inserts into `generationFeedback` table. Wrapped in try/catch (fail-open, best-effort).
+`recordFeedback(input: { traceId, reviewer, outcomeType, finalText?, notes? })` — inserts into `generationFeedback` table keyed by `traceId` (not requestId — one requestId can produce multiple traces from fallback/escalation). Wrapped in try/catch (fail-open, best-effort).
 
-- [ ] **Step 4: Add `dispatchRequestId` field to PendingThought**
+- [ ] **Step 4: Wire into thought queue lifecycle using traceId linkage**
 
-**Problem:** `PendingThought` currently has no field linking back to the brain dispatch `requestId`. The thought `id` and the dispatch `requestId` are generated independently (different `nanoid` calls in different code paths). Without a link, feedback rows cannot be joined to traces.
+**Linkage model:** The bridge already uses `brainRequest.requestId` as the thought queue ID (`thought.id`), so `thought.id === requestId`. But feedback should link to `traceId` (not `requestId`) because one requestId can produce multiple trace rows (fallback/escalation). The feedback is about the *final* surfaced/decayed result, which corresponds to the last successful trace for that requestId.
 
-**Fix:** Add a `dispatchRequestId: string | null` field to `PendingThought`. In `bridge.ts` (or wherever `brain.dispatch()` is called for thoughts), after dispatch completes, call `queue.setDispatchRequestId(thoughtId, request.requestId)` to store the linkage.
-
-- [ ] **Step 5: Wire into thought queue lifecycle**
+**Implementation:** After brain dispatch completes in `bridge.ts`, the outbox has enqueued trace(s) for this requestId. Store the final attempt's `traceId` on the thought (add a `traceId: string | null` field to `PendingThought`, populated after dispatch returns). Then feedback uses this traceId.
 
 In `queue.ts`:
-- `surface()` → call `recordFeedback({ requestId: thought.dispatchRequestId, reviewer: 'system', outcomeType: 'surfaced' })`
-- `runDecay()` when status → 'decayed' → call `recordFeedback({ requestId: thought.dispatchRequestId, reviewer: 'system', outcomeType: 'decayed' })`
-- When thought dropped (null result) → call `recordFeedback({ requestId: thought.dispatchRequestId, reviewer: 'system', outcomeType: 'dropped' })`
+- `surface()` → call `recordFeedback({ traceId: thought.traceId, reviewer: 'system', outcomeType: 'surfaced' })`
+- `runDecay()` when status → 'decayed' → call `recordFeedback({ traceId: thought.traceId, reviewer: 'system', outcomeType: 'decayed' })`
+- When thought dropped (null result) → call `recordFeedback({ traceId: thought.traceId, reviewer: 'system', outcomeType: 'dropped' })`
 
-The `dispatchRequestId` links to `generation_traces.requestId`, enabling joins from feedback → traces.
-
-**Note:** `'dropped'` is not in the spec's outcomeType list — add it to the spec or map to `'dismissed'`. Recommended: add `'dropped'` to distinguish "model returned null/SILENCE" (dropped) from "user closed the toast" (dismissed).
+**Note:** `'dropped'` is not in the spec's outcomeType list — add it to distinguish "model returned null/SILENCE" (dropped) from "user closed the toast" (dismissed).
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -650,7 +652,7 @@ Expected: One trace row with `consentScope: 'user_content'`, `trainingEligibilit
 
 1. Wait for thought system to generate a thought (or trigger manually)
 2. Surface or let it decay
-3. Check: `sqlite3 data/beau.db "SELECT requestId, reviewer, outcomeType FROM generation_feedback;"`
+3. Check: `sqlite3 data/beau.db "SELECT trace_id, reviewer, outcome_type FROM generation_feedback;"`
 
 Expected: One feedback row with `reviewer: 'system'`, `outcomeType: 'surfaced'` or `'decayed'`.
 
@@ -664,18 +666,18 @@ Expected: No type errors
 
 ```bash
 git add -A
-git commit -m "feat(training): complete Stage 0 training readiness instrumentation"
+git commit -m "feat(training): core provenance layer complete — trace capture, eligibility, model registry, feedback"
 ```
 
 ---
 
-## Known Gaps (Follow-Up Work)
+## Known Gaps (Required Follow-Up Before Stage 1)
 
-These items are required by the spec but not implemented in this plan. They should be addressed in a follow-up plan before Stage 1:
+This plan delivers the **core provenance layer** — not full Stage 0 completion. These items are required by the spec and must be addressed in a follow-up plan before any fine-tuning work:
 
-- **Baseline evaluation suite** — Required as a hard gate before any fine-tuning. Needs: hand-authored golden prompts, privacy test cases, voice fidelity rubric, and first scored run against at least one tier. Depends on accumulated trace data.
+- **Baseline evaluation suite (HARD GATE)** — Required before Stage 1. Needs: hand-authored golden prompts, privacy test cases, voice fidelity rubric, and first scored run against at least one tier. Depends on accumulated trace data. **Create a separate follow-up plan for this.**
 - **`generationParams` capture** — The executor currently sends hardcoded generation params to Ollama. When the executor is extended to support configurable temperature/top_p/etc., those params should be captured in traces. Until then, `generationParams` is null.
-- **`modelDigest` capture** — Requires querying Ollama `/api/show` or caching digest from `/api/tags` probing. Not urgent for Stage 0 but needed for exact weight reproducibility.
+- **`modelDigest` capture** — Requires querying Ollama `/api/show` or caching digest from `/api/tags` probing. Not urgent but needed for exact weight reproducibility.
 - **`'dropped'` outcome type** — Add to the spec's `generation_feedback.outcomeType` enum to distinguish "model returned SILENCE" from "user dismissed toast."
 
 ---
