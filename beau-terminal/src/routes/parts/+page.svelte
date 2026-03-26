@@ -9,10 +9,11 @@
   const { data }: { data: PageData } = $props();
 
   const STATUSES = ['ordered', 'shipped', 'delivered', 'installed', 'waiting', 'cancelled'];
-  const CATEGORY_ORDER = ['Core', 'AI', 'Audio', 'Power', 'Display', 'Storage', 'Hardware', 'Setup'];
+  const CATEGORY_ORDER = ['Core', 'AI', 'Audio', 'Power', 'Display', 'Storage', 'Hardware', 'Lighting', 'Setup'];
 
   let expanded = $state<Set<number>>(new Set());
   let activeCategory = $state('ALL');
+  let showAddForm = $state(false);
   let refreshing = $state<Set<number>>(new Set());
   let sortBy = $state('id');
   let sortDir = $state<'asc' | 'desc'>('asc');
@@ -124,6 +125,13 @@
         {data.parts.filter(p => p.status === 'delivered').length} delivered ·
         {data.parts.filter(p => p.status === 'ordered').length} ordered
       </div>
+      <button onclick={() => showAddForm = !showAddForm}
+              class="text-xs px-2 py-1 border tracking-widest transition-all"
+              style="border-color: {showAddForm ? 'var(--bmo-green)' : 'var(--bmo-border)'};
+                     color: {showAddForm ? 'var(--bmo-bg)' : 'var(--bmo-muted)'};
+                     background: {showAddForm ? 'var(--bmo-green)' : 'transparent'}">
+        + ADD PART
+      </button>
       <button onclick={() => showColSettings = !showColSettings}
               class="text-xs px-2 py-1 border tracking-widest transition-all"
               style="border-color: {showColSettings ? 'var(--bmo-green)' : 'var(--bmo-border)'};
@@ -175,6 +183,92 @@
           <span style="color: #d63031">⚠ exceeds 100%</span>
         {/if}
       </p>
+    </div>
+  {/if}
+
+  <!-- Add Part form -->
+  {#if showAddForm}
+    <div class="mb-5 p-4 border" style="border-color: var(--bmo-green); background: var(--bmo-surface)">
+      <p class="text-xs tracking-widest mb-3" style="color: var(--bmo-green)">+ NEW PART</p>
+      <form method="POST" action="?/create"
+            use:enhance={() => async ({ result, update }) => {
+              await update();
+              if (result.type === 'success') {
+                showAddForm = false;
+                window.dispatchEvent(new CustomEvent('bmo:react', { detail: 'new part added.' }));
+              }
+            }}>
+        <div class="flex gap-3 flex-wrap items-end">
+          <div class="flex-1 min-w-48">
+            <label class="text-xs tracking-widest block mb-1" for="new-name" style="color: var(--bmo-muted)">NAME *</label>
+            <input id="new-name" type="text" name="name" required placeholder="Part name"
+                   class="text-sm px-2 py-1.5 border w-full"
+                   style="background: var(--bmo-bg); color: var(--bmo-text); border-color: var(--bmo-border)" />
+          </div>
+          <div>
+            <label class="text-xs tracking-widest block mb-1" for="new-category" style="color: var(--bmo-muted)">CATEGORY *</label>
+            <select id="new-category" name="category" required
+                    class="text-sm px-2 py-1.5 border"
+                    style="background: var(--bmo-bg); color: var(--bmo-text); border-color: var(--bmo-border)">
+              {#each CATEGORY_ORDER as cat}
+                <option value={cat}>{cat}</option>
+              {/each}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs tracking-widest block mb-1" for="new-price" style="color: var(--bmo-muted)">PRICE ($)</label>
+            <input id="new-price" type="number" name="price" min="0" step="0.01" placeholder="0.00"
+                   class="text-sm px-2 py-1.5 border w-24"
+                   style="background: var(--bmo-bg); color: var(--bmo-text); border-color: var(--bmo-border)" />
+          </div>
+          <div>
+            <label class="text-xs tracking-widest block mb-1" for="new-source" style="color: var(--bmo-muted)">VENDOR</label>
+            <input id="new-source" type="text" name="source" placeholder="e.g. Amazon"
+                   class="text-sm px-2 py-1.5 border w-36"
+                   style="background: var(--bmo-bg); color: var(--bmo-text); border-color: var(--bmo-border)" />
+          </div>
+          <div>
+            <label class="text-xs tracking-widest block mb-1" for="new-status" style="color: var(--bmo-muted)">STATUS</label>
+            <select id="new-status" name="status"
+                    class="text-sm px-2 py-1.5 border"
+                    style="background: var(--bmo-bg); color: var(--bmo-text); border-color: var(--bmo-border)">
+              {#each STATUSES as s}
+                <option value={s} selected={s === 'ordered'}>{s}</option>
+              {/each}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs tracking-widest block mb-1" for="new-eta" style="color: var(--bmo-muted)">ETA</label>
+            <input id="new-eta" type="text" name="eta" placeholder="Apr 15"
+                   class="text-sm px-2 py-1.5 border w-24"
+                   style="background: var(--bmo-bg); color: var(--bmo-text); border-color: var(--bmo-border)" />
+          </div>
+          <div>
+            <label class="text-xs tracking-widest block mb-1" for="new-build" style="color: var(--bmo-muted)">BUILD</label>
+            <select id="new-build" name="buildVersion"
+                    class="text-sm px-2 py-1.5 border"
+                    style="background: var(--bmo-bg); color: var(--bmo-text); border-color: var(--bmo-border)">
+              {#each BUILD_VERSIONS as v}
+                <option value={v} selected={v === 'v1'}>{v}</option>
+              {/each}
+            </select>
+          </div>
+        </div>
+        <div class="mt-3">
+          <label class="text-xs tracking-widest block mb-1" for="new-role" style="color: var(--bmo-muted)">ROLE / DESCRIPTION</label>
+          <textarea id="new-role" name="role" rows="2" placeholder="What does this part do?"
+                    class="text-sm px-2 py-1.5 border w-full resize-none"
+                    style="background: var(--bmo-bg); color: var(--bmo-text); border-color: var(--bmo-border)"></textarea>
+        </div>
+        <div class="mt-3 flex gap-2">
+          <button type="submit"
+                  class="text-sm px-4 py-1.5 border tracking-widest"
+                  style="border-color: var(--bmo-green); color: var(--bmo-green)">+ ADD</button>
+          <button type="button" onclick={() => showAddForm = false}
+                  class="text-sm px-3 py-1.5 border tracking-widest"
+                  style="border-color: var(--bmo-border); color: var(--bmo-muted)">CANCEL</button>
+        </div>
+      </form>
     </div>
   {/if}
 

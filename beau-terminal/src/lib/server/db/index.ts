@@ -69,6 +69,7 @@ function reconcileMigrations() {
 try { sqlite.prepare("ALTER TABLE parts ADD COLUMN expected_delivery TEXT NOT NULL DEFAULT ''").run(); } catch { /* already exists */ }
 try { sqlite.prepare("ALTER TABLE parts ADD COLUMN build_version TEXT NOT NULL DEFAULT 'v1'").run(); } catch { /* already exists */ }
 try { sqlite.prepare("ALTER TABLE software_steps ADD COLUMN links TEXT NOT NULL DEFAULT '[]'").run(); } catch { /* already exists */ }
+try { sqlite.prepare("ALTER TABLE software_steps ADD COLUMN requiredPartIds TEXT DEFAULT '[]'").run(); } catch { /* already exists */ }
 try { sqlite.prepare("ALTER TABLE ideas ADD COLUMN links TEXT NOT NULL DEFAULT '[]'").run(); } catch { /* already exists */ }
 try {
   sqlite.prepare(`CREATE TABLE IF NOT EXISTS todos (

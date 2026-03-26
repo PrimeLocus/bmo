@@ -244,6 +244,9 @@ const PART_SEEDS: PartSeed[] = [
   { id: 16, name: 'SB Components GPIO Stacking Header', category: 'Hardware', price: 7.99, source: 'Amazon', tracking: '', status: 'delivered', eta: 'Delivered', role: 'Extra-tall 2×20 female stacking header. Solves HAT layering so ReSpeaker stacks on AI HAT+ 2.', notes: 'Pack of 5', expectedDelivery: 'Delivered' },
   { id: 17, name: 'Hilitchi 6x6mm Tactile Switch Assortment (200-pack)', category: 'Hardware', price: 9.99, source: 'Amazon', tracking: '', status: 'ordered', eta: '', role: 'Front-panel input hardware for button prototyping. 10 switch heights from 4.3mm to 13mm.', notes: 'v1 button perfboard prototype supply', expectedDelivery: '' },
   { id: 18, name: 'TRYMAG 5x2mm Neodymium Disc Magnets (200-pack)', category: 'Hardware', price: 7.99, source: 'Amazon', tracking: '', status: 'ordered', eta: '', role: 'Retention and alignment magnets for enclosure panels and button module experiments.', notes: '200-pack', expectedDelivery: '' },
+  { id: 19, name: 'Jetson Orin Nano Super 8GB', category: 'AI', price: 249.00, source: 'NVIDIA', tracking: '', status: 'waiting', eta: '', role: 'Tier 3 working-mind brain. 67 TOPS INT8, 8GB LPDDR5. Runs Llama 3.1 8B for mid-weight reasoning. Connected via Tailscale.', notes: 'Replaces ThinkStation as T3', expectedDelivery: '' },
+  { id: 20, name: 'WS2812B LED Ring (16 pixels)', category: 'Lighting', price: 8.95, source: 'Amazon', tracking: '', status: 'waiting', eta: '', role: 'Addressable RGB LED ring for mood lighting. Maps to personality vector — wonder=teal, reflection=blue, mischief=gold. Bible §50 glow colors.', notes: '', expectedDelivery: '' },
+  { id: 21, name: 'Momentary Push Buttons ×4', category: 'Hardware', price: 3.99, source: 'Amazon', tracking: '', status: 'waiting', eta: '', role: 'Front-panel A/B/Select/Start buttons. GPIO 17/27/22/23. Clear of ReSpeaker v2.0 pins. gpiozero pull-ups.', notes: 'For perfboard v1 prototype', expectedDelivery: '' },
 ];
 
 const PHASE_DATA = [
@@ -269,13 +272,13 @@ const PHASE_DATA = [
     { id: 's15', text: 'Test Ollama: curl http://localhost:11434/api/generate', order: 5 },
   ]},
   { phase: 'Phase 4 — Audio', order: 4, steps: [
-    { id: 's16', text: 'Stack ReSpeaker HAT v2.0 on GPIO stacking header', order: 1 },
-    { id: 's17', text: 'Build DTS overlay for seeed-2mic-voicecard', order: 2 },
-    { id: 's18', text: 'Add dtoverlay to /boot/firmware/config.txt, reboot', order: 3 },
-    { id: 's19', text: 'Verify: arecord -l (should show seeed-2mic-voicecard)', order: 4 },
+    { id: 's16', text: 'Stack ReSpeaker HAT v2.0 on GPIO stacking header', order: 1, requiredPartIds: [8] },
+    { id: 's17', text: 'Build DTS overlay for seeed-2mic-voicecard', order: 2, requiredPartIds: [8] },
+    { id: 's18', text: 'Add dtoverlay to /boot/firmware/config.txt, reboot', order: 3, requiredPartIds: [8] },
+    { id: 's19', text: 'Verify: arecord -l (should show seeed-2mic-voicecard)', order: 4, requiredPartIds: [8] },
     { id: 's20', text: 'Install Piper TTS: pip install piper-tts', order: 5 },
     { id: 's21', text: 'Install Whisper STT: pip install openai-whisper', order: 6 },
-    { id: 's22', text: 'Test full audio loop: speak → Whisper → Ollama → Piper → speaker', order: 7 },
+    { id: 's22', text: 'Test full audio loop: speak → Whisper → Ollama → Piper → speaker', order: 7, requiredPartIds: [8, 9] },
   ]},
   { phase: "Phase 4.5 — Voice Training (Beau's Voice)", order: 5, steps: [
     { id: 'v1', text: 'Goal: Korean-Cajun blend voice. TextyMcSpeechy on Legion RTX 4090.', order: 1 },
@@ -289,14 +292,14 @@ const PHASE_DATA = [
     { id: 's23', text: 'Install openWakeWord: pip install openwakeword', order: 1 },
     { id: 's24', text: "Train 'Hey BMO' (public) wake word", order: 2 },
     { id: 's24b', text: "Train 'Hey Beau' (private) wake word", order: 3 },
-    { id: 's25', text: 'Integrate wake word → Whisper → routing dispatcher → Ollama', order: 4 },
+    { id: 's25', text: 'Integrate wake word → Whisper → routing dispatcher → Ollama', order: 4, requiredPartIds: [8] },
   ]},
   { phase: 'Phase 6 — Face Display', order: 7, steps: [
-    { id: 's26', text: 'Configure Freenove DSI display in /boot/firmware/config.txt', order: 1 },
+    { id: 's26', text: 'Configure Freenove DSI display in /boot/firmware/config.txt', order: 1, requiredPartIds: [12] },
     { id: 's27', text: 'Install pygame: pip install pygame', order: 2 },
     { id: 's28', text: 'Clone brenpoly/be-more-agent for reference face animation code', order: 3 },
-    { id: 's29', text: 'Build BMO face states: idle / listening / thinking / speaking / delighted', order: 4 },
-    { id: 's30', text: 'Sync mouth animation to Piper TTS audio waveform output', order: 5 },
+    { id: 's29', text: 'Build BMO face states: idle / listening / thinking / speaking / delighted', order: 4, requiredPartIds: [12] },
+    { id: 's30', text: 'Sync mouth animation to Piper TTS audio waveform output', order: 5, requiredPartIds: [8, 9, 12] },
   ]},
   { phase: 'Phase 7 — Personality & RAG', order: 8, steps: [
     { id: 's31', text: 'Build routing dispatcher: reflex → HAT, philosophy → Pi CPU, heavy → ThinkStation', order: 1 },
@@ -362,6 +365,28 @@ const PHASE_DATA = [
     { id: 'sp6t9', text: 'ThoughtDispatcher refactor — integrate BrainRouter, context scaler, quality gates', order: 9, done: true },
     { id: 'sp6t10', text: 'Bridge integration — health probing background task, tier availability broadcast, prompt assembly wiring', order: 10, done: true },
     { id: 'sp6t11', text: 'Prompt Console integration — routing reason display, tier clamping explanations, fallback chain visibility', order: 11, done: true },
+  ]},
+  // Hardware — Jetson Inference Backbone
+  { phase: 'Phase 15 — Jetson Inference Backbone', order: 16, steps: [
+    { id: 'j1', text: 'Flash JetPack 6 to Jetson Orin Nano Super, verify CUDA + cuDNN', order: 1, requiredPartIds: [19] },
+    { id: 'j2', text: 'Install Ollama on Jetson, pull llama3.1:8b', order: 2, requiredPartIds: [19] },
+    { id: 'j3', text: 'Configure Tailscale on Jetson, verify reachability from Pi', order: 3, requiredPartIds: [19] },
+    { id: 'j4', text: 'Update TierRegistry: T3 endpoint → Jetson Ollama URL via Tailscale', order: 4, requiredPartIds: [19] },
+    { id: 'j5', text: 'End-to-end test: thought dispatch routes to Jetson T3, falls back to T2 on timeout', order: 5, requiredPartIds: [19] },
+  ]},
+  // Hardware — LED Mood Lighting
+  { phase: 'Phase 16 — LED Mood Lighting', order: 17, steps: [
+    { id: 'l1', text: 'Wire WS2812B ring to Pi GPIO 18 (PWM), test with rpi_ws281x library', order: 1, requiredPartIds: [20] },
+    { id: 'l2', text: 'Build LED controller service: personality vector → color mapping (wonder=teal, reflection=blue, mischief=gold)', order: 2, requiredPartIds: [20] },
+    { id: 'l3', text: 'Wire MQTT subscription: beau/personality/vector → LED color updates', order: 3, requiredPartIds: [20] },
+    { id: 'l4', text: 'Implement face-state glow sync: LED ring mirrors BmoFace glow border colors (bible §50)', order: 4, requiredPartIds: [20] },
+    { id: 'l5', text: 'Add thought overlay glow: steady/pulse/rhythm LED patterns by thought type', order: 5, requiredPartIds: [20] },
+  ]},
+  // Hardware — Physical Controls
+  { phase: 'Phase 17 — Physical Controls', order: 18, steps: [
+    { id: 'b1', text: 'Wire 4 buttons to GPIO 17/27/22/23 with pull-ups, test with gpiozero', order: 1, requiredPartIds: [21] },
+    { id: 'b2', text: 'Map button actions: A=cycle personality, B=room survey, Select=witness toggle, Start=wake/text-adventure', order: 2, requiredPartIds: [21] },
+    { id: 'b3', text: 'Publish button presses to MQTT beau/buttons/{a,b,select,start} topics', order: 3, requiredPartIds: [21] },
   ]},
 ] as const;
 
@@ -461,25 +486,30 @@ function syncSoftware() {
     const resolvedPhaseId = phaseId;
     for (const step of phase.steps) {
       const seedDone = 'done' in step ? (step as { done: boolean }).done : false;
+      const seedReqParts = 'requiredPartIds' in step
+        ? JSON.stringify((step as { requiredPartIds: number[] }).requiredPartIds)
+        : '[]';
       const existingStep = db.select().from(softwareSteps).where(eq(softwareSteps.id, step.id)).get();
       if (!existingStep) {
         db.insert(softwareSteps)
-          .values({ id: step.id, phaseId: resolvedPhaseId, text: step.text, done: seedDone, order: step.order })
+          .values({ id: step.id, phaseId: resolvedPhaseId, text: step.text, done: seedDone, order: step.order, requiredPartIds: seedReqParts })
           .run();
         insertedSteps++;
         continue;
       }
 
-      // Advance done status (true→false never happens), update text/order/phase if changed
+      // Advance done status (true→false never happens), update text/order/phase/requiredPartIds if changed
       const shouldAdvanceDone = seedDone && !existingStep.done;
+      const existingReqParts = existingStep.requiredPartIds ?? '[]';
       const needsUpdate = existingStep.phaseId !== resolvedPhaseId ||
         existingStep.text !== step.text ||
         existingStep.order !== step.order ||
+        existingReqParts !== seedReqParts ||
         shouldAdvanceDone;
 
       if (!needsUpdate) continue;
 
-      const patch: Record<string, unknown> = { phaseId: resolvedPhaseId, text: step.text, order: step.order };
+      const patch: Record<string, unknown> = { phaseId: resolvedPhaseId, text: step.text, order: step.order, requiredPartIds: seedReqParts };
       if (shouldAdvanceDone) patch.done = true;
 
       db.update(softwareSteps)

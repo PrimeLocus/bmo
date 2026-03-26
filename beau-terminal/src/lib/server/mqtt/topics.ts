@@ -69,6 +69,12 @@ export const TOPICS = {
     dispatch: 'beau/brain/dispatch',
     availability: 'beau/brain/availability',
   },
+  buttons: {
+    a: 'beau/buttons/a',
+    b: 'beau/buttons/b',
+    select: 'beau/buttons/select',
+    start: 'beau/buttons/start',
+  },
 } as const;
 
 // Topics the terminal subscribes to (inbound from BMO)

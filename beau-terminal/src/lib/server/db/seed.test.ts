@@ -78,7 +78,7 @@ describe('seed', () => {
     seed();
 
     const allParts = db.select().from(parts).all();
-    expect(allParts).toHaveLength(18);
+    expect(allParts).toHaveLength(21);
 
     const aiHat = allParts.find((part) => part.id === 2);
     expect(aiHat?.status).toBe('delivered');
@@ -96,8 +96,26 @@ describe('seed', () => {
     expect(switches?.name).toContain('Hilitchi');
     expect(switches?.status).toBe('ordered');
 
+    // New hardware parts
+    const jetson = allParts.find((part) => part.id === 19);
+    expect(jetson?.name).toContain('Jetson');
+    expect(jetson?.status).toBe('waiting');
+
+    const ledRing = allParts.find((part) => part.id === 20);
+    expect(ledRing?.name).toContain('WS2812B');
+
+    const buttons = allParts.find((part) => part.id === 21);
+    expect(buttons?.name).toContain('Push Buttons');
+
     const enclosureStep = db.select().from(softwareSteps).where(eq(softwareSteps.id, 's40')).get();
     expect(enclosureStep?.text).toContain('Bambu Studio');
+
+    // requiredPartIds synced to steps
+    const audioStep = db.select().from(softwareSteps).where(eq(softwareSteps.id, 's16')).get();
+    expect(JSON.parse(audioStep?.requiredPartIds ?? '[]')).toEqual([8]);
+
+    const jetsonStep = db.select().from(softwareSteps).where(eq(softwareSteps.id, 'j1')).get();
+    expect(JSON.parse(jetsonStep?.requiredPartIds ?? '[]')).toEqual([19]);
 
     const buttonIdea = db.select().from(ideas).where(eq(ideas.id, 'i5')).get();
     expect(buttonIdea?.text).toContain('GPIO 17');

@@ -99,24 +99,32 @@
           <div class="border-t" style="border-color: var(--bmo-border)">
             {#each phase.steps as step (step.id)}
               {@const isBlocked = blockedStepIds.has(step.id)}
+              {@const isHwBlocked = step.blockingParts.length > 0 && !step.done}
               <div class="border-b group" style="border-color: var(--bmo-border)">
                 <div class="flex items-start gap-3 px-4 py-2">
                   <form method="POST" action="?/toggle" use:enhance={stepEnhance(step.done)} class="flex items-start gap-3 flex-1">
                     <input type="hidden" name="id" value={step.id} />
                     <input type="hidden" name="done" value={String(step.done)} />
-                    <button type="submit" class="mt-0.5 shrink-0 w-4 h-4 border flex items-center justify-center text-xs hover:opacity-70 transition-opacity"
-                            style="border-color: {step.done ? 'var(--bmo-green)' : 'var(--bmo-border)'}; background: {step.done ? 'var(--bmo-green)' : 'transparent'}; color: var(--bmo-bg)">
+                    <button type="submit" disabled={isHwBlocked}
+                            class="mt-0.5 shrink-0 w-4 h-4 border flex items-center justify-center text-xs hover:opacity-70 transition-opacity"
+                            style="border-color: {step.done ? 'var(--bmo-green)' : 'var(--bmo-border)'}; background: {step.done ? 'var(--bmo-green)' : 'transparent'}; color: var(--bmo-bg); opacity: {isHwBlocked ? '0.35' : '1'}; cursor: {isHwBlocked ? 'not-allowed' : 'pointer'}">
                       {#if step.done}✓{/if}
                     </button>
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-xs leading-relaxed" style="color: {step.done ? 'var(--bmo-muted)' : 'var(--bmo-text)'}; text-decoration: {step.done ? 'line-through' : 'none'}">
+                        <span class="text-xs leading-relaxed" style="color: {step.done ? 'var(--bmo-muted)' : isHwBlocked ? 'var(--bmo-muted)' : 'var(--bmo-text)'}; text-decoration: {step.done ? 'line-through' : 'none'}">
                           {step.text}
                         </span>
                         {#if isBlocked}
                           <span class="text-xs px-1 py-0.5 border tracking-widest shrink-0"
                                 style="border-color: #d6303140; color: #d63031; font-size: 0.6rem">
                             BLOCKED
+                          </span>
+                        {/if}
+                        {#if isHwBlocked}
+                          <span class="text-xs px-1 py-0.5 border tracking-widest shrink-0"
+                                style="border-color: #f0a50040; color: #f0a500; font-size: 0.6rem">
+                            HW WAIT
                           </span>
                         {/if}
                       </div>
@@ -128,6 +136,20 @@
                                style="border-color: {KIND_COLOR[link.kind] ?? 'var(--bmo-border)'}; color: {KIND_COLOR[link.kind] ?? 'var(--bmo-muted)'}; font-size: 0.65rem; letter-spacing: 0.04em">
                               <span style="opacity: 0.6">{KIND_PREFIX[link.kind] ?? '↗'}</span>{link.label}
                             </a>
+                          {/each}
+                        </div>
+                      {/if}
+                      {#if isHwBlocked}
+                        <div class="mt-1.5">
+                          <div class="tracking-widest mb-0.5" style="font-size: 0.6rem; color: #f0a500">WAITING ON HARDWARE</div>
+                          {#each step.blockingParts as bp}
+                            <div class="flex items-center gap-2 ml-1">
+                              <span style="color: #f0a500; font-size: 0.65rem">·</span>
+                              <span class="text-xs" style="color: var(--bmo-muted)">{bp.name}</span>
+                              <span class="tracking-widest" style="font-size: 0.6rem; color: #f0a500">
+                                {bp.status.toUpperCase()}{#if bp.eta} · ETA {bp.eta}{/if}
+                              </span>
+                            </div>
                           {/each}
                         </div>
                       {/if}
