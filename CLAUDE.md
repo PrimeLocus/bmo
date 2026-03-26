@@ -101,7 +101,7 @@ bmo/
     │   │       │   ├── activity.ts   # Activity log queries — recent events, entity activity feed
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
     │   │       │   ├── schema.ts     # 31 tables — source of truth for DB schema
-    │   │       │   └── seed.ts       # 18 parts, 15 phases, 85 steps, 11 ideas
+    │   │       │   └── seed.ts       # 21 parts, 18 phases, 98 steps, 11 ideas
     │   │       ├── mqtt/
     │   │       │   ├── bridge.ts     # MQTT → BeauState → SSE broadcast + thought system orchestration
     │   │       │   └── topics.ts     # MQTT topic constants + type unions (modes, devices, heating states)
@@ -155,8 +155,8 @@ bmo/
     │       ├── +page.svelte          # Dashboard — live state, build stats
     │       ├── identity/             # Identity — emergence, natal, voice lineage
     │       ├── presence/             # Presence — room state, sleep, environment sensors
-    │       ├── parts/                # Parts Tracker — sortable table, inline edit
-    │       ├── software/             # Software Build — phased checklist, progress bars
+    │       ├── parts/                # Parts Tracker — sortable table, inline edit, + ADD PART form
+    │       ├── software/             # Software Build — phased checklist, progress bars, HW WAIT gating
     │       ├── ideas/                # Ideas Board — 3-column kanban
     │       ├── todo/                 # Todo — sectioned task list
     │       ├── memory/               # Memory — dispatcher log + haiku archive
