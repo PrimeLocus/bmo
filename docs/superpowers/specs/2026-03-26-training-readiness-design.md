@@ -3,7 +3,7 @@
 **Sub-project:** Cross-cutting infrastructure (applies to SP6 Brain Dispatcher, SP5 Memory, SP1 Personality, all future model work)
 **Dependencies:** SP1 (Personality Engine), SP5 (Memory RAG), SP6 (Brain Dispatcher)
 **Date:** 2026-03-26
-**Status:** Approved design
+**Status:** Core provenance layer implemented (Stage 0 minus baseline eval). Follow-up: evaluation suite hard gate before Stage 1.
 **Deliberated with:** Claude Opus 4.6, GPT-5.4, Codex (independent spec + plan)
 
 ---
