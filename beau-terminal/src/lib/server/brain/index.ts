@@ -166,8 +166,8 @@ async function _executeDispatch(
   // -- Trace capture: build a lean state snapshot for contextState --
   const contextState = _getContextState(getState);
 
-  // -- Trace capture: tracks parentTraceId across attempts for escalation linkage --
-  let firstTraceId: string | null = null;
+  // -- Trace capture: tracks last successful traceId for quality_rejected + escalation linkage --
+  let lastSuccessfulTraceId: string | null = null;
 
   // Build the onAttempt callback for trace capture (just an array push — non-blocking)
   const onAttempt = (data: AttemptData): void => {
@@ -194,9 +194,11 @@ async function _executeDispatch(
 
     const payload = assembleTracePayload(ctx);
 
-    // Track the first trace ID for parent linkage in escalation
-    if (firstTraceId === null) {
-      firstTraceId = payload.traceId;
+    // Track the last successful trace for quality_rejected + escalation linkage.
+    // In a "primary error → fallback success → quality escalation" chain,
+    // we want to mark the weak fallback (not the failed primary) as quality_rejected.
+    if (data.responseStatus === 'completed' || data.responseStatus === 'silence') {
+      lastSuccessfulTraceId = payload.traceId;
     }
 
     outbox.enqueue(payload);
@@ -229,9 +231,9 @@ async function _executeDispatch(
       );
 
       if (escalationPlan !== null) {
-        // Mark the original attempt as quality_rejected (still in outbox, not yet flushed)
-        if (firstTraceId) {
-          getTraceOutbox()?.updateStatus(firstTraceId, 'quality_rejected');
+        // Mark the last successful attempt as quality_rejected (may still be in outbox or already flushed)
+        if (lastSuccessfulTraceId) {
+          getTraceOutbox()?.updateStatus(lastSuccessfulTraceId, 'quality_rejected');
         }
 
         const escalationPrepareResult = await preparePrompt(
@@ -246,8 +248,8 @@ async function _executeDispatch(
           return preparePrompt(request, fp, getMemoryProvider, getState);
         };
 
-        // Escalation onAttempt — links back to the original trace via parentTraceId
-        const escalationParentTraceId = firstTraceId;
+        // Escalation onAttempt — links back to the weak successful trace via parentTraceId
+        const escalationParentTraceId = lastSuccessfulTraceId;
         const onEscalationAttempt = (data: AttemptData): void => {
           if (isTimedOut()) return;
 

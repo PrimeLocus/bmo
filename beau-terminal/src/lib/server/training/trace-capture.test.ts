@@ -206,11 +206,11 @@ describe('assembleTracePayload', () => {
     expect(payload.responseText).toBeNull();
   });
 
-  it('inputJson is JSON.stringify of request.input', () => {
+  it('inputJson is JSON.stringify of the full request envelope', () => {
     const ctx = makeCtx();
     const payload = assembleTracePayload(ctx);
     const parsed = JSON.parse(payload.inputJson);
-    expect(parsed).toEqual(ctx.request.input);
+    expect(parsed).toEqual(ctx.request);
   });
 
   it('contextMode is set from thought.generate input.context.mode', () => {

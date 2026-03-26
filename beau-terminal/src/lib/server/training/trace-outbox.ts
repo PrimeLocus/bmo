@@ -8,12 +8,15 @@ import type { TracePayload } from './types.js';
 export interface TraceOutboxConfig {
   flushIntervalMs?: number;
   writer?: (payload: TracePayload) => void;
+  /** Fallback for updateStatus when the trace has already been flushed to DB. */
+  statusUpdater?: (traceId: string, status: string) => void;
 }
 
 export class TraceOutbox {
   private queue: TracePayload[] = [];
   private interval: ReturnType<typeof setInterval> | null = null;
   private config: TraceOutboxConfig;
+  private lastEnqueuedTraceId: string | null = null;
 
   constructor(config: TraceOutboxConfig = {}) {
     this.config = config;
@@ -24,6 +27,12 @@ export class TraceOutbox {
 
   enqueue(payload: TracePayload): void {
     this.queue.push(payload);
+    this.lastEnqueuedTraceId = payload.traceId;
+  }
+
+  /** Returns the traceId of the most recently enqueued payload, or null. */
+  getLastTraceId(): string | null {
+    return this.lastEnqueuedTraceId;
   }
 
   flush(): void {
@@ -49,12 +58,23 @@ export class TraceOutbox {
   }
 
   /** Retroactively update responseStatus of a queued (not yet flushed) trace.
-   *  Used after quality escalation to mark the original attempt as 'quality_rejected'. */
+   *  Used after quality escalation to mark the original attempt as 'quality_rejected'.
+   *  Falls back to DB update via statusUpdater if the trace has already been flushed. */
   updateStatus(traceId: string, responseStatus: string): boolean {
+    // Try in-memory first (not yet flushed)
     const entry = this.queue.find(p => p.traceId === traceId);
     if (entry) {
       entry.responseStatus = responseStatus;
       return true;
+    }
+    // Fallback: already flushed to DB
+    if (this.config.statusUpdater) {
+      try {
+        this.config.statusUpdater(traceId, responseStatus);
+        return true;
+      } catch {
+        return false;
+      }
     }
     return false;
   }

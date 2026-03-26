@@ -3,6 +3,7 @@
 // initTraining() starts the background flush loop. getTraceOutbox() returns the
 // instance for enqueue() calls (just an array push — never blocks dispatch).
 
+import { eq } from 'drizzle-orm';
 import { TraceOutbox } from './trace-outbox.js';
 import type { TracePayload } from './types.js';
 import { db } from '../db/index.js';
@@ -79,6 +80,17 @@ function writeTrace(payload: TracePayload): void {
 }
 
 /**
+ * Updates the responseStatus of an already-flushed trace in the database.
+ * Used as a fallback by the outbox when updateStatus is called after the 2s flush.
+ */
+function updateTraceStatus(traceId: string, status: string): void {
+  db.update(generationTraces)
+    .set({ responseStatus: status })
+    .where(eq(generationTraces.traceId, traceId))
+    .run();
+}
+
+/**
  * Initialise the training trace outbox. Safe to call multiple times — idempotent.
  * Starts a 2s background flush loop that drains enqueued payloads to SQLite.
  */
@@ -87,6 +99,7 @@ export function initTraining(): void {
   outbox = new TraceOutbox({
     flushIntervalMs: 2000,
     writer: writeTrace,
+    statusUpdater: updateTraceStatus,
   });
   outbox.start();
 }

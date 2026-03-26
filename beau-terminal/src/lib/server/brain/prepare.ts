@@ -176,9 +176,9 @@ export async function prepareThoughtPrompt(
     throw new Error(`prepareThoughtPrompt: unknown thought type "${request.input.type}"`);
   }
 
-  // For thought prompts, templateHash is a hash of the assembled prompt parts
-  // (there is no separate system prompt template for thoughts)
-  const templateHash = computeHash(prompt);
+  // For thought prompts, there is no raw template file — set to 'none'
+  // to distinguish from manual prompts that hash a real template.
+  const templateHash = 'none';
 
   return {
     prompt,

@@ -60,7 +60,7 @@ export function assembleTracePayload(ctx: TraceContext): TracePayload {
     provider: 'ollama',
     runtime: null,
     promptProvenance: ctx.prepareResult.provenance,
-    inputJson: JSON.stringify(ctx.request.input),
+    inputJson: JSON.stringify(ctx.request),
     promptText: ctx.prepareResult.prompt,
     responseText: ctx.responseText,
     responseStatus: ctx.responseStatus,
