@@ -1,6 +1,7 @@
 // Memory retriever — queries ChromaDB collections and reranks results
 // SP5 Task 6: retrieve + deduplicate + rerank + trim to token budget
 
+import { createHash } from 'node:crypto';
 import type { ChromaClient } from 'chromadb';
 import type {
 	CollectionName,
@@ -11,6 +12,7 @@ import type {
 	SourceType,
 } from './types.js';
 import { EMBEDDING_MODEL, RETRIEVAL_TIMEOUT_MS, estimateTokens } from './types.js';
+import type { RetrievalProvenance } from '../training/types.js';
 import { getCollectionPolicy } from '../reflective/memory.js';
 
 const RESULTS_PER_COLLECTION = 10;
@@ -26,7 +28,7 @@ export class MemoryRetrieverImpl implements MemoryRetriever {
 	) {}
 
 	async retrieve(query: string, ctx: RetrieveContext): Promise<RetrieveResult> {
-		const empty: RetrieveResult = { fragments: [], usedTokens: 0 };
+		const empty: RetrieveResult = { fragments: [], usedTokens: 0, provenance: [] };
 
 		// 1. Get collection policy for this mode + caller
 		const policy = getCollectionPolicy(ctx.mode, ctx.caller);
@@ -53,8 +55,12 @@ export class MemoryRetrieverImpl implements MemoryRetriever {
 		// 6. Trim to token budget
 		const trimmed = this.trimToBudget(ranked, maxTokens);
 
+		// 7. Build provenance from ALL ranked candidates
+		const selectedIds = new Set(trimmed.map((f) => f.id));
+		const provenance = this.buildProvenance(ranked, selectedIds);
+
 		const usedTokens = trimmed.reduce((sum, f) => sum + f.tokenCount, 0);
-		return { fragments: trimmed, usedTokens };
+		return { fragments: trimmed, usedTokens, provenance };
 	}
 
 	/** Embed query text via Ollama HTTP API */
@@ -226,5 +232,24 @@ export class MemoryRetrieverImpl implements MemoryRetriever {
 		}
 
 		return result;
+	}
+
+	/** Build provenance metadata for all ranked candidates, marking selected vs trimmed */
+	private buildProvenance(
+		ranked: MemoryFragment[],
+		selectedIds: Set<string>,
+	): RetrievalProvenance[] {
+		return ranked.map((frag, index) => ({
+			fragmentId: frag.id,
+			collection: frag.collection,
+			sourceType: frag.source,
+			sourceEntityId: frag.entityId,
+			rank: index,
+			baseScore: 1 - frag.rawDistance,
+			finalScore: frag.finalScore,
+			selected: selectedIds.has(frag.id),
+			tokenCount: frag.tokenCount,
+			excerptHash: createHash('sha256').update(frag.text).digest('hex'),
+		}));
 	}
 }

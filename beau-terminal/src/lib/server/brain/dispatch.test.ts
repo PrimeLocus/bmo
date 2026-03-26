@@ -184,7 +184,18 @@ beforeEach(() => {
   // Set up sensible defaults for the happy-path mocks
   const defaultPlan = makeRoutePlan();
   mockRouteRequest.mockReturnValue(defaultPlan);
-  mockPreparePrompt.mockResolvedValue('Built prompt text');
+  mockPreparePrompt.mockResolvedValue({
+    prompt: 'Built prompt text',
+    provenance: {
+      templateHash: 'abc123',
+      promptPolicyVersion: '1.0.0',
+      retrievalPolicyVersion: '1.0.0',
+      assemblerVersion: '1.0.0',
+      promptProfile: 'full',
+      promptHash: 'def456',
+    },
+    retrievals: [],
+  });
   mockExecuteWithFallback.mockResolvedValue(makeResponse());
   mockCheckQualitySignals.mockReturnValue(false);
   mockGetOnlineTiers.mockReturnValue([defaultPlan.tierConfig]);

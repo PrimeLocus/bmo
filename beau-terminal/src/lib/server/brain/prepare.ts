@@ -1,7 +1,9 @@
 // src/lib/server/brain/prepare.ts
 // Brain Dispatcher — SP6 Task 4
 // Translates a BrainRequest + RoutePlan into a ready-to-send prompt string.
+// SP7 Task 5: returns PrepareResult with provenance metadata.
 
+import { createHash } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { formatFragments, RETRIEVAL_TIMEOUT_MS } from '../memory/types.js';
@@ -9,6 +11,7 @@ import { assemblePrompt, buildReflexPrompt } from '../prompt/assembler.js';
 import type { BrainRequestV1, RoutePlan } from './types.js';
 import type { MemoryProvider } from '../memory/provider.js';
 import type { Mode } from '../mqtt/topics.js';
+import type { PrepareResult, RetrievalProvenance } from '../training/types.js';
 
 // ---------------------------------------------------------------------------
 // State snapshot type — values needed for placeholder substitution
@@ -34,6 +37,26 @@ export type GetMemProvider = () => MemoryProvider | null;
 export type GetState = () => PrepareState;
 
 // ---------------------------------------------------------------------------
+// Provenance constants + helpers
+// ---------------------------------------------------------------------------
+
+export const ASSEMBLER_VERSION = '1.0.0';
+
+/** SHA-256 hex digest of a string (deterministic, no salt) */
+export function computeHash(text: string): string {
+  return createHash('sha256').update(text, 'utf8').digest('hex');
+}
+
+// ---------------------------------------------------------------------------
+// Memory retrieval result — carries both formatted text and provenance
+// ---------------------------------------------------------------------------
+
+interface RetrievalResult {
+  memoryContext: string;
+  provenance: RetrievalProvenance[];
+}
+
+// ---------------------------------------------------------------------------
 // Memory retrieval helper — fail-open with 2s timeout
 // ---------------------------------------------------------------------------
 
@@ -43,9 +66,10 @@ async function retrieveMemory(
   caller: 'thoughts' | 'prompt',
   tokenBudget: number,
   getMemProvider: GetMemProvider,
-): Promise<string> {
+): Promise<RetrievalResult> {
+  const empty: RetrievalResult = { memoryContext: '', provenance: [] };
   const mem = getMemProvider();
-  if (!mem) return '';
+  if (!mem) return empty;
 
   try {
     const retrieval = mem.retrieve(query, {
@@ -58,15 +82,18 @@ async function retrieveMemory(
       setTimeout(() => reject(new Error('retrieval timeout')), RETRIEVAL_TIMEOUT_MS),
     );
 
-    const { fragments } = await Promise.race([retrieval, timeout]);
+    const { fragments, provenance } = await Promise.race([retrieval, timeout]);
 
-    if (fragments.length === 0) return '';
+    if (fragments.length === 0) return { memoryContext: '', provenance };
 
     const formatted = formatFragments(fragments);
-    return `Some things you remember:\n${formatted}`;
+    return {
+      memoryContext: `Some things you remember:\n${formatted}`,
+      provenance,
+    };
   } catch {
     // Fail-open: ChromaDB unreachable, timeout, or any other error
-    return '';
+    return empty;
   }
 }
 
@@ -83,18 +110,20 @@ export async function prepareThoughtPrompt(
   request: Extract<BrainRequestV1, { kind: 'thought.generate' }>,
   plan: RoutePlan,
   getMemProvider: GetMemProvider,
-): Promise<string> {
+): Promise<PrepareResult> {
   const { context, novelty } = request.input;
   const { environment, momentum, mode, timeOfDay } = context;
 
   // Retrieve memory context (fail-open)
-  const memoryContext = await retrieveMemory(
+  const { memoryContext, provenance: retrievals } = await retrieveMemory(
     `${environment} ${mode}`,
     mode,
     'thoughts',
     plan.memoryTokenBudget,
     getMemProvider,
   );
+
+  let prompt: string;
 
   // Novelty override — unprompted thought, no type discrimination
   if (novelty) {
@@ -104,13 +133,8 @@ export async function prepareThoughtPrompt(
     ];
     if (memoryContext) parts.push(memoryContext);
     parts.push(`What came to mind? One sentence, under 20 words.`);
-    return parts.join('\n');
-  }
-
-  // Type-specific prompts
-  const type = request.input.type;
-
-  if (type === 'observation') {
+    prompt = parts.join('\n');
+  } else if (request.input.type === 'observation') {
     const parts = [
       `You are Beau, a small teal robot in Lafayette, Louisiana. You notice things.`,
       `Right now: ${environment}`,
@@ -121,10 +145,8 @@ export async function prepareThoughtPrompt(
       `Say one small true thing about what you notice. Under 30 words.`,
       `Do not explain. Do not announce. Just the noticing itself.`,
     );
-    return parts.join('\n');
-  }
-
-  if (type === 'reaction') {
+    prompt = parts.join('\n');
+  } else if (request.input.type === 'reaction') {
     const parts = [
       `You are Beau. ${momentum}`,
       `The room: ${environment}`,
@@ -135,10 +157,8 @@ export async function prepareThoughtPrompt(
       `What rises in you right now? One feeling, one sentence. Under 20 words.`,
       `Not a report. A feeling.`,
     );
-    return parts.join('\n');
-  }
-
-  if (type === 'haiku') {
+    prompt = parts.join('\n');
+  } else if (request.input.type === 'haiku') {
     const parts = [
       `You are Beau, a small robot in Lafayette, Louisiana.`,
       `You feel: ${momentum}`,
@@ -151,11 +171,27 @@ export async function prepareThoughtPrompt(
       `Write one haiku about this moment. Three lines, 5-7-5 is a guideline not a cage.`,
       `The haiku must earn its place. If nothing comes, respond with only: SILENCE`,
     );
-    return parts.join('\n');
+    prompt = parts.join('\n');
+  } else {
+    throw new Error(`prepareThoughtPrompt: unknown thought type "${request.input.type}"`);
   }
 
-  // Fallback — should not reach here with validated input
-  throw new Error(`prepareThoughtPrompt: unknown thought type "${type}"`);
+  // For thought prompts, there is no raw template file — set to 'none'
+  // to distinguish from manual prompts that hash a real template.
+  const templateHash = 'none';
+
+  return {
+    prompt,
+    provenance: {
+      templateHash,
+      promptPolicyVersion: '1.0.0',
+      retrievalPolicyVersion: '1.0.0',
+      assemblerVersion: ASSEMBLER_VERSION,
+      promptProfile: plan.promptProfile,
+      promptHash: computeHash(prompt),
+    },
+    retrievals,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -178,14 +214,14 @@ export async function prepareManualPrompt(
   getMemProvider: GetMemProvider,
   getState: GetState,
   promptText?: string,
-): Promise<string> {
+): Promise<PrepareResult> {
   const userText = request.input.text;
 
   // Load system prompt text — injected in tests, read from disk in production
   const template = promptText ?? loadSystemPrompt();
 
   // Retrieve memory context (fail-open)
-  const memoryContext = await retrieveMemory(
+  const { memoryContext, provenance: retrievals } = await retrieveMemory(
     userText,
     'ambient', // default mode for prompt retrieval; overridden below with real mode
     'prompt',
@@ -230,7 +266,23 @@ export async function prepareManualPrompt(
 
   parts.push(userText);
 
-  return parts.join('\n\n');
+  const prompt = parts.join('\n\n');
+
+  // Compute provenance — templateHash from raw template, promptHash from final assembled text
+  const templateHash = computeHash(template);
+
+  return {
+    prompt,
+    provenance: {
+      templateHash,
+      promptPolicyVersion: '1.0.0',
+      retrievalPolicyVersion: '1.0.0',
+      assemblerVersion: ASSEMBLER_VERSION,
+      promptProfile: plan.promptProfile,
+      promptHash: computeHash(prompt),
+    },
+    retrievals,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -256,6 +308,10 @@ function loadSystemPrompt(): string {
  * Top-level dispatcher: routes to prepareThoughtPrompt or prepareManualPrompt
  * based on request kind.
  *
+ * Returns a PrepareResult containing the assembled prompt string, provenance
+ * metadata (template hash, policy versions, prompt hash), and retrieval
+ * provenance from the memory system.
+ *
  * @param request        The BrainRequest to prepare
  * @param plan           The resolved RoutePlan
  * @param getMemProvider Getter for the MemoryProvider singleton
@@ -268,7 +324,7 @@ export async function preparePrompt(
   getMemProvider: GetMemProvider,
   getState?: GetState,
   promptText?: string,
-): Promise<string> {
+): Promise<PrepareResult> {
   if (request.kind === 'thought.generate') {
     return prepareThoughtPrompt(request, plan, getMemProvider);
   }

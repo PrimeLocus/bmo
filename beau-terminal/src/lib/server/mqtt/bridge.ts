@@ -28,6 +28,7 @@ import { PRESSURE_TICK_MS } from '../thoughts/types.js';
 import type { ThoughtResult } from '../thoughts/types.js';
 import { enqueueMemory } from '../memory/index.js';
 import { initBrain, dispatch as brainDispatch } from '../brain/index.js';
+import { getTraceOutbox } from '../training/index.js';
 
 export type BeauState = {
   mode: string;
@@ -629,6 +630,11 @@ export function connectMQTT() {
               novelty: brainRequest.input.novelty,
             });
             const response = await brainDispatch(brainRequest);
+            // Link the trace ID from the outbox to the thought for feedback
+            const lastTraceId = getTraceOutbox()?.getLastTraceId();
+            if (lastTraceId) {
+              thoughtQueue.setTraceId(brainRequest.requestId, lastTraceId);
+            }
             thoughtQueue.receiveResult({
               id: brainRequest.requestId,
               text: response.text,

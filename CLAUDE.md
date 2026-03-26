@@ -100,8 +100,8 @@ bmo/
     │   │       ├── db/
     │   │       │   ├── activity.ts   # Activity log queries — recent events, entity activity feed
     │   │       │   ├── index.ts      # better-sqlite3 + Drizzle + auto-migrations
-    │   │       │   ├── schema.ts     # 31 tables — source of truth for DB schema
-    │   │       │   └── seed.ts       # 21 parts, 18 phases, 98 steps, 11 ideas
+    │   │       │   ├── schema.ts     # 40 tables — source of truth for DB schema (re-exports training/)
+    │   │       │   └── seed.ts       # 21 parts, 18 phases, 98 steps, 11 ideas, 4 LLM variants
     │   │       ├── mqtt/
     │   │       │   ├── bridge.ts     # MQTT → BeauState → SSE broadcast + thought system orchestration
     │   │       │   └── topics.ts     # MQTT topic constants + type unions (modes, devices, heating states)
@@ -116,16 +116,25 @@ bmo/
     │   │       │   ├── types.ts       # BrainRequestV1, BrainResponse, TierConfig, RoutePlan
     │   │       │   ├── registry.ts    # TierRegistry — 4-tier config + Ollama health probing
     │   │       │   ├── router.ts      # Voice caster + context scaler + tier precedence
-    │   │       │   ├── prepare.ts     # Request-to-prompt: memory retrieval + prompt assembly
-    │   │       │   ├── executor.ts    # HTTP calls to Ollama, fallback, quality escalation
+    │   │       │   ├── prepare.ts     # Request-to-prompt: memory retrieval + prompt assembly → returns PrepareResult (prompt + provenance + retrievals)
+    │   │       │   ├── executor.ts    # HTTP calls to Ollama, fallback, quality escalation, onAttempt callback for trace capture
     │   │       │   ├── log.ts         # Dispatch logging to dispatches table
-    │   │       │   └── index.ts       # Public dispatch() API + singleton
+    │   │       │   └── index.ts       # Public dispatch() API + singleton + async trace capture wiring
     │   │       ├── thoughts/
     │   │       │   ├── types.ts       # ThoughtRequest, ThoughtResult, tuning constants
     │   │       │   ├── pressure.ts    # Pressure accumulation engine + novelty detection
     │   │       │   ├── dispatcher.ts  # Type selection + buildBrainRequest (routes through brain/)
     │   │       │   ├── queue.ts       # Priority queue, decay, lifecycle, budget tracking
     │   │       │   └── index.ts       # Singleton accessor for API routes
+    │   │       ├── training/
+    │   │       │   ├── schema.ts      # 9 training-readiness tables (generation_traces, trace_retrievals, etc.)
+    │   │       │   ├── types.ts       # TracePayload, PrepareResult, PromptProvenance, RetrievalProvenance
+    │   │       │   ├── eligibility.ts # Training eligibility classifier (consentScope, privacyClass)
+    │   │       │   ├── trace-outbox.ts # Async in-memory queue + background SQLite flush (fail-open)
+    │   │       │   ├── trace-capture.ts # assembleTracePayload() — pure function, dispatch data → TracePayload
+    │   │       │   ├── model-registry.ts # LLM model lineage CRUD (mirrors voice.ts)
+    │   │       │   ├── feedback.ts    # recordFeedback() — implicit lifecycle signals to generation_feedback
+    │   │       │   └── index.ts       # Singleton: initTraining(), getTraceOutbox(), writeTrace (transactional)
     │   │       ├── identity/
     │   │       │   ├── emergence.ts   # Soul code query + empty state
     │   │       │   ├── natal.ts       # Active natal profile query
@@ -269,7 +278,7 @@ Database auto-seeds on startup. Seed is additive: it inserts missing reference r
 
 When working on Beau's Terminal, read these first:
 
-- `src/lib/server/db/schema.ts` — all 31 table definitions
+- `src/lib/server/db/schema.ts` — all 40 table definitions (31 original + 9 training-readiness)
 - `src/lib/server/mqtt/bridge.ts` — MQTT state + subscriber broadcast (consumed by SSE); per-device wellness session Maps; interactionAge tracking; startup orphan recovery; `patchState()` for external state updates
 - `src/lib/stores/beau.svelte.ts` — client-side live state (BeauState via SSE EventSource)
 - `src/lib/stores/layout.svelte.ts` — per-page panel grid layouts + dual persistence
@@ -303,6 +312,11 @@ When working on Beau's Terminal, read these first:
 - `src/lib/server/memory/provider.ts` — MemoryProvider: ChromaDB + Ollama embedding pipeline, retrieval, health checks
 - `src/lib/server/memory/retriever.ts` — ChromaDB queries, reranking, fail-open retrieval
 - `src/lib/server/memory/indexer.ts` — embedding_queue management (upsert, claim, CAS, reconciliation)
+- `src/lib/server/training/index.ts` — Training provenance singleton: initTraining(), getTraceOutbox(), transactional writeTrace
+- `src/lib/server/training/schema.ts` — 9 training tables (generation_traces, trace_retrievals, generation_feedback, llm_model_variants, etc.)
+- `src/lib/server/training/trace-outbox.ts` — Async in-memory outbox: enqueue (array push) + background 2s flush to SQLite
+- `src/lib/server/training/trace-capture.ts` — assembleTracePayload() pure function
+- `src/lib/server/training/eligibility.ts` — Training eligibility classifier (consentScope × privacyClass → eligibility)
 - `src/lib/server/memory/chunker.ts` — Bible/document chunking, SHA-256 content hashing
 - `src/lib/server/memory/types.ts` — Memory interfaces, SourceType, CollectionName, constants
 - `src/lib/server/reflective/memory.ts` — retrieval policy engine + getCollectionPolicy (mode × caller → collections)

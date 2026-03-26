@@ -1,5 +1,6 @@
 // Brain dispatcher integration tests — requires Ollama running with models
 // Run with: npx vitest run src/lib/server/brain/integration.test.ts
+// Updated for SP7 Task 5: preparePrompt returns PrepareResult
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { TierRegistry, DEFAULT_TIER_CONFIGS } from './registry.js';
@@ -91,8 +92,8 @@ describe('brain integration (requires Ollama with gemma3:4b)', () => {
 		const plan = routeRequest(request, registry);
 		expect(plan.targetTier).toBe('t2'); // only tier available
 
-		// Prepare
-		const prompt = await preparePrompt(request, plan, () => null);
+		// Prepare — now returns PrepareResult
+		const { prompt } = await preparePrompt(request, plan, () => null);
 		expect(prompt).toContain('Beau');
 		expect(prompt).toContain('quiet room');
 
@@ -123,7 +124,7 @@ describe('brain integration (requires Ollama with gemma3:4b)', () => {
 		});
 
 		const plan = routeRequest(request, registry);
-		const prompt = await preparePrompt(request, plan, () => null);
+		const { prompt } = await preparePrompt(request, plan, () => null);
 		expect(prompt).toContain('haiku');
 
 		const result = await executeOnTier(prompt, plan.tierConfig);
@@ -201,7 +202,7 @@ describe('brain multi-tier routing (requires 3 Ollama models)', () => {
 		expect(plan.clamped).toBe(false);
 		expect(plan.memoryTokenBudget).toBeLessThanOrEqual(150);
 
-		const prompt = await preparePrompt(request, plan, () => null);
+		const { prompt } = await preparePrompt(request, plan, () => null);
 		const result = await executeOnTier(prompt, plan.tierConfig);
 
 		console.log(`[multi-tier] mischief→T1 (${result.generationMs}ms, ${result.model}): ${result.text}`);
@@ -232,7 +233,7 @@ describe('brain multi-tier routing (requires 3 Ollama models)', () => {
 		expect(plan.targetTier).toBe('t3'); // context scaler raised — deep memory needs bigger container
 		expect(plan.clamped).toBe(true);
 
-		const prompt = await preparePrompt(request, plan, () => null);
+		const { prompt } = await preparePrompt(request, plan, () => null);
 		const result = await executeOnTier(prompt, plan.tierConfig);
 
 		console.log(`[multi-tier] reflection→T3 clamped (${result.generationMs}ms, ${result.model}): ${result.text}`);
@@ -262,7 +263,7 @@ describe('brain multi-tier routing (requires 3 Ollama models)', () => {
 		expect(plan.targetTier).toBe('t2');
 		expect(plan.tierConfig.model).toBe('gemma3:4b');
 
-		const prompt = await preparePrompt(request, plan, () => null);
+		const { prompt } = await preparePrompt(request, plan, () => null);
 		const result = await executeOnTier(prompt, plan.tierConfig);
 
 		console.log(`[multi-tier] T2 haiku (${result.generationMs}ms, ${result.model}): ${result.text}`);
@@ -290,7 +291,7 @@ describe('brain multi-tier routing (requires 3 Ollama models)', () => {
 		expect(plan.targetTier).toBe('t3');
 		expect(plan.tierConfig.model).toBe('llama3.1:8b');
 
-		const prompt = await preparePrompt(request, plan, () => null);
+		const { prompt } = await preparePrompt(request, plan, () => null);
 		const result = await executeOnTier(prompt, plan.tierConfig);
 
 		console.log(`[multi-tier] T3 reaction (${result.generationMs}ms, ${result.model}): ${result.text}`);
@@ -320,7 +321,7 @@ describe('brain multi-tier routing (requires 3 Ollama models)', () => {
 		expect(plan.targetTier).not.toBe('t1');
 		expect(plan.clamped).toBe(true);
 
-		const prompt = await preparePrompt(request, plan, () => null);
+		const { prompt } = await preparePrompt(request, plan, () => null);
 		const result = await executeOnTier(prompt, plan.tierConfig);
 
 		console.log(`[multi-tier] midwife clamped haiku (${result.generationMs}ms, ${result.model}): ${result.text}`);

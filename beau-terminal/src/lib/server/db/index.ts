@@ -478,5 +478,207 @@ try {
 try { sqlite.prepare("CREATE UNIQUE INDEX IF NOT EXISTS eq_source_entity_collection_chunk ON embedding_queue(source, entity_id, collection, chunk_index)").run(); } catch { /* already exists */ }
 try { sqlite.prepare("CREATE INDEX IF NOT EXISTS eq_status_next_attempt ON embedding_queue(status, next_attempt_at)").run(); } catch { /* already exists */ }
 
+// SP7 — Training readiness tables
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS generation_traces (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trace_id TEXT NOT NULL UNIQUE,
+    request_id TEXT NOT NULL,
+    parent_trace_id TEXT,
+    attempt_number INTEGER NOT NULL DEFAULT 1,
+    request_kind TEXT NOT NULL,
+    origin TEXT NOT NULL,
+    tier TEXT NOT NULL,
+    model_family TEXT NOT NULL,
+    model_name TEXT NOT NULL,
+    model_digest TEXT,
+    generation_params TEXT,
+    provider TEXT NOT NULL DEFAULT 'ollama',
+    runtime TEXT,
+    prompt_template_hash TEXT,
+    prompt_policy_version TEXT,
+    prompt_profile TEXT,
+    retrieval_policy_version TEXT,
+    assembler_version TEXT,
+    input_json TEXT,
+    prompt_text TEXT,
+    response_text TEXT,
+    response_status TEXT NOT NULL,
+    token_count_in INTEGER,
+    token_count_out INTEGER,
+    latency_ms INTEGER,
+    fallback_from TEXT,
+    quality_escalated_from TEXT,
+    prompt_hash TEXT,
+    personality_snapshot_id INTEGER,
+    context_mode TEXT,
+    context_state_json TEXT,
+    clock_source TEXT,
+    clock_offset_ms INTEGER,
+    consent_scope TEXT,
+    privacy_class TEXT,
+    training_eligibility TEXT,
+    training_eligibility_reason TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`).run();
+} catch { /* already exists */ }
+try { sqlite.prepare("CREATE UNIQUE INDEX IF NOT EXISTS gt_trace_id ON generation_traces(trace_id)").run(); } catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS gt_request_id ON generation_traces(request_id)").run(); } catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS gt_created_at ON generation_traces(created_at)").run(); } catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS gt_training_eligibility ON generation_traces(training_eligibility)").run(); } catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS trace_retrievals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trace_id TEXT NOT NULL,
+    collection TEXT NOT NULL,
+    fragment_id TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    source_entity_id TEXT,
+    rank INTEGER NOT NULL,
+    base_score REAL NOT NULL,
+    final_score REAL NOT NULL,
+    selected INTEGER NOT NULL DEFAULT 1,
+    token_count INTEGER,
+    excerpt_hash TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`).run();
+} catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS tr_trace_id ON trace_retrievals(trace_id)").run(); } catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS generation_feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trace_id TEXT,
+    request_id TEXT,
+    reviewer TEXT NOT NULL,
+    outcome_type TEXT NOT NULL,
+    final_text TEXT,
+    edit_distance INTEGER,
+    reason_tags TEXT,
+    notes TEXT,
+    compared_trace_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`).run();
+} catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS gf_trace_id ON generation_feedback(trace_id)").run(); } catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS artifact_governance_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    mode_filter TEXT,
+    eligibility TEXT NOT NULL,
+    reason TEXT,
+    policy_version INTEGER NOT NULL,
+    target_entity_type TEXT,
+    target_entity_id TEXT,
+    propagated_to_exports TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`).run();
+} catch { /* already exists */ }
+try { sqlite.prepare("CREATE INDEX IF NOT EXISTS age_scope_policy ON artifact_governance_events(scope, policy_version)").run(); } catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS training_examples (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trace_id TEXT,
+    example_type TEXT NOT NULL,
+    tier_tag TEXT NOT NULL,
+    system_prompt TEXT,
+    user_prompt TEXT,
+    assistant_response TEXT,
+    rejected_response TEXT,
+    context_json TEXT,
+    feedback_ids TEXT,
+    quality_score REAL,
+    policy_version INTEGER,
+    redaction_version TEXT,
+    redacted_fields TEXT,
+    curated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    curated_by TEXT NOT NULL
+  )`).run();
+} catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS dataset_exports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    export_id TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    objective TEXT NOT NULL,
+    target_tier TEXT,
+    target_family TEXT,
+    filter_definition TEXT,
+    split_definition TEXT,
+    export_format TEXT NOT NULL,
+    example_count INTEGER,
+    token_count_estimate INTEGER,
+    policy_version_at_export INTEGER,
+    tombstones_applied TEXT,
+    artifact_paths TEXT,
+    checksum TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_by TEXT NOT NULL
+  )`).run();
+} catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS evaluation_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    model_variant_id INTEGER,
+    dataset_export_id INTEGER,
+    eval_set_name TEXT NOT NULL,
+    prompt_policy_version TEXT,
+    status TEXT NOT NULL DEFAULT 'running',
+    started_at TEXT NOT NULL DEFAULT (datetime('now')),
+    completed_at TEXT,
+    notes TEXT
+  )`).run();
+} catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS evaluation_scores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL,
+    metric TEXT NOT NULL,
+    score REAL NOT NULL,
+    baseline REAL,
+    delta REAL,
+    details TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`).run();
+} catch { /* already exists */ }
+
+try {
+  sqlite.prepare(`CREATE TABLE IF NOT EXISTS llm_model_variants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    display_name TEXT NOT NULL,
+    family TEXT NOT NULL,
+    base_model TEXT NOT NULL,
+    base_revision TEXT,
+    training_method TEXT NOT NULL DEFAULT 'base',
+    training_dataset_id INTEGER,
+    artifact_format TEXT,
+    artifact_path TEXT,
+    adapter_path TEXT,
+    tokenizer_family TEXT,
+    quantization TEXT,
+    runtime TEXT NOT NULL DEFAULT 'ollama',
+    runtime_compatibility TEXT,
+    tier TEXT,
+    status TEXT NOT NULL DEFAULT 'draft',
+    eval_summary TEXT,
+    notes TEXT,
+    activated_at TEXT,
+    retired_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`).run();
+} catch { /* already exists */ }
+
 export { sqlite };
 

@@ -401,6 +401,7 @@ export const personalitySnapshots = sqliteTable('personality_snapshots', {
   isNotable: integer('is_notable').notNull().default(0),
 });
 
+// ── Embedding Queue (SP5) ───────────────────────────────────────────────────
 export const embeddingQueue = sqliteTable('embedding_queue', {
   id:             integer('id').primaryKey({ autoIncrement: true }),
   source:         text('source').notNull(),
@@ -424,3 +425,16 @@ export const embeddingQueue = sqliteTable('embedding_queue', {
 }, (table) => [
   uniqueIndex('eq_source_entity_collection_chunk').on(table.source, table.entityId, table.collection, table.chunkIndex),
 ]);
+
+// Training readiness tables (SP7)
+export {
+  generationTraces,
+  traceRetrievals,
+  generationFeedback,
+  artifactGovernanceEvents,
+  trainingExamples,
+  datasetExports,
+  evaluationRuns,
+  evaluationScores,
+  llmModelVariants,
+} from '../training/schema';

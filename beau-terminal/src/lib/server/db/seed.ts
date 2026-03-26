@@ -1,5 +1,6 @@
 import { db } from './index.js';
 import { parts, softwarePhases, softwareSteps, ideas, integrations } from './schema.js';
+import { llmModelVariants } from '../training/schema.js';
 import { eq } from 'drizzle-orm';
 
 type Link = { label: string; url: string; kind: 'docs' | 'github' | 'video' | 'guide' };
@@ -559,6 +560,7 @@ export function seed() {
   const partStats = syncParts();
   const softwareStats = syncSoftware();
   const ideaStats = syncIdeas();
+  seedLlmVariants();
   const appliedChanges = partStats.inserted + partStats.updated + softwareStats.insertedPhases +
     softwareStats.insertedSteps + softwareStats.updatedSteps + ideaStats.inserted + ideaStats.updated;
 
@@ -566,6 +568,30 @@ export function seed() {
     `[seed] Synced — ${PART_SEEDS.length} parts, ${PHASE_DATA.length} phases, ${TOTAL_STEPS} steps, ${IDEA_SEEDS.length} ideas` +
     (appliedChanges ? ` (${appliedChanges} changes applied)` : '')
   );
+}
+
+/** Additive seed for LLM model variants — inserts missing base-model rows for all 4 tiers. */
+export function seedLlmVariants() {
+  const llmVariantSeeds = [
+    { displayName: 'Qwen 2.5 1.5B (T1 base)', family: 'qwen2.5', baseModel: 'qwen2.5:1.5b', trainingMethod: 'base', runtime: 'ollama', tier: 't1', status: 'active' },
+    { displayName: 'Gemma 3 4B (T2 base)', family: 'gemma3', baseModel: 'gemma3:4b', trainingMethod: 'base', runtime: 'ollama', tier: 't2', status: 'active' },
+    { displayName: 'Llama 3.1 8B (T3 base)', family: 'llama3.1', baseModel: 'llama3.1:8b', trainingMethod: 'base', runtime: 'ollama', tier: 't3', status: 'active' },
+    { displayName: 'Qwen 3 30B (T4 base)', family: 'qwen3', baseModel: 'qwen3:30b', trainingMethod: 'base', runtime: 'ollama', tier: 't4', status: 'active' },
+  ] as const;
+
+  const existing = db.select().from(llmModelVariants).all();
+  const existingBaseModels = new Set(existing.map(v => v.baseModel));
+  let inserted = 0;
+
+  for (const variant of llmVariantSeeds) {
+    if (existingBaseModels.has(variant.baseModel)) continue;
+    db.insert(llmModelVariants).values(variant).run();
+    inserted++;
+  }
+
+  if (inserted > 0) {
+    console.log(`[seedLlmVariants] Inserted ${inserted} LLM model variant(s)`);
+  }
 }
 
 export function seedIntegrations() {

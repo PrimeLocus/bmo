@@ -21,6 +21,7 @@ import {
 	type ThoughtType,
 	type DailyBudgetStatus,
 } from './types.js';
+import { recordFeedback } from '../training/feedback.js';
 
 // ── Internal shape ────────────────────────────────────────────────────────────
 
@@ -39,6 +40,8 @@ export interface PendingThought {
 	novelty: boolean;
 	model: string | null;
 	generationMs: number | null;
+	/** TraceId from the brain dispatch — used to link feedback to the generation trace. */
+	traceId: string | null;
 }
 
 // ── EnqueueOpts ───────────────────────────────────────────────────────────────
@@ -95,6 +98,7 @@ export class ThoughtQueue {
 			novelty: opts.novelty,
 			model: null,
 			generationMs: null,
+			traceId: null,
 		};
 
 		if (this.thoughts.size >= MAX_QUEUE_SIZE) {
@@ -128,6 +132,7 @@ export class ThoughtQueue {
 		if (result.text === null) {
 			thought.status = 'dropped';
 			this._dbUpdate(thought);
+			recordFeedback({ traceId: thought.traceId, requestId: thought.id, reviewer: 'system', outcomeType: 'dropped' });
 			return;
 		}
 
@@ -160,6 +165,7 @@ export class ThoughtQueue {
 		thought.status = 'surfaced';
 		thought.surfacedAt = new Date().toISOString();
 		this._dbUpdate(thought);
+		recordFeedback({ traceId: thought.traceId, requestId: thought.id, reviewer: 'system', outcomeType: 'surfaced' });
 		return thought;
 	}
 
@@ -179,6 +185,7 @@ export class ThoughtQueue {
 			if (new Date(thought.expiresAt).getTime() <= now) {
 				thought.status = 'decayed';
 				this._dbUpdate(thought);
+				recordFeedback({ traceId: thought.traceId, requestId: thought.id, reviewer: 'system', outcomeType: 'decayed' });
 				continue;
 			}
 
@@ -188,6 +195,7 @@ export class ThoughtQueue {
 				if (age > GENERATION_TIMEOUT_MS) {
 					thought.status = 'dropped';
 					this._dbUpdate(thought);
+					recordFeedback({ traceId: thought.traceId, requestId: thought.id, reviewer: 'system', outcomeType: 'dropped' });
 				}
 			}
 		}
@@ -280,6 +288,14 @@ export class ThoughtQueue {
 		return this.thoughts.size;
 	}
 
+	/** Associate a traceId from brain dispatch with a thought (for feedback linkage). */
+	setTraceId(thoughtId: string, traceId: string): void {
+		const thought = this.thoughts.get(thoughtId);
+		if (thought) {
+			thought.traceId = traceId;
+		}
+	}
+
 	// ── Private helpers ────────────────────────────────────────────────────────
 
 	/**
@@ -364,6 +380,7 @@ export class ThoughtQueue {
 					novelty: row.novelty === 1,
 					model: row.model ?? null,
 					generationMs: row.generationMs ?? null,
+					traceId: null, // traceId is runtime-only, not persisted in DB
 				};
 				this.thoughts.set(thought.id, thought);
 			}

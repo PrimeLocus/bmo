@@ -291,8 +291,12 @@ describe('executeWithFallback', () => {
       ),
     );
 
-    // preparePrompt callback for downward fallback
-    const preparePrompt = vi.fn().mockResolvedValue('re-prepared prompt for t1');
+    // preparePrompt callback for downward fallback — now returns PrepareResult
+    const preparePrompt = vi.fn().mockResolvedValue({
+      prompt: 're-prepared prompt for t1',
+      provenance: { templateHash: '', promptPolicyVersion: '1.0.0', retrievalPolicyVersion: '1.0.0', assemblerVersion: '1.0.0', promptProfile: 'reflex', promptHash: '' },
+      retrievals: [],
+    });
 
     const t3Config = makeTierConfig({ id: 't3', model: 'llama3.1:8b', endpoint: 'http://localhost:11434' });
     const plan = makeRoutePlan({ targetTier: 't3', tierConfig: t3Config });
@@ -321,12 +325,12 @@ describe('executeWithFallback', () => {
       ),
     );
 
-    const preparePrompt = vi.fn().mockRejectedValue(new Error('re-prepare failed'));
+    const preparePromptCb = vi.fn().mockRejectedValue(new Error('re-prepare failed'));
     const t3Config = makeTierConfig({ id: 't3', model: 'llama3.1:8b', endpoint: 'http://localhost:11434' });
     const plan = makeRoutePlan({ targetTier: 't3', tierConfig: t3Config });
     const request = makeThoughtRequest(); // thought — should return silence, not throw
 
-    const result = await executeWithFallback('prompt', plan, registry, preparePrompt, request);
+    const result = await executeWithFallback('prompt', plan, registry, preparePromptCb, request);
 
     // Fallback was not attempted — fetch called only once (for the primary)
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -341,13 +345,13 @@ describe('executeWithFallback', () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockRejectedValueOnce(new Error('t3 offline'));
 
-    const preparePrompt = vi.fn().mockRejectedValue(new Error('re-prepare failed'));
+    const preparePromptCb = vi.fn().mockRejectedValue(new Error('re-prepare failed'));
     const t3Config = makeTierConfig({ id: 't3', model: 'llama3.1:8b', endpoint: 'http://localhost:11434' });
     const plan = makeRoutePlan({ targetTier: 't3', tierConfig: t3Config });
     const request = makeManualRequest(); // manual — should throw
 
     await expect(
-      executeWithFallback('prompt', plan, registry, preparePrompt, request),
+      executeWithFallback('prompt', plan, registry, preparePromptCb, request),
     ).rejects.toThrow();
 
     // Fallback was not attempted — fetch called only once
