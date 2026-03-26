@@ -18,6 +18,19 @@ export interface TierResult {
   generationMs: number;
 }
 
+/** Data emitted after each tier attempt (primary or fallback) for trace capture. */
+export interface AttemptData {
+  prepareResult: PrepareResult;
+  responseText: string | null;
+  responseStatus: 'completed' | 'silence' | 'timeout' | 'error' | 'quality_rejected';
+  model: string;
+  latencyMs: number;
+  tier: TierId;
+  attemptNumber: number;
+  fallbackFrom: TierId | null;
+  qualityEscalatedFrom: TierId | null;
+}
+
 // Word-count thresholds for quality signal detection (50% of expected max)
 const QUALITY_WORD_THRESHOLDS: Record<string, number> = {
   observation: 15, // 50% of 30 words
@@ -116,6 +129,19 @@ function selectFallbackTier(
 // executeWithFallback
 // ---------------------------------------------------------------------------
 
+/** Options bag for executeWithFallback — extends the original positional args. */
+export interface ExecuteOptions {
+  prompt: string;
+  plan: RoutePlan;
+  registry: TierRegistry;
+  preparePrompt?: (tierConfig: TierConfig) => Promise<PrepareResult>;
+  request?: BrainRequestV1;
+  /** The PrepareResult that produced `prompt`. Used for trace capture on primary attempt. */
+  primaryPrepareResult?: PrepareResult;
+  /** Called after each attempt (primary + fallback) with data for trace capture. */
+  onAttempt?: (data: AttemptData) => void;
+}
+
 /**
  * Executes a generation request with one fallback attempt if the primary fails.
  *
@@ -133,6 +159,7 @@ function selectFallbackTier(
  * @param registry     TierRegistry for fallback tier lookup
  * @param preparePrompt  Optional callback to re-prepare prompt for a different tier (returns PrepareResult)
  * @param request      Original BrainRequest — used to determine throw-vs-null on total failure
+ * @param options      Optional ExecuteOptions with onAttempt callback and primaryPrepareResult
  */
 export async function executeWithFallback(
   prompt: string,
@@ -140,15 +167,22 @@ export async function executeWithFallback(
   registry: TierRegistry,
   preparePrompt?: (tierConfig: TierConfig) => Promise<PrepareResult>,
   request?: BrainRequestV1,
+  options?: Pick<ExecuteOptions, 'primaryPrepareResult' | 'onAttempt'>,
 ): Promise<BrainResponse> {
   const primaryTier = plan.targetTier;
   const primaryConfig = plan.tierConfig;
+  const onAttempt = options?.onAttempt;
+  const primaryPrepareResult = options?.primaryPrepareResult;
 
   const isManual = request?.kind === 'manual.prompt';
 
+  let attemptNumber = 0;
+
   // --- Primary attempt ---
+  attemptNumber++;
   let primaryResult: TierResult | null = null;
   let primaryError: unknown = null;
+  const primaryStart = Date.now();
 
   try {
     primaryResult = await executeOnTier(prompt, primaryConfig);
@@ -157,6 +191,21 @@ export async function executeWithFallback(
   }
 
   if (primaryResult !== null) {
+    // Emit trace for successful primary attempt
+    if (onAttempt && primaryPrepareResult) {
+      onAttempt({
+        prepareResult: primaryPrepareResult,
+        responseText: primaryResult.text,
+        responseStatus: primaryResult.text !== null ? 'completed' : 'silence',
+        model: primaryResult.model,
+        latencyMs: primaryResult.generationMs,
+        tier: primaryTier,
+        attemptNumber,
+        fallbackFrom: null,
+        qualityEscalatedFrom: null,
+      });
+    }
+
     return {
       requestId: request?.requestId ?? '',
       text: primaryResult.text,
@@ -170,7 +219,23 @@ export async function executeWithFallback(
     };
   }
 
-  // Primary failed — select fallback tier
+  // Primary failed — emit trace for the failed attempt
+  const primaryLatency = Date.now() - primaryStart;
+  if (onAttempt && primaryPrepareResult) {
+    onAttempt({
+      prepareResult: primaryPrepareResult,
+      responseText: null,
+      responseStatus: 'error',
+      model: primaryConfig.model,
+      latencyMs: primaryLatency,
+      tier: primaryTier,
+      attemptNumber,
+      fallbackFrom: null,
+      qualityEscalatedFrom: null,
+    });
+  }
+
+  // Select fallback tier
   const fallbackConfig = selectFallbackTier(primaryTier, registry);
 
   if (fallbackConfig === null) {
@@ -197,6 +262,7 @@ export async function executeWithFallback(
   // Decide direction: upward reuses prompt, downward re-prepares if callback provided
   const isDownward = TIER_ORDER[fallbackConfig.id] < TIER_ORDER[primaryTier];
   let fallbackPrompt: string;
+  let fallbackPrepareResult: PrepareResult | undefined = primaryPrepareResult;
 
   if (isDownward && preparePrompt) {
     // Re-prepare for the lower tier. If this throws, skip the fallback entirely
@@ -204,6 +270,7 @@ export async function executeWithFallback(
     try {
       const result = await preparePrompt(fallbackConfig);
       fallbackPrompt = result.prompt;
+      fallbackPrepareResult = result;
     } catch {
       // Re-preparation failed — treat as if no fallback is available
       if (isManual) {
@@ -229,8 +296,10 @@ export async function executeWithFallback(
   }
 
   // --- Fallback attempt ---
+  attemptNumber++;
   let fallbackResult: TierResult | null = null;
   let fallbackError: unknown = null;
+  const fallbackStart = Date.now();
 
   try {
     fallbackResult = await executeOnTier(fallbackPrompt, fallbackConfig);
@@ -239,6 +308,21 @@ export async function executeWithFallback(
   }
 
   if (fallbackResult !== null) {
+    // Emit trace for successful fallback attempt
+    if (onAttempt && fallbackPrepareResult) {
+      onAttempt({
+        prepareResult: fallbackPrepareResult,
+        responseText: fallbackResult.text,
+        responseStatus: fallbackResult.text !== null ? 'completed' : 'silence',
+        model: fallbackResult.model,
+        latencyMs: fallbackResult.generationMs,
+        tier: fallbackConfig.id,
+        attemptNumber,
+        fallbackFrom: primaryTier,
+        qualityEscalatedFrom: null,
+      });
+    }
+
     return {
       requestId: request?.requestId ?? '',
       text: fallbackResult.text,
@@ -253,7 +337,22 @@ export async function executeWithFallback(
     };
   }
 
-  // Both attempts failed
+  // Both attempts failed — emit trace for failed fallback
+  const fallbackLatency = Date.now() - fallbackStart;
+  if (onAttempt && fallbackPrepareResult) {
+    onAttempt({
+      prepareResult: fallbackPrepareResult,
+      responseText: null,
+      responseStatus: 'error',
+      model: fallbackConfig.model,
+      latencyMs: fallbackLatency,
+      tier: fallbackConfig.id,
+      attemptNumber,
+      fallbackFrom: primaryTier,
+      qualityEscalatedFrom: null,
+    });
+  }
+
   if (isManual) {
     throw fallbackError instanceof Error
       ? fallbackError

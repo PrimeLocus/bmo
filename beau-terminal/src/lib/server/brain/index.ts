@@ -7,8 +7,12 @@ import { TierRegistry, DEFAULT_TIER_CONFIGS } from './registry.js';
 import { routeRequest } from './router.js';
 import { preparePrompt } from './prepare.js';
 import { executeWithFallback, checkQualitySignals } from './executor.js';
+import type { AttemptData } from './executor.js';
 import { logDispatch } from './log.js';
 import { getMemoryProvider } from '../memory/index.js';
+import { getTraceOutbox } from '../training/index.js';
+import { assembleTracePayload } from '../training/trace-capture.js';
+import type { TraceContext } from '../training/trace-capture.js';
 import type { BrainRequestV1, BrainResponse, TierId, RoutePlan, TierConfig } from './types.js';
 import { TIER_ORDER } from './types.js';
 import type { PrepareResult } from '../training/types.js';
@@ -159,13 +163,55 @@ async function _executeDispatch(
     getState,
   );
 
+  // -- Trace capture: build a lean state snapshot for contextState --
+  const contextState = _getContextState(getState);
+
+  // -- Trace capture: tracks parentTraceId across attempts for escalation linkage --
+  let firstTraceId: string | null = null;
+
+  // Build the onAttempt callback for trace capture (just an array push — non-blocking)
+  const onAttempt = (data: AttemptData): void => {
+    if (isTimedOut()) return; // suppress late trace enqueue after hard-cap timeout
+
+    const outbox = getTraceOutbox();
+    if (!outbox) return;
+
+    const ctx: TraceContext = {
+      request,
+      plan: { ...plan, targetTier: data.tier, tierConfig: plan.tierConfig },
+      prepareResult: data.prepareResult,
+      responseText: data.responseText,
+      responseStatus: data.responseStatus,
+      model: data.model,
+      latencyMs: data.latencyMs,
+      attemptNumber: data.attemptNumber,
+      parentTraceId: null,
+      fallbackFrom: data.fallbackFrom,
+      qualityEscalatedFrom: data.qualityEscalatedFrom,
+      contextState,
+      personalitySnapshotId: null,
+    };
+
+    const payload = assembleTracePayload(ctx);
+
+    // Track the first trace ID for parent linkage in escalation
+    if (firstTraceId === null) {
+      firstTraceId = payload.traceId;
+    }
+
+    outbox.enqueue(payload);
+  };
+
   // 4. Execute with fallback (provides re-prepare callback for downward fallback)
   const reprepare = async (tierConfig: TierConfig): Promise<PrepareResult> => {
     const fallbackPlan: RoutePlan = { ...plan, targetTier: tierConfig.id, tierConfig };
     return preparePrompt(request, fallbackPlan, getMemoryProvider, getState);
   };
 
-  let response = await executeWithFallback(prepareResult.prompt, plan, registry, reprepare, request);
+  let response = await executeWithFallback(
+    prepareResult.prompt, plan, registry, reprepare, request,
+    { primaryPrepareResult: prepareResult, onAttempt },
+  );
 
   // 5. Quality escalation — only when signals trigger, escalation is allowed,
   //    and a higher online tier exists
@@ -195,12 +241,40 @@ async function _executeDispatch(
           return preparePrompt(request, fp, getMemoryProvider, getState);
         };
 
+        // Escalation onAttempt — links back to the original trace via parentTraceId
+        const escalationParentTraceId = firstTraceId;
+        const onEscalationAttempt = (data: AttemptData): void => {
+          if (isTimedOut()) return;
+
+          const outbox = getTraceOutbox();
+          if (!outbox) return;
+
+          const ctx: TraceContext = {
+            request,
+            plan: { ...escalationPlan, targetTier: data.tier, tierConfig: escalationPlan.tierConfig },
+            prepareResult: data.prepareResult,
+            responseText: data.responseText,
+            responseStatus: data.responseStatus,
+            model: data.model,
+            latencyMs: data.latencyMs,
+            attemptNumber: data.attemptNumber,
+            parentTraceId: escalationParentTraceId,
+            fallbackFrom: data.fallbackFrom,
+            qualityEscalatedFrom: plan.targetTier,
+            contextState,
+            personalitySnapshotId: null,
+          };
+
+          outbox.enqueue(assembleTracePayload(ctx));
+        };
+
         const escalatedResponse = await executeWithFallback(
           escalationPrepareResult.prompt,
           escalationPlan,
           registry,
           escalationReprepare,
           request,
+          { primaryPrepareResult: escalationPrepareResult, onAttempt: onEscalationAttempt },
         );
 
         response = {
@@ -224,6 +298,29 @@ async function _executeDispatch(
   }
 
   return response;
+}
+
+// ---------------------------------------------------------------------------
+// _getContextState — lean state snapshot for trace capture
+// ---------------------------------------------------------------------------
+
+function _getContextState(getState?: () => Record<string, unknown>): Record<string, unknown> {
+  if (!getState) return {};
+
+  try {
+    const state = getState();
+    // Capture only the fields useful for training context — keep it lean
+    return {
+      mode: state.mode ?? null,
+      sleepState: state.sleepState ?? null,
+      presenceState: state.presenceState ?? null,
+      lux: state.lux ?? null,
+      faceState: state.faceState ?? null,
+      personalityVector: state.personalityVector ?? null,
+    };
+  } catch {
+    return {};
+  }
 }
 
 // ---------------------------------------------------------------------------
