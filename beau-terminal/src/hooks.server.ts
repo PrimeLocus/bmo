@@ -3,6 +3,7 @@ import { connectMQTT } from '$lib/server/mqtt/bridge.js';
 import { seed, seedLinks, seedIntegrations } from '$lib/server/db/seed.js';
 import { MemoryProvider } from '$lib/server/memory/provider.js';
 import { registerMemoryProvider, getMemoryProvider } from '$lib/server/memory/index.js';
+import { initTraining } from '$lib/server/training/index.js';
 
 let started = false;
 
@@ -30,6 +31,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     }
 
     connectMQTT();
+    initTraining();
 
     // Fire-and-forget async startup for memory
     // Sweep always starts — even if bootstrap partially fails
