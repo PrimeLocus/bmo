@@ -21,6 +21,7 @@ import {
 	type ThoughtType,
 	type DailyBudgetStatus,
 } from './types.js';
+import { recordFeedback } from '../training/feedback.js';
 
 // ── Internal shape ────────────────────────────────────────────────────────────
 
@@ -128,6 +129,7 @@ export class ThoughtQueue {
 		if (result.text === null) {
 			thought.status = 'dropped';
 			this._dbUpdate(thought);
+			recordFeedback({ requestId: thought.id, reviewer: 'system', outcomeType: 'dropped' });
 			return;
 		}
 
@@ -160,6 +162,7 @@ export class ThoughtQueue {
 		thought.status = 'surfaced';
 		thought.surfacedAt = new Date().toISOString();
 		this._dbUpdate(thought);
+		recordFeedback({ requestId: thought.id, reviewer: 'system', outcomeType: 'surfaced' });
 		return thought;
 	}
 
@@ -179,6 +182,7 @@ export class ThoughtQueue {
 			if (new Date(thought.expiresAt).getTime() <= now) {
 				thought.status = 'decayed';
 				this._dbUpdate(thought);
+				recordFeedback({ requestId: thought.id, reviewer: 'system', outcomeType: 'decayed' });
 				continue;
 			}
 
@@ -188,6 +192,7 @@ export class ThoughtQueue {
 				if (age > GENERATION_TIMEOUT_MS) {
 					thought.status = 'dropped';
 					this._dbUpdate(thought);
+					recordFeedback({ requestId: thought.id, reviewer: 'system', outcomeType: 'dropped' });
 				}
 			}
 		}
