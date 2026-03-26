@@ -6,6 +6,7 @@
 import { TIER_ORDER } from './types.js';
 import type { TierConfig, TierId, BrainResponse, RoutePlan, BrainRequestV1 } from './types.js';
 import type { TierRegistry } from './registry.js';
+import type { PrepareResult } from '../training/types.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -130,14 +131,14 @@ function selectFallbackTier(
  * @param prompt       Already-prepared prompt string
  * @param plan         Route plan (targetTier + tierConfig)
  * @param registry     TierRegistry for fallback tier lookup
- * @param preparePrompt  Optional callback to re-prepare prompt for a different tier
+ * @param preparePrompt  Optional callback to re-prepare prompt for a different tier (returns PrepareResult)
  * @param request      Original BrainRequest — used to determine throw-vs-null on total failure
  */
 export async function executeWithFallback(
   prompt: string,
   plan: RoutePlan,
   registry: TierRegistry,
-  preparePrompt?: (tierConfig: TierConfig) => Promise<string>,
+  preparePrompt?: (tierConfig: TierConfig) => Promise<PrepareResult>,
   request?: BrainRequestV1,
 ): Promise<BrainResponse> {
   const primaryTier = plan.targetTier;
@@ -201,7 +202,8 @@ export async function executeWithFallback(
     // Re-prepare for the lower tier. If this throws, skip the fallback entirely
     // rather than silently reusing a prompt sized for the (now-failed) higher tier.
     try {
-      fallbackPrompt = await preparePrompt(fallbackConfig);
+      const result = await preparePrompt(fallbackConfig);
+      fallbackPrompt = result.prompt;
     } catch {
       // Re-preparation failed — treat as if no fallback is available
       if (isManual) {

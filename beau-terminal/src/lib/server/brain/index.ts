@@ -11,6 +11,7 @@ import { logDispatch } from './log.js';
 import { getMemoryProvider } from '../memory/index.js';
 import type { BrainRequestV1, BrainResponse, TierId, RoutePlan, TierConfig } from './types.js';
 import { TIER_ORDER } from './types.js';
+import type { PrepareResult } from '../training/types.js';
 
 // ---------------------------------------------------------------------------
 // Hard cap constant
@@ -151,7 +152,7 @@ async function _executeDispatch(
     getState = _lazyGetState;
   }
 
-  const prompt = await preparePrompt(
+  const prepareResult: PrepareResult = await preparePrompt(
     request,
     plan,
     getMemoryProvider,
@@ -159,12 +160,12 @@ async function _executeDispatch(
   );
 
   // 4. Execute with fallback (provides re-prepare callback for downward fallback)
-  const reprepare = async (tierConfig: TierConfig) => {
+  const reprepare = async (tierConfig: TierConfig): Promise<PrepareResult> => {
     const fallbackPlan: RoutePlan = { ...plan, targetTier: tierConfig.id, tierConfig };
     return preparePrompt(request, fallbackPlan, getMemoryProvider, getState);
   };
 
-  let response = await executeWithFallback(prompt, plan, registry, reprepare, request);
+  let response = await executeWithFallback(prepareResult.prompt, plan, registry, reprepare, request);
 
   // 5. Quality escalation — only when signals trigger, escalation is allowed,
   //    and a higher online tier exists
@@ -182,20 +183,20 @@ async function _executeDispatch(
       );
 
       if (escalationPlan !== null) {
-        const escalationPrompt = await preparePrompt(
+        const escalationPrepareResult = await preparePrompt(
           request,
           escalationPlan,
           getMemoryProvider,
           getState,
         );
 
-        const escalationReprepare = async (tierConfig: TierConfig) => {
+        const escalationReprepare = async (tierConfig: TierConfig): Promise<PrepareResult> => {
           const fp: RoutePlan = { ...escalationPlan, targetTier: tierConfig.id, tierConfig };
           return preparePrompt(request, fp, getMemoryProvider, getState);
         };
 
         const escalatedResponse = await executeWithFallback(
-          escalationPrompt,
+          escalationPrepareResult.prompt,
           escalationPlan,
           registry,
           escalationReprepare,

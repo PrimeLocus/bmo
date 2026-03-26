@@ -1,6 +1,7 @@
 // src/lib/server/brain/prepare.test.ts
 // TDD tests for Brain Prepare — SP6 Task 4
 // Thought + manual prompt building with memory context
+// Updated for SP7 Task 5: preparePrompt returns PrepareResult
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
@@ -143,7 +144,7 @@ describe('prepareThoughtPrompt', () => {
         environment: 'rainy afternoon, fan humming',
         momentum: 'quiet and watchful',
       });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
 
       expect(prompt).toContain('rainy afternoon, fan humming');
       expect(prompt).toContain('quiet and watchful');
@@ -151,7 +152,7 @@ describe('prepareThoughtPrompt', () => {
 
     it('includes the observation instruction phrase', async () => {
       const request = makeThoughtRequest({ type: 'observation' });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
 
       expect(prompt).toContain('You notice things');
       expect(prompt).toContain('Under 30 words');
@@ -159,7 +160,7 @@ describe('prepareThoughtPrompt', () => {
 
     it('names Beau and Lafayette, Louisiana', async () => {
       const request = makeThoughtRequest({ type: 'observation' });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
 
       expect(prompt).toContain('Beau');
       expect(prompt).toContain('Lafayette, Louisiana');
@@ -173,7 +174,7 @@ describe('prepareThoughtPrompt', () => {
         timeOfDay: 'late night',
         environment: 'empty studio',
       });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
 
       expect(prompt).toContain('late night');
       expect(prompt).toContain('empty studio');
@@ -181,7 +182,7 @@ describe('prepareThoughtPrompt', () => {
 
     it('includes the reaction instruction phrase', async () => {
       const request = makeThoughtRequest({ type: 'reaction' });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
 
       expect(prompt).toContain('Under 20 words');
       expect(prompt).toContain('Not a report. A feeling.');
@@ -191,14 +192,14 @@ describe('prepareThoughtPrompt', () => {
   describe('haiku prompt', () => {
     it('includes "Write one haiku" instruction', async () => {
       const request = makeThoughtRequest({ type: 'haiku' });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
 
       expect(prompt).toContain('Write one haiku');
     });
 
     it('includes the SILENCE instruction', async () => {
       const request = makeThoughtRequest({ type: 'haiku' });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
 
       expect(prompt).toContain('SILENCE');
     });
@@ -209,7 +210,7 @@ describe('prepareThoughtPrompt', () => {
         timeOfDay: 'dawn',
         environment: 'birds outside, dew on the window',
       });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
 
       expect(prompt).toContain('dawn');
       expect(prompt).toContain('birds outside, dew on the window');
@@ -219,7 +220,7 @@ describe('prepareThoughtPrompt', () => {
   describe('novelty override', () => {
     it('uses novelty prompt regardless of type=observation when novelty=true', async () => {
       const request = makeThoughtRequest({ type: 'observation', novelty: true });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
 
       expect(prompt).toContain('unprompted, no reason');
       // Observation-specific text should NOT appear
@@ -228,7 +229,7 @@ describe('prepareThoughtPrompt', () => {
 
     it('uses novelty prompt for haiku type when novelty=true', async () => {
       const request = makeThoughtRequest({ type: 'haiku', novelty: true });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
 
       expect(prompt).toContain('unprompted, no reason');
       expect(prompt).not.toContain('Write one haiku');
@@ -236,7 +237,7 @@ describe('prepareThoughtPrompt', () => {
 
     it('uses novelty prompt for reaction type when novelty=true', async () => {
       const request = makeThoughtRequest({ type: 'reaction', novelty: true });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
 
       expect(prompt).toContain('unprompted, no reason');
       expect(prompt).not.toContain('Not a report. A feeling.');
@@ -244,7 +245,7 @@ describe('prepareThoughtPrompt', () => {
 
     it('novelty prompt includes momentum', async () => {
       const request = makeThoughtRequest({ novelty: true, momentum: 'electric and curious' });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
 
       expect(prompt).toContain('electric and curious');
     });
@@ -253,10 +254,10 @@ describe('prepareThoughtPrompt', () => {
   describe('memory integration', () => {
     it('includes memory fragments when retrieval succeeds', async () => {
       const fragment = makeFragment('Beau once said: wonder is the first light');
-      const memProvider = makeMemProvider({ fragments: [fragment], usedTokens: 20 });
+      const memProvider = makeMemProvider({ fragments: [fragment], usedTokens: 20, provenance: [] });
 
       const request = makeThoughtRequest({ type: 'observation' });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => memProvider);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => memProvider);
 
       expect(prompt).toContain('Beau once said: wonder is the first light');
       expect(prompt).toContain('Some things you remember');
@@ -267,10 +268,10 @@ describe('prepareThoughtPrompt', () => {
         { ...makeFragment('first fragment'), source: 'canon' },
         { ...makeFragment('second fragment'), source: 'haiku', id: 'frag-2', entityId: 'haiku-1' },
       ];
-      const memProvider = makeMemProvider({ fragments, usedTokens: 40 });
+      const memProvider = makeMemProvider({ fragments, usedTokens: 40, provenance: [] });
 
       const request = makeThoughtRequest({ type: 'reaction' });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => memProvider);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => memProvider);
 
       expect(prompt).toContain('[canon] first fragment');
       expect(prompt).toContain('[haiku] second fragment');
@@ -280,7 +281,7 @@ describe('prepareThoughtPrompt', () => {
       const memProvider = makeFailingMemProvider(new Error('ChromaDB unavailable'));
 
       const request = makeThoughtRequest({ type: 'observation' });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => memProvider);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => memProvider);
 
       // Prompt should still be valid — just no memory section
       expect(prompt).toContain('You notice things');
@@ -290,12 +291,12 @@ describe('prepareThoughtPrompt', () => {
     it('proceeds without memory when retrieval times out (>2s)', async () => {
       const slowProvider = {
         retrieve: vi.fn().mockImplementation(
-          () => new Promise((resolve) => setTimeout(() => resolve({ fragments: [], usedTokens: 0 }), 3000))
+          () => new Promise((resolve) => setTimeout(() => resolve({ fragments: [], usedTokens: 0, provenance: [] }), 3000))
         ),
       } as unknown as MemoryProvider;
 
       const request = makeThoughtRequest({ type: 'observation' });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => slowProvider);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => slowProvider);
 
       expect(prompt).toContain('You notice things');
       expect(prompt).not.toContain('Some things you remember');
@@ -303,7 +304,7 @@ describe('prepareThoughtPrompt', () => {
 
     it('proceeds without memory when provider is null', async () => {
       const request = makeThoughtRequest({ type: 'haiku' });
-      const prompt = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
+      const { prompt } = await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => null);
 
       expect(prompt).toContain('Write one haiku');
       expect(prompt).not.toContain('Some things you remember');
@@ -311,7 +312,7 @@ describe('prepareThoughtPrompt', () => {
 
     it('passes the correct caller "thoughts" to memory retriever', async () => {
       const fragment = makeFragment('test fragment');
-      const memProvider = makeMemProvider({ fragments: [fragment], usedTokens: 20 });
+      const memProvider = makeMemProvider({ fragments: [fragment], usedTokens: 20, provenance: [] });
 
       const request = makeThoughtRequest({ type: 'observation' });
       await prepareThoughtPrompt(request, BASE_ROUTE_PLAN, () => memProvider);
@@ -323,7 +324,7 @@ describe('prepareThoughtPrompt', () => {
     });
 
     it('passes the token budget from plan to the retriever', async () => {
-      const memProvider = makeMemProvider({ fragments: [], usedTokens: 0 });
+      const memProvider = makeMemProvider({ fragments: [], usedTokens: 0, provenance: [] });
 
       const planWith500 = { ...BASE_ROUTE_PLAN, memoryTokenBudget: 500 };
       const request = makeThoughtRequest({ type: 'observation' });
@@ -336,7 +337,7 @@ describe('prepareThoughtPrompt', () => {
     });
 
     it('uses environment + mode as the retrieval query', async () => {
-      const memProvider = makeMemProvider({ fragments: [], usedTokens: 0 });
+      const memProvider = makeMemProvider({ fragments: [], usedTokens: 0, provenance: [] });
 
       const request = makeThoughtRequest({
         type: 'observation',
@@ -403,7 +404,7 @@ Mode: {{MODE}}
     const request = makeManualRequest('What is the color of longing?');
     const plan = { ...BASE_ROUTE_PLAN, promptProfile: 'full' as const };
 
-    const prompt = await prepareManualPrompt(
+    const { prompt } = await prepareManualPrompt(
       request, plan,
       () => null,
       mockGetState,
@@ -419,12 +420,12 @@ Mode: {{MODE}}
 
   it('includes memory fragments when retrieval succeeds', async () => {
     const fragment = makeFragment('from the archives: the room had yellow walls');
-    const memProvider = makeMemProvider({ fragments: [fragment], usedTokens: 15 });
+    const memProvider = makeMemProvider({ fragments: [fragment], usedTokens: 15, provenance: [] });
 
     const request = makeManualRequest('Tell me about the yellow room');
     const plan = { ...BASE_ROUTE_PLAN, promptProfile: 'full' as const };
 
-    const prompt = await prepareManualPrompt(
+    const { prompt } = await prepareManualPrompt(
       request, plan,
       () => memProvider,
       mockGetState,
@@ -441,7 +442,7 @@ Mode: {{MODE}}
     const plan = { ...BASE_ROUTE_PLAN, promptProfile: 'full' as const };
 
     // Should not throw
-    const prompt = await prepareManualPrompt(
+    const { prompt } = await prepareManualPrompt(
       request, plan,
       () => memProvider,
       mockGetState,
@@ -453,7 +454,7 @@ Mode: {{MODE}}
   });
 
   it('passes caller "prompt" to the memory retriever', async () => {
-    const memProvider = makeMemProvider({ fragments: [], usedTokens: 0 });
+    const memProvider = makeMemProvider({ fragments: [], usedTokens: 0, provenance: [] });
 
     const request = makeManualRequest('test query');
     const plan = { ...BASE_ROUTE_PLAN, promptProfile: 'full' as const };
@@ -472,7 +473,7 @@ Mode: {{MODE}}
   });
 
   it('uses the user text as the retrieval query', async () => {
-    const memProvider = makeMemProvider({ fragments: [], usedTokens: 0 });
+    const memProvider = makeMemProvider({ fragments: [], usedTokens: 0, provenance: [] });
 
     const request = makeManualRequest('What is wonder?');
     const plan = { ...BASE_ROUTE_PLAN, promptProfile: 'full' as const };
@@ -491,7 +492,7 @@ Mode: {{MODE}}
   });
 
   it('passes token budget from plan to retriever', async () => {
-    const memProvider = makeMemProvider({ fragments: [], usedTokens: 0 });
+    const memProvider = makeMemProvider({ fragments: [], usedTokens: 0, provenance: [] });
 
     const request = makeManualRequest('hello');
     const plan = { ...BASE_ROUTE_PLAN, memoryTokenBudget: 450, promptProfile: 'full' as const };
@@ -520,7 +521,7 @@ Mode: {{MODE}}
     const request = makeManualRequest('hello');
     const plan = { ...BASE_ROUTE_PLAN, promptProfile: 'full' as const };
 
-    const prompt = await prepareManualPrompt(
+    const { prompt } = await prepareManualPrompt(
       request, plan,
       () => null,
       mockGetState,
@@ -538,12 +539,12 @@ Mode: {{MODE}}
 describe('preparePrompt', () => {
   it('routes thought.generate to prepareThoughtPrompt', async () => {
     const request = makeThoughtRequest({ type: 'observation' });
-    const prompt = await preparePrompt(request, BASE_ROUTE_PLAN, () => null);
+    const result = await preparePrompt(request, BASE_ROUTE_PLAN, () => null);
 
-    expect(prompt).toContain('You notice things');
+    expect(result.prompt).toContain('You notice things');
   });
 
-  it('routes manual.prompt to prepareManualPrompt (returns a non-empty string)', async () => {
+  it('routes manual.prompt to prepareManualPrompt (returns a PrepareResult with prompt)', async () => {
     const request = makeManualRequest('Hey Beau');
     const mockState = vi.fn().mockReturnValue({ mode: 'ambient', environment: '', wakeWord: '' });
 
@@ -551,11 +552,11 @@ describe('preparePrompt', () => {
 You are Beau.
 `;
 
-    const prompt = await preparePrompt(request, BASE_ROUTE_PLAN, () => null, mockState, MINIMAL_PROMPT);
+    const result = await preparePrompt(request, BASE_ROUTE_PLAN, () => null, mockState, MINIMAL_PROMPT);
 
-    expect(typeof prompt).toBe('string');
-    expect(prompt.length).toBeGreaterThan(0);
-    expect(prompt).toContain('Hey Beau');
+    expect(typeof result.prompt).toBe('string');
+    expect(result.prompt.length).toBeGreaterThan(0);
+    expect(result.prompt).toContain('Hey Beau');
   });
 
   it('throws for unknown request kinds', async () => {
