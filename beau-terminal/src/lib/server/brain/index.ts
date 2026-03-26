@@ -229,6 +229,11 @@ async function _executeDispatch(
       );
 
       if (escalationPlan !== null) {
+        // Mark the original attempt as quality_rejected (still in outbox, not yet flushed)
+        if (firstTraceId) {
+          getTraceOutbox()?.updateStatus(firstTraceId, 'quality_rejected');
+        }
+
         const escalationPrepareResult = await preparePrompt(
           request,
           escalationPlan,

@@ -320,6 +320,11 @@ beforeEach(() => {
     enqueue: vi.fn((payload: any) => {
       trackedPayloads.push(payload);
     }),
+    updateStatus: vi.fn((traceId: string, status: string) => {
+      const entry = trackedPayloads.find((p: any) => p.traceId === traceId);
+      if (entry) entry.responseStatus = status;
+      return !!entry;
+    }),
     get pending() { return trackedPayloads.length; },
     running: true,
   };

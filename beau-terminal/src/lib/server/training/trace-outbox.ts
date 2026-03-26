@@ -48,6 +48,17 @@ export class TraceOutbox {
     }
   }
 
+  /** Retroactively update responseStatus of a queued (not yet flushed) trace.
+   *  Used after quality escalation to mark the original attempt as 'quality_rejected'. */
+  updateStatus(traceId: string, responseStatus: string): boolean {
+    const entry = this.queue.find(p => p.traceId === traceId);
+    if (entry) {
+      entry.responseStatus = responseStatus;
+      return true;
+    }
+    return false;
+  }
+
   start(): void {
     if (this.interval) return;
     this.interval = setInterval(() => this.flush(), this.config.flushIntervalMs ?? 2000);

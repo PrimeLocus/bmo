@@ -15,7 +15,9 @@ let outbox: TraceOutbox | null = null;
  * Inserts one generation_traces row and N trace_retrievals rows.
  */
 function writeTrace(payload: TracePayload): void {
-  // Insert generation_traces row
+  // Atomic transaction: trace + all retrievals committed together.
+  // If any insert fails, the entire write rolls back — no orphaned traces.
+  const insertAll = db.transaction(() => {
   db.insert(generationTraces).values({
     traceId: payload.traceId,
     requestId: payload.requestId,
@@ -72,6 +74,8 @@ function writeTrace(payload: TracePayload): void {
       excerptHash: ret.excerptHash,
     }).run();
   }
+  }); // end transaction
+  insertAll();
 }
 
 /**
