@@ -510,6 +510,26 @@ Input provenance and output eligibility are separate concerns. A trace with user
 
 **Implementation:** A daily cleanup function (similar to personality snapshot compaction) runs during low-activity periods.
 
+### Privacy and Access Control for Trace Store
+
+The trace layer stores exact prompt text and model responses — including for traces classified as `privacyClass: "private"` or `"trusted"`. Without access rules, this becomes a second private-data lake alongside `beau_private`.
+
+**Live database rules:**
+- `generation_traces` is a **server-only table** — never exposed via any API endpoint, SSE stream, or client-side query. No route in `src/routes/` reads from it.
+- The only code paths that read traces are: (1) the background archival/retention worker, (2) the offline export pipeline (Stage 1+, runs on Legion), and (3) the eval harness (Stage 1+).
+- Widget system has no access: no widget in the registry reads from trace tables. The `PendingThoughtsWidget` reads from `pending_thoughts`, not traces.
+- Sitrep export (`src/lib/server/sitrep.ts`) does NOT include trace data — it reports dispatch summaries from the existing `dispatches` table only.
+
+**Archive shard rules:**
+- Monthly JSONL shard files are written to a configurable directory (default: `data/traces/archive/`).
+- Shards inherit the highest `privacyClass` of any trace they contain. A shard containing even one `"private"` trace is classified as private.
+- Shards are excluded from any backup, sync, or export process that doesn't explicitly handle private data.
+- On multi-device deployment, shards stay on the device that generated them. The export pipeline on Legion can pull shards via Tailscale, but only through the explicit export flow — never via general file sync.
+
+**Search and UI:**
+- No global search endpoint (`/api/search`) indexes trace content.
+- No future "trace viewer" UI should display `promptText`/`responseText` for traces with `privacyClass: "private"` without a consent gate (similar to the journal consent pattern).
+
 ### Index Requirements
 
 For query performance on traces and retrievals:
@@ -572,7 +592,7 @@ Per-trace lean features already captured in `contextStateJson`:
 - Core trace tables: `generation_traces`, `trace_retrievals`, `generation_feedback`
 - Async outbox trace capture wired into brain dispatcher (fail-open, non-blocking)
 - Prompt template hashing and versioning
-- System-default training eligibility classification (no policy engine yet — just the privacy-class rules)
+- System-default training eligibility classification — **defaults live in code only** (a pure function of `consentScope` + `privacyClass`, no governance table queries). The `artifact_governance_events` table exists in schema but is not read or written in Stage 0.
 - LLM model lineage registry (`llm_model_variants`) with entries for the 4 current tier models
 - Implicit feedback wiring (surfaced/decayed/dismissed → `generation_feedback`)
 - Cross-device timestamp metadata columns (null/zero until multi-device)
@@ -597,7 +617,7 @@ Per-trace lean features already captured in `contextStateJson`:
 - Every dispatch produces a replayable trace (async, fail-open)
 - Traces have system-default training eligibility computed and stored
 - Model lineage registry has entries for all 4 current tier models
-- Model lineage registry has entries for all 4 current tier models
+- Baseline eval suite exists with scored results for at least one tier (hard gate — no fine-tuning without this)
 
 ### Stage 1: Supervised Adapter Tuning
 
@@ -670,12 +690,15 @@ Each extra model family increases tokenizer drift, adapter incompatibility, expo
 
 ## Concrete Repo Changes
 
-### A. Wire trace capture into brain dispatcher
+### A. Wire async trace capture into brain dispatcher
 
 Modify `src/lib/server/brain/index.ts` to capture traces after each attempt:
-- After `executeWithFallback()`, insert `generation_traces` row with full prompt + response
-- On fallback/escalation, preserve the rejected response text
-- On quality escalation, link parent → child traces
+- After `executeWithFallback()`, collect trace payload (prompt, response, routing metadata, context snapshot) into an in-memory object
+- Enqueue the payload to the trace outbox (append-only in-memory queue)
+- A background flush writer persists outbox entries to `generation_traces` + `trace_retrievals` on a 1-2s interval
+- **Never call SQLite insert synchronously in the inference path** — the outbox pattern ensures inference latency is decoupled from trace persistence
+- On fallback/escalation, preserve the rejected response in its own trace row
+- On quality escalation, link parent → child traces via `parentTraceId`
 
 ### B. Add prompt versioning
 
@@ -707,11 +730,14 @@ Modify `src/lib/server/thoughts/queue.ts`:
 Modify thought surface endpoint:
 - On user dismiss: insert `generation_feedback` with `outcomeType: "dismissed"`
 
-### F. Add governance event logging
+### F. Add governance event logging (Stage 1)
 
-Create `src/lib/server/training/governance.ts`:
+**Deferred to Stage 1.** In Stage 0, training eligibility defaults are computed in code (pure function of `consentScope` + `privacyClass`). The `artifact_governance_events` table exists in schema but is empty.
+
+In Stage 1, create `src/lib/server/training/governance.ts`:
 - Functions to create/query/update governance policies
-- Default policy initialization on first boot
+- Policy overlay logic (upgrade/downgrade eligibility from system defaults)
+- Beau proposal flow + user ratification UI
 - Tombstone creation and propagation checking
 
 ### G. Add model lineage registry
